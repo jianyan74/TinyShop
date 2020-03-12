@@ -1,0 +1,384 @@
+ul {
+    list-style-type: none;
+}
+
+.mask-address-info div {
+    width: 100%;
+}
+
+.mask-address-info div h3 {
+    margin: 0;
+    padding: 0;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 14px;
+    font-weight: normal;
+    text-align: center;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.mask-address-info div ul {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+    overflow: hidden;
+}
+
+.mask-address-info div ul li {
+    float: left;
+    padding: 10px;
+    line-height: 20px;
+    width: 20%;
+    text-align: center;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    border-right: 1px solid #eeeeee;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.shop-console div span {
+    cursor: pointer;
+}
+
+/* 导航栏 */
+.goods-nav {
+    background: #E1E6F0;
+    overflow: hidden;
+    padding-left: 5px;
+}
+
+.goods-nav ul {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+}
+
+.goods-nav.fixed {
+    position: fixed;
+    top: 50px;
+    z-index: 1000;
+    width: 100%;
+}
+
+.goods-nav li {
+    float: left;
+    width: 85px;
+    text-align: center;
+    padding: 5px 2px 0 2px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.goods-nav li a {
+    display: block;
+    height: 35px;
+    line-height: 35px;
+    padding: 0 8px;
+    color: #76838f;
+}
+
+.goods-nav li.selected a,
+.goods-nav li:hover a {
+    background: #fff;
+}
+
+.goods-nav li a:hover,
+.goods-nav li a:active,
+.goods-nav li a:focus {
+    color: #76838f;
+}
+
+.goods-nav li {
+    width: 130px;
+}
+
+.mod-table {
+    /*padding:15px;*/
+}
+
+/* 订单 */
+
+.step-region {
+    margin-bottom: 15px;
+    background-color: #ffffff
+}
+
+.ui-step {
+    margin: 0;
+    padding: 14px 0 8px 0;
+    zoom: 1;
+}
+
+.ui-step li {
+    float: left;
+    position: relative;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.ui-step:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.clearfix:after, .clearfix:before {
+    display: table;
+    line-height: 0;
+    content: "";
+}
+
+.clearfix:after, .clearfix:after {
+    display: table;
+    line-height: 0;
+    content: "";
+}
+
+.info-region {
+    width: 320px;
+    padding: 15px 15px 100px 15px;
+    border-right: 1px solid #e5e5e5;
+    float: left;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.state-region {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    -moz-box-flex: 1;
+    -ms-flex: 1;
+    flex: 1;
+    padding: 20px 20px 140px 20px;
+    margin-left: -1px;
+    border-left: 1px solid #e5e5e5;
+    float: left;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.ui-step li.ui-step-done::before, .ui-step li.ui-step-done::after, .ui-step li.ui-step-done .ui-step-number {
+    background: rgb(98, 168, 234);
+}
+
+.ui-step li.ui-step-done .ui-step-number::after {
+    position: absolute;
+    left: 7px;
+    width: 17px;
+    height: 30px;
+    line-height: 30px;
+    content: "√";
+    color: rgb(255, 255, 255);
+    font-family: serif;
+}
+
+.ui-step .ui-step-number {
+    position: relative;
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    margin: 5px 0;
+    line-height: 30px;
+    background: #999;
+    color: #fff;
+    border-radius: 100%;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    z-index: 2;
+}
+
+.ui-step li::before, .ui-step li::after {
+    position: absolute;
+    left: 0;
+    top: 38px;
+    display: block;
+    content: '';
+    width: 50%;
+    height: 4px;
+    background: #999;
+    z-index: 1;
+}
+
+.ui-step li::after {
+    left: 50%;
+}
+
+.ui-step li:first-child::before {
+    width: 0;
+}
+
+.ui-step li:last-child::after {
+    width: 0;
+}
+
+.ui-step li.ui-step-done .ui-step-title {
+    color: rgb(98, 168, 234);
+}
+
+.ui-step .ui-step-meta {
+    color: #999;
+}
+
+.ui-step li.ui-step-done .ui-step-number {
+    color: transparent;
+}
+
+.info-region .info-div {
+    font-size: 14px;
+    font-weight: 500;
+    color: #526069;
+}
+
+.info-region .secured-title {
+    float: right;
+    font-size: 12px;
+    font-weight: normal;
+    color: #f60;
+}
+
+.info-table {
+    margin-top: 10px;
+}
+
+.info-table th, .info-table td {
+    font-size: 12px;
+    color: #999;
+    padding: 0 0 10px 0;
+    vertical-align: top;
+    word-break: break-all;
+}
+
+.info-table th {
+    font-weight: normal;
+    text-align: right;
+    color: #999;
+    width: 85px;
+}
+
+.info-goods {
+    margin: 10px 0;
+}
+
+.info-goods .ui-centered-image {
+    float: left;
+}
+
+.info-goods .info-goods-content {
+    margin-left: 70px;
+}
+
+.info-goods:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.dashed-line {
+    border-top: 1px dashed #e5e5e5;
+}
+
+.state-region .state-title .icon {
+    position: absolute;
+    left: -40px;
+    width: 28px;
+    height: 28px;
+    border: 2px solid #07d;
+    border-radius: 28px;
+    line-height: 24px;
+    text-align: center;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    font-family: serif;
+}
+
+.state-region .state-title {
+    position: relative;
+    font-size: 14px;
+    font-weight: 500;
+    color: #526069;
+    margin-bottom: 10px;
+}
+
+.state-region .state-title .icon.info {
+    color: rgb(98, 168, 234);
+    border-color: rgb(98, 168, 234);
+}
+
+.state-region .state-desc {
+    margin-bottom: 30px;
+    color: #666;
+}
+
+.state-remind {
+    padding: 20px 0 0 40px;
+}
+
+.state-remind .tixing {
+    color: #FF6600;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.state-remind ul {
+    padding-left: 4px;
+}
+
+.state-remind li {
+    color: #999;
+    line-height: 20px;
+}
+
+.goods-table tfoot .c-red {
+    color: #f44;
+}
+
+.safeguard-log {
+    padding: 15px;
+    position: relative;
+}
+
+.safeguard-log table {
+    width: 100%;
+}
+
+.safeguard-log .tr-title td {
+    padding: 30px 0 10px 0;
+    border-bottom: 1px dashed #e5e5e5;
+}
+
+.safeguard-log .tr-title td {
+    padding: 30px 0 10px 0;
+    border-bottom: 1px dashed #e5e5e5;
+}
+
+.safeguard-log .tr-title td:first-child {
+    font-weight: bold;
+}
+
+.safeguard-log .td-time {
+    color: #999;
+}
+
+.safeguard-log .tr-title+tr td {
+    padding-top: 10px;
+}
+
+.safeguard-log td {
+    padding: 2px 0;
+}
+
+/* 产品编辑 */
+.selectImage {
+    width: 30px;
+    height: 30px;
+    padding: 6px;
+    border: 1px solid #eceef1;
+}
