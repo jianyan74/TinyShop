@@ -504,6 +504,7 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
 
         // 插入数据
         $field = [
+            'picture',
             'price',
             'market_price',
             'cost_price',
