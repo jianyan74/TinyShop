@@ -147,8 +147,6 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
                 SpecValue::deleteAll(['product_id' => $this->id]);
                 // 删除属性
                 AttributeValue::deleteAll(['product_id' => $this->id]);
-                // 让拼团失效
-                Yii::$app->tinyShopService->marketingWholesaleProduct->loseByProductId($this->id);
             }
 
             // 商品规格不启用情况下到规格启用
@@ -520,8 +518,6 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
 
         if (!empty($rows)) {
             Yii::$app->db->createCommand()->batchInsert(Sku::tableName(), $field, $rows)->execute();
-            // 新增规格让拼团失效
-            Yii::$app->tinyShopService->marketingWholesaleProduct->loseByProductId($this->id);
         }
 
         // 让购物车里面的sku失效
