@@ -20,6 +20,8 @@ class NotifyAnnounceForm extends Notify
             [['title', 'content'], 'required'],
             [['content'], 'string'],
             [['title'], 'string', 'max' => 150],
+            [['cover'], 'string', 'max' => 100],
+            [['synopsis'], 'string', 'max' => 255],
         ];
     }
 }
