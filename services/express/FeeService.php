@@ -74,8 +74,12 @@ class FeeService extends Service
             return $fee;
         }
 
-        $template = $this->getTemplate($company_id, $address);
         list ($weightProducts, $volumeProducts, $bynumProducts, $freeExpressProducts) = $this->getSkuGroup($sku_list);
+        if (count($freeExpressProducts) === count($sku_list)) {
+            return $fee;
+        }
+
+        $template = $this->getTemplate($company_id, $address);
 
         // 计算称重方式运费
         $weightProductsFee = $this->getWeightFee($template, $weightProducts);
