@@ -17,6 +17,7 @@ class OrderQueryForm extends Model
     public $end_time = '';
     public $order_sn;
     public $member_id;
+    public $merchant_id;
 
     /**
      * @return array
@@ -25,7 +26,7 @@ class OrderQueryForm extends Model
     {
         return [
             [['order_type', 'order_sn'], 'string'],
-            [['member_id', 'start_time', 'end_time', 'synthesize_status'], 'integer'],
+            [['member_id', 'merchant_id', 'start_time', 'end_time', 'synthesize_status'], 'integer'],
         ];
     }
 }
