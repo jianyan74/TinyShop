@@ -507,6 +507,7 @@ class OrderService extends \common\components\Service
             ->with(['merchant'])
             ->select([
                 'o.id',
+                'o.merchant_id',
                 'order_sn',
                 'out_trade_no',
                 'o.order_type',
