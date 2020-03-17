@@ -2,6 +2,8 @@
 
 namespace addons\TinyShop\merchant\controllers;
 
+use common\enums\AppEnum;
+use common\helpers\AddonHelper;
 use Yii;
 use common\enums\StatusEnum;
 use common\traits\MerchantCurd;
@@ -62,9 +64,9 @@ class PickupPointController extends BaseController
     {
         $request = Yii::$app->request;
         $model = new PickupPointConfigForm();
-        $model->attributes = $this->getConfig();
+        $model->attributes = AddonHelper::getBackendConfig(true);
         if ($model->load($request->post()) && $model->validate()) {
-            $this->setConfig(ArrayHelper::toArray($model));
+            AddonHelper::setConfig(ArrayHelper::toArray($model), '', AppEnum::BACKEND);
 
             return $this->message('修改成功', $this->redirect(['config']));
         }

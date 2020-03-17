@@ -3,8 +3,10 @@
 namespace addons\TinyShop\backend\modules\common\controllers;
 
 use Yii;
-use addons\TinyShop\merchant\forms\HotSearchForm;
 use common\helpers\ArrayHelper;
+use common\enums\AppEnum;
+use common\helpers\AddonHelper;
+use addons\TinyShop\merchant\forms\HotSearchForm;
 use addons\TinyShop\backend\controllers\BaseController;
 
 /**
@@ -24,8 +26,9 @@ class SearchController extends BaseController
         $request = Yii::$app->request;
         $model = new HotSearchForm();
         $model->attributes = $this->getConfig();
+        $model->attributes = AddonHelper::getBackendConfig(true);
         if ($model->load($request->post()) && $model->validate()) {
-            $this->setConfig(ArrayHelper::toArray($model));
+            AddonHelper::setConfig(ArrayHelper::toArray($model), '', AppEnum::BACKEND);
 
             return $this->message('修改成功', $this->redirect(['index']));
         }

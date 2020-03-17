@@ -2,6 +2,8 @@
 
 namespace addons\TinyShop\merchant\controllers;
 
+use common\enums\AppEnum;
+use common\helpers\AddonHelper;
 use Yii;
 use common\models\base\SearchModel;
 use common\enums\StatusEnum;
@@ -64,9 +66,9 @@ class ExpressCompanyController extends BaseController
     {
         $request = Yii::$app->request;
         $model = new CompanyAddressForm();
-        $model->attributes = $this->getConfig();
+        $model->attributes = AddonHelper::getBackendConfig(true);
         if ($model->load($request->post()) && $model->validate()) {
-            $this->setConfig(ArrayHelper::toArray($model));
+            AddonHelper::setConfig(ArrayHelper::toArray($model), '', AppEnum::BACKEND);
 
             return $this->message('修改成功', $this->redirect(['address']));
         }
