@@ -14,6 +14,13 @@ use addons\TinyShop\common\models\forms\PreviewForm;
 abstract class PreviewInterface
 {
     /**
+     * 创建记录
+     *
+     * @var bool
+     */
+    public $isNewRecord = false;
+
+    /**
      * @var bool
      */
     public $status = false;

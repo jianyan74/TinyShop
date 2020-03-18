@@ -36,11 +36,12 @@ class PreviewHandler
      * @param PreviewForm $form
      * @return PreviewForm|PreviewForm|mixed
      */
-    public function start(PreviewForm $form)
+    public function start(PreviewForm $form, $isNewRecord = false)
     {
         foreach ($this->_handlers as $handler) {
             /** @var PreviewInterface $class */
             $class = new $handler();
+            $class->isNewRecord = $isNewRecord;
             if ($this->reject($class->rejectNames())) {
                 $form = $class->execute($form);
                 // 判断是否执行成功并加入已执行列表

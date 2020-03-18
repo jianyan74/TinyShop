@@ -40,6 +40,13 @@ abstract class InitOrderDataInterface
     public $rule = [];
 
     /**
+     * 创建记录
+     *
+     * @var bool
+     */
+    public $isNewRecord = false;
+
+    /**
      * 执行
      *
      * @param PreviewForm $form
@@ -65,7 +72,7 @@ abstract class InitOrderDataInterface
      * @return PreviewForm
      * @throws UnprocessableEntityHttpException
      */
-    public function afterExecute(PreviewForm $previewForm, string $type, $create = false): PreviewForm
+    public function afterExecute(PreviewForm $previewForm, string $type): PreviewForm
     {
         // 重组默认商品信息
         $defaultProducts = ArrayHelper::arrayKey($previewForm->defaultProducts, 'id');
@@ -77,7 +84,7 @@ abstract class InitOrderDataInterface
             $defaultProduct = $defaultProducts[$orderProduct->product_id];
 
             // 创建订单校验
-            if ($create == true) {
+            if ($this->isNewRecord == true) {
                 // 校验下单类型
                 if (PointExchangeTypeEnum::isIntegralBuy($orderProduct->point_exchange_type) && $type != PresellBuyPurchase::getType()) {
                     throw new UnprocessableEntityHttpException($orderProduct->product_name . '只能使用积分下单类型');

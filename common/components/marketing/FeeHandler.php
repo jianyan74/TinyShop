@@ -3,9 +3,9 @@
 namespace addons\TinyShop\common\components\marketing;
 
 use Yii;
-use addons\TinyShop\common\enums\OrderTypeEnum;
 use addons\TinyShop\common\models\forms\PreviewForm;
 use addons\TinyShop\common\components\PreviewInterface;
+use yii\web\UnprocessableEntityHttpException;
 
 /**
  * 运费计算
@@ -29,7 +29,13 @@ class FeeHandler extends PreviewInterface
         $form->shipping_money = 0;
 
         if ($form->address) {
-            $form->shipping_money = Yii::$app->tinyShopService->expressFee->getPrice($form->defaultProducts, $form->company_id, $form->address);
+            try {
+                $form->shipping_money = Yii::$app->tinyShopService->expressFee->getPrice($form->defaultProducts, $form->company_id, $form->address);
+            }catch (\Exception $e) {
+                if ($this->isNewRecord) {
+                    throw new UnprocessableEntityHttpException($e->getMessage());
+                }
+            }
         }
 
         // 成功触发

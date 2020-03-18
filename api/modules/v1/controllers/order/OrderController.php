@@ -184,12 +184,12 @@ class OrderController extends OnAuthController
 
         // 触发 - 初始化数据
         $initOrderData = new InitOrderData();
-        $initOrderData->create = true;
+        $initOrderData->isNewRecord = true;
         $model = $initOrderData->execute($model, $model->type);
         $model->address_id && $model->address = Yii::$app->services->memberAddress->findById($model->address_id, $identity->member_id);
 
         // 触发 - 营销
-        $model = $this->previewHandler->start($model);
+        $model = $this->previewHandler->start($model, true);
         if ($model->getErrors() || !$model->validate()) {
             return ResultHelper::json(422, $this->getError($model));
         }

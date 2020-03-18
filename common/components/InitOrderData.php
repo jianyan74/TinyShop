@@ -24,11 +24,11 @@ class InitOrderData
     public $rule = [];
 
     /**
-     * 是否创建订单
+     * 创建记录
      *
      * @var bool
      */
-    public $create = false;
+    public $isNewRecord = false;
 
     /**
      * @var array
@@ -62,7 +62,7 @@ class InitOrderData
         }
 
         // 触发后置行为
-        $previewForm = $class->afterExecute($previewForm, $class::getType(), $this->create);
+        $previewForm = $class->afterExecute($previewForm, $class::getType());
         // 记录被触发的规则
         $this->rule = $class->rule;
 
