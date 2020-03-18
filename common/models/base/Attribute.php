@@ -38,7 +38,7 @@ class Attribute extends \common\models\base\BaseModel
         return [
             [['merchant_id', 'sort', 'status', 'created_at', 'updated_at'], 'integer'],
             [['title'], 'string', 'max' => 50],
-            [['spec_ids'], 'string', 'max' => 200],
+            [['spec_ids'], 'safe'],
             ['valueData', 'safe'],
         ];
     }
