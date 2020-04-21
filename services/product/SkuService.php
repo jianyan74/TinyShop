@@ -77,9 +77,9 @@ class SkuService extends Service
     }
 
     /**
-     * @param $sku_id
-     * @return array|\yii\db\ActiveRecord|null
-     */
+ * @param $sku_id
+ * @return array|\yii\db\ActiveRecord|null
+ */
     public function findById($sku_id)
     {
         return Sku::find()
@@ -88,6 +88,20 @@ class SkuService extends Service
             ->with('product')
             ->asArray()
             ->one();
+    }
+
+    /**
+     * @param array $sku_ids
+     * @return array|\yii\db\ActiveRecord[]
+     */
+    public function findByIds(array $sku_ids)
+    {
+        return Sku::find()
+            ->where(['in', 'id', $sku_ids])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->with('product')
+            ->asArray()
+            ->all();
     }
 
     /**

@@ -135,8 +135,14 @@ use common\helpers\Html;
                     }
                 });
 
+                let htmlData = [];
+                htmlData['data'] = tmpSelect;
+                let html = template('TinyShopProduct', htmlData);
+                $('#' + boxId).find('tbody').append(html);
+
                 // 删除上限的产品
                 var max = parseInt($('#' + boxId).data('max'));
+                console.log(max, allData[boxId].length);
                 if (max > 0 && allData[boxId].length > max) {
                     var delNum = allData[boxId].length - max;
                     for (let n = 0; n < delNum; n++) {
@@ -144,15 +150,9 @@ use common\helpers\Html;
                     }
                 }
 
-                let htmlData = [];
-                htmlData['data'] = tmpSelect;
-                let html = template('TinyShopProduct', htmlData);
-                $('#' + boxId).find('tbody').append(html);
-
+                layer.closeAll();
                 // 触发关闭选择
                 $(document).trigger('select-product-close');
-
-                layer.closeAll();
             },
             btn2: function () {
                 layer.closeAll();
@@ -172,7 +172,7 @@ use common\helpers\Html;
     function getSumPrice() {
         var price = 0;
         for (let j = 0; j < allData[boxId].length; j++) {
-            price += allData[boxId][j]['price'];
+            price += parseFloat(allData[boxId][j]['price']);
         }
 
         return price;

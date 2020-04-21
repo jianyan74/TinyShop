@@ -3,6 +3,7 @@
 use yii\grid\GridView;
 use common\helpers\Html;
 use common\helpers\ImageHelper;
+use common\enums\AccessTokenGroupEnum;
 
 $this->title = '意见反馈';
 $this->params['breadcrumbs'][] = $this->title;
@@ -26,6 +27,20 @@ $this->params['breadcrumbs'][] = $this->title;
                     'columns' => [
                         [
                             'class' => 'yii\grid\SerialColumn',
+                        ],
+                        'baseMember.nickname',
+                        [
+                            'attribute' => 'from',
+                            'format' => 'raw',
+                            'filter' => Html::activeDropDownList($searchModel, 'from', AccessTokenGroupEnum::getMap(), [
+                                    'prompt' => '全部',
+                                    'class' => 'form-control'
+                                ]
+                            ),
+                            'value' => function ($model) {
+                                return '<span class="blue" style="font-size: 12px">' . AccessTokenGroupEnum::getValue($model->from) .'</span>';
+                            },
+                            'headerOptions' => ['class' => 'col-md-1'],
                         ],
                         'content',
                         [

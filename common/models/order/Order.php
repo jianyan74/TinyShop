@@ -43,11 +43,11 @@ use common\traits\HasOneMerchant;
  * @property double $product_money 商品总价
  * @property string $order_money 订单总价
  * @property int $point 订单消耗积分
- * @property string $point_money 订单消耗积分抵多少钱
- * @property string $coupon_money 订单代金券支付金额
+ * @property int $point_money 订单消耗积分抵多少钱
+ * @property int $coupon_money 订单代金券支付金额
  * @property int $coupon_id 订单代金券id
  * @property string $user_money 订单余额支付金额
- * @property string $promotion_money 订单优惠活动金额
+ * @property string $marketing_money 订单优惠活动金额
  * @property double $shipping_money 订单运费
  * @property string $pay_money 订单实付金额
  * @property string $refund_money 订单退款金额
@@ -99,7 +99,7 @@ class Order extends \common\models\base\BaseModel
             [['receiver_name', 'receiver_mobile', 'receiver_address', 'receiver_province', 'receiver_city', 'receiver_area'], 'required'],
             ['receiver_mobile', 'match', 'pattern' => RegularHelper::mobile(), 'message' => '不是一个有效的手机号码'],
             [['wholesale_id', 'is_virtual', 'invoice_id', 'merchant_id', 'order_type', 'payment_type', 'shipping_type', 'buyer_id', 'receiver_province', 'receiver_city', 'receiver_area', 'seller_star', 'consign_time_adjust', 'point', 'coupon_id', 'give_point', 'order_status', 'pay_status', 'shipping_status', 'review_status', 'feedback_status', 'is_evaluate', 'company_id', 'give_point_type', 'pay_time', 'shipping_time', 'sign_time', 'consign_time', 'finish_time', 'operator_type', 'operator_id', 'status', 'created_at', 'updated_at'], 'integer'],
-            [['product_money', 'user_platform_money', 'order_money', 'point_money', 'coupon_money', 'user_money', 'promotion_money', 'shipping_money', 'pay_money', 'refund_money', 'coin_money', 'give_coin', 'tax_money', 'refund_balance_money', 'product_count'], 'number'],
+            [['product_money', 'user_platform_money', 'order_money', 'point_money', 'coupon_money', 'user_money', 'marketing_money', 'shipping_money', 'pay_money', 'refund_money', 'coin_money', 'give_coin', 'tax_money', 'refund_balance_money', 'product_count'], 'number'],
             [['merchant_name', 'order_sn', 'out_trade_no', 'product_virtual_group'], 'string', 'max' => 100],
             [['order_from', 'buyer_message', 'buyer_invoice', 'receiver_address', 'receiver_region_name', 'company_name'], 'string', 'max' => 200],
             [['user_name', 'receiver_name', 'fixed_telephone', 'distribution_time_out'], 'string', 'max' => 50],
@@ -152,7 +152,7 @@ class Order extends \common\models\base\BaseModel
             'user_money' => '使用余额',
             'user_platform_money' => '平台余额支付',
             'wholesale_id' => '拼团id',
-            'promotion_money' => 'Promotion Money',
+            'marketing_money' => 'Promotion Money',
             'shipping_money' => 'Shipping Money',
             'pay_money' => 'Pay Money',
             'refund_money' => 'Refund Money',
@@ -266,6 +266,16 @@ class Order extends \common\models\base\BaseModel
     }
 
     /**
+     * 订单虚拟产品
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getProductVirtual()
+    {
+        return $this->hasMany(ProductVirtual::class, ['order_sn' => 'order_sn']);
+    }
+
+    /**
      * 订单产品物流配送
      *
      * @return \yii\db\ActiveQuery
@@ -285,24 +295,10 @@ class Order extends \common\models\base\BaseModel
         if ($this->isNewRecord || $this->order_status == OrderStatusEnum::NOT_PAY) {
             // 支付金额为产品金额
             $this->pay_money = $this->product_money;
-            // 积分抵扣过度的情况下为0
-            if ($this->pay_money < $this->point_money) {
-                $this->point_money = $this->pay_money;
-                $this->pay_money = 0;
-            } else {
-                $this->pay_money -= $this->point_money;
-            }
-            // 优惠力度过大的情况下，支付金额为0
-            if ($this->pay_money < $this->coupon_money) {
-                $this->coupon_money = $this->pay_money;
-                $this->pay_money = 0;
-            } else {
-                $this->pay_money -= $this->coupon_money;
-            }
 
             // 发票(税收)
             if (!empty($this->invoice_id)) {
-                $config = AddonHelper::getBackendConfig();
+                $config = AddonHelper::getConfig();
                 $order_invoice_tax = $config['order_invoice_tax'] ?? 0;
                 $order_invoice_tax = $order_invoice_tax > 0 ? BcHelper::div($order_invoice_tax, 100, 4) : 0;
                 $this->tax_money = BcHelper::mul($this->pay_money, $order_invoice_tax);
@@ -312,7 +308,7 @@ class Order extends \common\models\base\BaseModel
             // 实付增加运费
             $this->pay_money += $this->shipping_money;
             // 订单总金额
-            $this->order_money = $this->product_money + $this->shipping_money;
+            $this->order_money = $this->product_money + $this->shipping_money + $this->coupon_money + $this->point_money;
         }
 
         // 修改订单产品状态

@@ -50,17 +50,38 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
     public $ladderPreferentialData = [];
 
     /**
+     * 会员折扣
+     *
+     * @var array
+     */
+    public $memberDiscount = [];
+
+    /**
+     * @var array
+     */
+    public $defaultMemberDiscount = [];
+
+    /**
+     * @var int
+     */
+    public $member_level_decimal_reservation;
+
+    /**
      * 规格值单独内容(颜色/图片)
      *
      * @var array
      */
     public $specValueFieldData = [];
 
+    /**
+     * @return array
+     */
     public function rules()
     {
         $rule = parent::rules();
 
         return ArrayHelper::merge($rule, [
+            ['member_level_decimal_reservation', 'integer'],
             [['is_attribute'], 'verifySku'],
             [['covers'], 'isEmpty'],
         ]);
@@ -129,17 +150,17 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
 
             // 商品正常情况下删除到购物车
             if ($oldAttributes['status'] == StatusEnum::ENABLED && $this->status == StatusEnum::DISABLED) {
-                Yii::$app->tinyShopService->memberCartItem->loseByProductId($this->id);
+                Yii::$app->tinyShopService->memberCartItem->loseByProductIds([$this->id]);
             }
 
             // 商品上架情况下到下架
             if ($oldAttributes['product_status'] == self::PRODUCT_STATUS_PUTAWAY && self::PRODUCT_STATUS_SOLD_OUT == $this->product_status) {
-                Yii::$app->tinyShopService->memberCartItem->loseByProductId($this->id);
+                Yii::$app->tinyShopService->memberCartItem->loseByProductIds([$this->id]);
             }
 
             // 商品规格启用情况下到规格不启用
             if ($oldAttributes['is_attribute'] == StatusEnum::ENABLED && $this->is_attribute == StatusEnum::DISABLED) {
-                Yii::$app->tinyShopService->memberCartItem->loseByProductId($this->id);
+                Yii::$app->tinyShopService->memberCartItem->loseByProductIds([$this->id]);
                 // 删除sku
                 Sku::deleteAll(['product_id' => $this->id]);
                 // 删除规格、规格值
@@ -151,7 +172,7 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
 
             // 商品规格不启用情况下到规格启用
             if ($oldAttributes['is_attribute'] == StatusEnum::DISABLED && $this->is_attribute == StatusEnum::ENABLED) {
-                Yii::$app->tinyShopService->memberCartItem->loseByProductId($this->id);
+                Yii::$app->tinyShopService->memberCartItem->loseByProductIds([$this->id]);
                 // 删除sku
                 Sku::deleteAll(['product_id' => $this->id]);
             }
@@ -201,7 +222,14 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
         // 更新记录最小sku
         $minPriceSku = $this->minPriceSku;
         // 更新阶梯优惠
-        Yii::$app->tinyShopService->productLadderPreferential->createByProductId($this->ladderPreferentialData, $this->id, $this->max_buy);
+        Yii::$app->tinyShopService->productLadderPreferential->create(
+            $this->ladderPreferentialData,
+            $this->id,
+            $this->max_buy,
+            $this->is_open_presell,
+            $this->point_exchange_type,
+            $minPriceSku['price']
+        );
 
         self::updateAll(
             [

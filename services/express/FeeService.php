@@ -12,6 +12,7 @@ use common\models\member\Address;
 use common\helpers\StringHelper;
 use addons\TinyShop\common\models\express\Fee;
 use addons\TinyShop\common\models\product\Product;
+use addons\TinyShop\common\enums\ProductShippingTypeEnum;
 
 /**
  * Class FeeService
@@ -23,27 +24,28 @@ class FeeService extends Service
     /**
      * 获取运费
      *
-     * @param $sku_list
+     * @param $defaultProducts
+     * @param array $fullProductIds 包邮id数组
      * @param $company_id
      * @param Address $address
      * @return float|int
      * @throws UnprocessableEntityHttpException
      */
-    public function getPrice($sku_list, $company_id, Address $address)
+    public function getPrice($defaultProducts,array $fullProductIds, $company_id, Address $address)
     {
-        $config = AddonHelper::getBackendConfig();
+        $config = AddonHelper::getConfig();
         // 查询用户是否选择物流
         if (!empty($config['is_logistics'])) {
-            return $this->getSameExpressSkuListFee($sku_list, $company_id, $address);
+            return $this->getSameExpressSkuListFee($defaultProducts, $fullProductIds, $company_id, $address);
         }
 
         // 根据产品获取物流公司组别
-        if (!empty($companys = $this->getSkuExpressGroup($sku_list))) {
+        if (!empty($companys = $this->getSkuExpressGroup($defaultProducts))) {
             $fee = 0;
 
             foreach ($companys as $k => $company) {
-                if (!empty($company['sku_list'])) {
-                    $same_fee = $this->getSameExpressSkuListFee($company['sku_list'], $company['id'], $address);
+                if (!empty($company['defaultProducts'])) {
+                    $same_fee = $this->getSameExpressSkuListFee($company['defaultProducts'], $fullProductIds, $company['id'], $address);
                     if ($same_fee >= 0) {
                         $fee += $same_fee;
                     } else {
@@ -61,21 +63,22 @@ class FeeService extends Service
     /**
      * 获取相同运费模板运费情况
      *
-     * @param $sku_list
+     * @param $defaultProducts
+     * @param array $fullProductIds 包邮id数组
      * @param $company_id
      * @param $address
      * @return float|int
      * @throws UnprocessableEntityHttpException
      */
-    public function getSameExpressSkuListFee($sku_list, $company_id, $address)
+    public function getSameExpressSkuListFee($defaultProducts, $fullProductIds, $company_id, $address)
     {
         $fee = 0;
-        if (empty($sku_list)) {
+        if (empty($defaultProducts)) {
             return $fee;
         }
 
-        list ($weightProducts, $volumeProducts, $bynumProducts, $freeExpressProducts) = $this->getSkuGroup($sku_list);
-        if (count($freeExpressProducts) === count($sku_list)) {
+        list ($weightProducts, $volumeProducts, $bynumProducts, $freeExpressProducts) = $this->getSkuGroup($defaultProducts, $fullProductIds);
+        if (count($freeExpressProducts) === count($defaultProducts)) {
             return $fee;
         }
 
@@ -109,23 +112,20 @@ class FeeService extends Service
     }
 
     /**
-     * 计算快递费
-     *
-     * @param Product $product
+     * @param array $defaultProducts
+     * @param array $fullProductIds 包邮id数组
+     * @return array
      */
-    public function getSkuGroup(array $defaultProducts)
+    public function getSkuGroup(array $defaultProducts, $fullProductIds = [])
     {
         $weightProducts = [];
         $volumeProducts = [];
         $bynumProducts = [];
         $freeExpressProducts = [];
-        // TODO 获取满减商品
-        $fullReductionIds = [];
 
         foreach ($defaultProducts as $defaultProduct) {
             // 判断满减或包邮
-            if (in_array($defaultProduct['id'],
-                    $fullReductionIds) || $defaultProduct['shipping_type'] == Product::SHIPPING_TYPE_FULL_MAIL) {
+            if (in_array($defaultProduct['id'], $fullProductIds) || $defaultProduct['shipping_type'] == ProductShippingTypeEnum::FULL_MAIL) {
                 $freeExpressProducts[] = $defaultProduct;
             } else {
                 switch ($defaultProduct['shipping_fee_type']) {
@@ -200,10 +200,10 @@ class FeeService extends Service
     /**
      * 商品邮费的sku分组
      *
-     * @param $sku_list
+     * @param $defaultProducts
      * @return array|string|\yii\db\ActiveRecord[]
      */
-    public function getSkuExpressGroup($sku_list)
+    public function getSkuExpressGroup($defaultProducts)
     {
         // 获取所有物流公司
         if (empty($companys = Yii::$app->tinyShopService->expressCompany->getList())) {
@@ -216,18 +216,18 @@ class FeeService extends Service
         }
 
         foreach ($companys as $key => $company) {
-            $companys[$key]['sku_list'] = [];
+            $companys[$key]['defaultProducts'] = [];
 
-            foreach ($sku_list as $k => $value) {
+            foreach ($defaultProducts as $k => $value) {
                 if ($value['shipping_type'] == 2) {
                     // 商品未设置物流公司
                     if ($value['shipping_fee_id'] == 0) {
                         if ($company['id'] == $defaultCompany['id']) {
-                            $companys[$key]['sku_list'][] = $value;
+                            $companys[$key]['defaultProducts'][] = $value;
                         }
                     } else {
                         if ($company['id'] == $value['shipping_fee_id']) {
-                            $companys[$key]['sku_list'][] = $value;
+                            $companys[$key]['defaultProducts'][] = $value;
                         }
                     }
                 }

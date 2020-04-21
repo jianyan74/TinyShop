@@ -87,7 +87,7 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                                     <small style="color: #999"><?= $model['product'][0]['sku_name']; ?></small>
                                 </td>
                                 <td>
-                                    <span class="pull-left"><?= $model['product'][0]['price']; ?>元 <?php if($model['product'][0]['adjust_money'] != 0) { ?>(调价：<?= $model['product'][0]['adjust_money']; ?>元)<?php } ?></span>
+                                    <span class="pull-left"><?= $model['product'][0]['product_money']; ?>元 <?php if($model['product'][0]['adjust_money'] != 0) { ?>(调价：<?= $model['product'][0]['adjust_money']; ?>元)<?php } ?></span>
                                     <span class="pull-right"><?= $model['product'][0]['num']; ?>件</span><br>
                                     <?= OrderHelper::refundOperation($model['product'][0]['id'], $model['product'][0]['refund_status'])?>
                                 </td>

@@ -2,17 +2,22 @@
 
 namespace addons\TinyShop\services\product;
 
+use addons\TinyShop\common\enums\AccessTokenGroupEnum;
+use addons\TinyShop\common\models\order\Order;
+use common\helpers\EchantsHelper;
 use Yii;
 use yii\data\Pagination;
 use yii\db\ActiveQuery;
 use yii\helpers\Json;
 use yii\web\NotFoundHttpException;
 use common\helpers\ArrayHelper;
-use common\enums\SortEnum;
 use common\components\Service;
 use common\enums\WhetherEnum;
 use common\enums\StatusEnum;
 use common\helpers\StringHelper;
+use common\helpers\BcHelper;
+use common\helpers\AddonHelper;
+use addons\TinyShop\common\models\SettingForm;
 use addons\TinyShop\common\models\product\Product;
 use addons\TinyShop\common\models\forms\ProductSearch;
 use addons\TinyShop\common\models\base\Spec;
@@ -41,7 +46,29 @@ class ProductService extends Service
         $pages = new Pagination(['totalCount' => $data->count(), 'pageSize' => 10, 'validatePage' => false]);
         $models = $data->offset($pages->offset)
             ->orderBy('rand()')
-            ->select(['id', 'name', 'sketch', 'keywords', 'picture', 'view', 'star', 'price', 'market_price', 'cost_price', 'stock', 'real_sales', 'sales'])
+            ->select([
+                'id',
+                'name',
+                'sketch',
+                'keywords',
+                'picture',
+                'view',
+                'star',
+                'price',
+                'market_price',
+                'cost_price',
+                'stock',
+                'real_sales',
+                'sales',
+                'merchant_id',
+                'is_open_presell',
+                'is_open_commission',
+                'point_exchange_type',
+                'point_exchange',
+                'max_use_point',
+                'integral_give_type',
+                'give_point',
+            ])
             ->asArray()
             ->limit($pages->limit)
             ->all();
@@ -77,18 +104,69 @@ class ProductService extends Service
             ->andFilterWhere(['is_recommend' => $search->is_recommend])
             ->andFilterWhere(['brand_id' => $search->brand_id])
             ->andFilterWhere(['in', 'cate_id', $cate_ids]);
-        $pages = new Pagination(['totalCount' => $data->count(), 'pageSize' => $search->page_size, 'validatePage' => false]);
+        $pages = new Pagination([
+            'totalCount' => $data->count(),
+            'pageSize' => $search->page_size,
+            'validatePage' => false,
+        ]);
         $models = $data->offset($pages->offset)
             ->orderBy(implode(',', $order))
-            ->select(['id', 'name', 'sketch', 'keywords', 'picture', 'view', 'match_point', 'price', 'market_price', 'cost_price', 'stock', 'real_sales', 'sales', 'merchant_id'])
+            ->select([
+                'id',
+                'name',
+                'sketch',
+                'keywords',
+                'picture',
+                'view',
+                'match_point',
+                'price',
+                'market_price',
+                'cost_price',
+                'stock',
+                'real_sales',
+                'sales',
+                'merchant_id',
+                'is_open_presell',
+                'is_open_commission',
+                'point_exchange_type',
+                'point_exchange',
+                'max_use_point',
+                'integral_give_type',
+                'give_point',
+            ])
             ->with('merchant')
             ->asArray()
             ->limit($pages->limit)
             ->all();
 
+        $product_ids = [];
         foreach ($models as &$model) {
             $model['sales'] = $model['sales'] + $model['real_sales'];
             unset($model['real_sales']);
+
+            // 开启分销
+            if ($model['is_open_commission'] == true) {
+                $product_ids[] = $model['id'];
+            }
+
+            $model['commissionRate'] = 0.00;
+        }
+
+        // 查询开启分销的产品
+        $setting = new SettingForm();
+        $setting->attributes = AddonHelper::getConfig();
+        if (
+            $setting->is_open_commission == StatusEnum::ENABLED &&
+            !empty($product_ids) &&
+            ($commissionRate = Yii::$app->tinyShopService->productCommissionRate->findByProductIds($product_ids))
+        ) {
+            $commissionRate = ArrayHelper::arrayKey($commissionRate, 'product_id');
+            foreach ($models as &$model) {
+                if (isset($commissionRate[$model['id']])) {
+                    $distribution_commission_rate = $commissionRate[$model['id']]['distribution_commission_rate'] / 100;
+                    $model['commissionRate'] = BcHelper::mul($model['price'], $distribution_commission_rate) ;
+                }
+            }
         }
 
         return $models;
@@ -114,6 +192,20 @@ class ProductService extends Service
         $product->match_point = $match_point;
         $product->match_ratio = $match_ratio;
         $product->save();
+    }
+
+    /**
+     * 绑定营销
+     *
+     * @param $product_ids
+     * @param int $scores
+     * @param int $num
+     */
+    public function bindingMarketing($product_ids, $marketing_id, $marketing_type)
+    {
+        Product::updateAll(['marketing_id' => $marketing_id, 'marketing_type' => $marketing_type], ['in', 'id', $product_ids]);
+        // 触发购物车失效
+        Yii::$app->tinyShopService->memberCartItem->loseByProductIds($product_ids);
     }
 
     /**
@@ -167,9 +259,13 @@ class ProductService extends Service
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->with(['sku', 'attributeValue', 'ladderPreferential', 'merchant'])
-            ->with(['myCollect' => function(ActiveQuery $query) use ($member_id) {
-                return $query->andWhere(['member_id' => $member_id]);
-            }, 'evaluate', 'evaluateStat'])
+            ->with([
+                'myCollect' => function (ActiveQuery $query) use ($member_id) {
+                    return $query->andWhere(['member_id' => $member_id]);
+                },
+                'evaluate',
+                'evaluateStat',
+            ])
             ->asArray()
             ->one();
 
@@ -330,6 +426,43 @@ class ProductService extends Service
             ->limit($limit)
             ->asArray()
             ->all();
+    }
+
+    /**
+     * 获取商品构成类型
+     *
+     * @return array
+     */
+    public function getGroupVirtual()
+    {
+        $fields = [
+            '虚拟物品', '实物'
+        ];
+
+        // 获取时间和格式化
+        list($time, $format) = EchantsHelper::getFormatTime('all');
+        // 获取数据
+        return EchantsHelper::pie(function ($start_time, $end_time) use ($fields) {
+            $data = Product::find()
+                ->select(['count(id) as value', 'is_virtual'])
+                ->where(['status' => StatusEnum::ENABLED])
+                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+                ->groupBy(['is_virtual'])
+                ->asArray()
+                ->all();
+
+            foreach ($data as &$datum) {
+                if ($datum['is_virtual'] == StatusEnum::ENABLED) {
+                    $datum['name'] = '虚拟物品';
+                } else {
+                    $datum['name'] = '实物';
+                }
+
+                unset($datum['is_virtual']);
+            }
+
+            return [$data, $fields];
+        }, $time);
     }
 
     /**

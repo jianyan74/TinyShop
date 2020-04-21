@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
+use addons\TinyShop\common\enums\RefundStatusEnum;
 use Yii;
 use yii\web\NotFoundHttpException;
 use api\controllers\UserAuthController;
@@ -20,6 +21,26 @@ class OrderProductController extends UserAuthController
      * @var OrderProduct
      */
     public $modelClass = OrderProduct::class;
+
+    /**
+     * @return array|\yii\data\ActiveDataProvider|\yii\db\ActiveRecord[]
+     */
+    public function actionIndex()
+    {
+        $order_id = Yii::$app->request->get('order_id');
+        $is_evaluate = Yii::$app->request->get('is_evaluate');
+
+        return $this->modelClass::find()
+            ->where([
+                'order_id' => $order_id,
+                'member_id' => Yii::$app->user->identity->member_id
+            ])
+            ->andWhere(['in', 'refund_status', RefundStatusEnum::evaluate()])
+            ->andFilterWhere(['is_evaluate' => $is_evaluate])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->asArray()
+            ->all();
+    }
 
     /**
      * 退款申请
@@ -90,7 +111,7 @@ class OrderProductController extends UserAuthController
     public function checkAccess($action, $model = null, $params = [])
     {
         // 方法名称
-        if (in_array($action, ['index', 'delete', 'update', 'create'])) {
+        if (in_array($action, ['delete', 'update', 'create'])) {
             throw new \yii\web\BadRequestHttpException('权限不足');
         }
     }

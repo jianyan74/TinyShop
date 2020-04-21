@@ -2,8 +2,8 @@
 
 namespace addons\TinyShop\common\models\common;
 
+use addons\TinyShop\common\traits\HasOneMember;
 use common\behaviors\MerchantBehavior;
-use Yii;
 
 /**
  * This is the model class for table "{{%addon_shop_base_opinion}}".
@@ -14,6 +14,7 @@ use Yii;
  * @property string $content 内容
  * @property array $covers 反馈图片
  * @property string $reply 回复
+ * @property string $from 来源
  * @property int $type 反馈类型
  * @property int $sort 优先级（0-9）
  * @property int $status 状态[-1:删除;0:禁用;1启用]
@@ -22,7 +23,7 @@ use Yii;
  */
 class Opinion extends \common\models\base\BaseModel
 {
-    use MerchantBehavior;
+    use MerchantBehavior, HasOneMember;
 
     /**
      * {@inheritdoc}
@@ -43,7 +44,7 @@ class Opinion extends \common\models\base\BaseModel
             [['content'], 'string'],
             [['covers'], 'safe'],
             [['contact_way'], 'string', 'max' => 100],
-            [['reply'], 'string', 'max' => 200],
+            [['reply', 'from'], 'string', 'max' => 200],
         ];
     }
 
@@ -61,6 +62,7 @@ class Opinion extends \common\models\base\BaseModel
             'contact_way' => '联系方式',
             'reply' => '回复',
             'type' => '反馈类型',
+            'from' => '来源',
             'sort' => '优先级（0-9）',
             'status' => '状态[-1:删除;0:禁用;1启用]',
             'created_at' => '创建时间',

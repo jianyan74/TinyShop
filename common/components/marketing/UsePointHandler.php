@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\common\components\marketing;
 
+use addons\TinyShop\common\enums\ProductMarketingEnum;
 use Yii;
 use common\enums\StatusEnum;
 use common\enums\PayTypeEnum;
@@ -19,7 +20,7 @@ class UsePointHandler extends PreviewInterface
 {
     /**
      * @param PreviewForm $form
-     * @return PreviewForm|mixed
+     * @return PreviewForm
      */
     public function execute(PreviewForm $form): PreviewForm
     {
@@ -34,9 +35,16 @@ class UsePointHandler extends PreviewInterface
         $form->point = 0;
         // 积分抵现开启状态
         $pointConfig = Yii::$app->tinyShopService->marketingPointConfig->one();
-        if ($pointConfig['is_open'] == StatusEnum::ENABLED) {
+        if ($pointConfig['is_open'] == StatusEnum::ENABLED && $form->use_point > 0) {
             $form->point = $form->use_point;
-            $form->point_money = $form->point * $pointConfig['convert_rate'];
+            $form->point_money = $form->use_point * $pointConfig['convert_rate'];
+            // 触发营销
+            $form->marketingDetails[] = [
+                'marketing_id' => $pointConfig['id'],
+                'marketing_type' => ProductMarketingEnum::GIVE_POINT,
+                'marketing_condition' => '积分抵扣' . $form->point_money . '元',
+                'discount_money' => $form->point_money,
+            ];
         }
 
         // 成功触发

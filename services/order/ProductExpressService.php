@@ -33,11 +33,15 @@ class ProductExpressService extends Service
             $record['trace'] = [];
             // 需要物流
             if ($record['shipping_type'] == ProductExpress::SHIPPING_TYPE_LOGISTICS) {
-                // TODO 加入缓存
-
-                // aliyun(阿里云)、juhe(聚合)、kdniao(快递鸟)、kd100(快递100)
-                $logistics = Yii::$app->logistics->aliyun($record['express_no'], null, true);
-                $record['trace'] = $logistics->getList();
+                try {
+                    if (!empty($record['express_no'])) {
+                        // aliyun(阿里云)、juhe(聚合)、kdniao(快递鸟)、kd100(快递100)
+                        $logistics = Yii::$app->logistics->aliyun($record['express_no'], null, true);
+                        $record['trace'] = $logistics->getList();
+                    }
+                } catch (\Exception $e) {
+                    Yii::debug($e->getMessage());
+                }
             }
         }
 

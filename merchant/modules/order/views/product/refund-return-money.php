@@ -32,9 +32,9 @@ $form = ActiveForm::begin([
                 <label class="control-label">退款方式</label>
             </div>
             <div class="col-sm-8">
-                <select class="form-control" name="">
-                    <option>线下</option>
-                </select>
+                <?= Html::dropDownList(Html::getInputName($product, 'refund_type'), $defaultRefundType, $refundTypes, [
+                        'class' => 'form-control',
+                ])?>
                 <div class="help-block"></div>
             </div>
         </div>

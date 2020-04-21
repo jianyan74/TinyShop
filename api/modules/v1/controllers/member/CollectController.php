@@ -37,7 +37,7 @@ class CollectController extends UserAuthController
                 ->where(['status' => StatusEnum::ENABLED, 'member_id' => Yii::$app->user->identity->member_id])
                 ->andWhere(['topic_type' => $topic_type])
                 ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-                ->with(['product'])
+                ->with(['product', 'merchant'])
                 ->orderBy('updated_at desc')
                 ->asArray(),
             'pagination' => [

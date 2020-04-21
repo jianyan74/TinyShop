@@ -21,7 +21,11 @@ $this->params['breadcrumbs'][] = $this->title;
                     'dataProvider' => $dataProvider,
                     'filterModel' => $searchModel,
                     //重新定义分页样式
-                    'tableOptions' => ['class' => 'table table-hover'],
+                    'tableOptions' => [
+                        'class' => 'table table-hover rf-table',
+                        'fixedNumber' => 2,
+                        'fixedRightNumber' => 1,
+                    ],
                     'columns' => [
                         'id',
                         'order_sn',

@@ -45,7 +45,11 @@ class ProductService extends Service
         }
 
         // 未发货只能选择只退款
-        if ($model->order_status == OrderStatusEnum::PAY && $model->refund_type != RefundTypeEnum::MONEY) {
+        if (
+            $model->order_status == OrderStatusEnum::PAY &&
+            $model->refund_type != RefundTypeEnum::MONEY &&
+            $model->shipping_status == StatusEnum::DISABLED
+        ) {
             throw new UnprocessableEntityHttpException('只可选择仅退款');
         }
 
@@ -200,6 +204,11 @@ class ProductService extends Service
         // 增加本身订单退款金额
         Order::updateAllCounters(['refund_balance_money' => $model->refund_balance_money], ['id' => $order->id]);
 
+        // 关闭分销
+       if ($model->is_open_commission == StatusEnum::ENABLED) {
+           Yii::$app->tinyDistributionService->promoterRecord->close($model->id, 'order', Yii::$app->params['addon']['name']);
+       }
+
         // 自动更新订单状态
         Yii::$app->tinyShopService->order->autoUpdateStatus($model['order_id']);
 
@@ -331,6 +340,22 @@ class ProductService extends Service
     }
 
     /**
+     * 获取订单售后数量
+     *
+     * @param $order_id
+     * @return false|string|null
+     */
+    public function getAfterSaleCountByOrderId($order_id)
+    {
+        return OrderProduct::find()
+            ->select(['count(id) as count'])
+            ->where(['status' => StatusEnum::ENABLED])
+            ->andWhere(['order_id' => $order_id])
+            ->andWhere(['in', 'refund_status', RefundStatusEnum::refund()])
+            ->scalar();
+    }
+
+    /**
      * @param $id
      * @return array|\yii\db\ActiveRecord|null|OrderProduct
      */
@@ -417,6 +442,19 @@ class ProductService extends Service
     {
         return OrderProduct::find()
             ->where(['order_id' => $order_id])
+            ->asArray()
+            ->all();
+    }
+
+    /**
+     * @param $order_id
+     * @return array|\yii\db\ActiveRecord[]
+     */
+    public function findByOrderIdWithVirtualType($order_id)
+    {
+        return OrderProduct::find()
+            ->where(['order_id' => $order_id])
+            ->with('virtualType')
             ->asArray()
             ->all();
     }

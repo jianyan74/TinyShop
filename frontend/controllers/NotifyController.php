@@ -49,7 +49,7 @@ class NotifyController extends BaseController
                     'num' => $log->pay_fee,
                     'credit_group' => 'orderPay',
                     'pay_type' => $log->pay_type,
-                    'remark' => "订单支付",
+                    'remark' => "【微商城】订单支付",
                     'map_id' => $log->id,
                 ]));
 
@@ -64,7 +64,7 @@ class NotifyController extends BaseController
                     'pay_type' => $log['pay_type'],
                     'num' => $payFee,
                     'credit_group' => 'recharge',
-                    'remark' => "在线充值",
+                    'remark' => "【微商城】在线充值",
                     'map_id' => $log['id'],
                 ]));
 
@@ -75,7 +75,7 @@ class NotifyController extends BaseController
                         'pay_type' => $log['pay_type'],
                         'num' => $money,
                         'credit_group' => 'rechargeGive',
-                        'remark' => "充值赠送",
+                        'remark' => "【微商城】充值赠送",
                         'map_id' => $log['id'],
                     ]));
                 }

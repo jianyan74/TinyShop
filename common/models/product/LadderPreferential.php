@@ -28,10 +28,10 @@ class LadderPreferential extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['product_id', 'quantity', 'type', 'price'], 'required'],
+            [['product_id', 'quantity', 'price'], 'required'],
             [['type'], 'in', 'range' => PreferentialTypeEnum::getKeys()],
             [['product_id', 'quantity', 'type'], 'integer', 'min' => 0],
-            [['price'], 'number'],
+            [['price'], 'number', 'min' => 0],
             [['type'], 'verifyType'],
         ];
     }

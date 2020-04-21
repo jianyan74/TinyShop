@@ -2,8 +2,6 @@
 
 namespace addons\TinyShop\common\models\order;
 
-use common\behaviors\MerchantBehavior;
-
 /**
  * This is the model class for table "{{%addon_shop_order_customer}}".
  *
@@ -127,5 +125,14 @@ class Customer extends \common\models\base\BaseModel
     public function getOrder()
     {
         return $this->hasOne(Order::class, ['id' => 'order_id']);
+    }
+
+    /**
+     * @param bool $insert
+     * @param array $changedAttributes
+     */
+    public function afterSave($insert, $changedAttributes)
+    {
+        parent::afterSave($insert, $changedAttributes);
     }
 }

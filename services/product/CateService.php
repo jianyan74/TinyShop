@@ -67,13 +67,14 @@ class CateService extends Service
      *
      * @return array|\yii\db\ActiveRecord[]
      */
-    public function findIndexBlock()
+    public function findIndexBlock($limit = 10)
     {
         return Cate::find()
             ->where(['status' => StatusEnum::ENABLED])
-            ->andWhere(['merchant_id' => $this->getMerchantId()])
             ->andWhere(['index_block_status' => StatusEnum::ENABLED])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->orderBy('sort asc, id desc')
+            ->limit($limit)
             ->cache(60)
             ->asArray()
             ->all();

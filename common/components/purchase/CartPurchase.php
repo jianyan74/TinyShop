@@ -47,6 +47,7 @@ class CartPurchase extends InitOrderDataInterface
             $orderProduct->buyer_id = $model['member_id'];
             $orderProduct->point_exchange_type = $model['product']['point_exchange_type'];
             $orderProduct->is_virtual = $model['product']['is_virtual'];
+            $orderProduct->is_open_commission = $model['product']['is_open_commission'];
 
             // 默认数据带购物车数量方便计算
             $product = $model['product'];

@@ -48,7 +48,8 @@ class OpinionController extends BaseController
             ->search(Yii::$app->request->queryParams);
         $dataProvider->query
             ->andWhere(['status' => StatusEnum::ENABLED])
-            ->andWhere(['merchant_id' => $this->getMerchantId()]);
+            ->andWhere(['merchant_id' => $this->getMerchantId()])
+            ->with('baseMember');
 
         return $this->render($this->action->id, [
             'dataProvider' => $dataProvider,

@@ -32,6 +32,10 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                             ],
                             'themeConfig' => [
                                 'this30Day' => '近30天',
+                                'thisMonth' => '本月',
+                                'thisYear' => '本年',
+                                'lastYear' => '去年',
+                                'customData' => '自定义区间'
                             ],
                         ]) ?>
                         <!-- /.box -->

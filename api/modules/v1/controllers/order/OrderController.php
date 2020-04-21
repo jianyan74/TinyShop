@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\order;
 
+use addons\TinyShop\common\enums\PreviewTypeEnum;
 use Yii;
 use common\enums\StatusEnum;
 use common\helpers\ResultHelper;
@@ -15,12 +16,11 @@ use addons\TinyShop\common\models\forms\PreviewForm;
 use addons\TinyShop\common\components\InitOrderData;
 use addons\TinyShop\common\components\PreviewHandler;
 use addons\TinyShop\common\components\marketing\FeeHandler;
-use addons\TinyShop\common\components\marketing\PickupHandler;
 use addons\TinyShop\common\components\marketing\FullMailHandler;
 use addons\TinyShop\common\components\marketing\UsePointHandler;
 use addons\TinyShop\common\components\marketing\CouponHandler;
+use addons\TinyShop\common\components\marketing\AfterHandler;
 use addons\TinyShop\common\enums\ShippingTypeEnum;
-use addons\TinyShop\common\components\marketing\LocalDistributionHandler;
 
 /**
  * 订单
@@ -31,18 +31,20 @@ use addons\TinyShop\common\components\marketing\LocalDistributionHandler;
  */
 class OrderController extends OnAuthController
 {
+    /**
+     * @var Order
+     */
     public $modelClass = Order::class;
 
     /**
      * @var array
      */
     protected $handlers = [
-        LocalDistributionHandler::class,// 货到付款
-        PickupHandler::class,// 自提
         FullMailHandler::class,// 满包邮
         FeeHandler::class,// 运费计算
         CouponHandler::class,// 优惠券
         UsePointHandler::class,// 积分抵现
+        AfterHandler::class,// 统一处理
     ];
 
     /**
@@ -75,7 +77,7 @@ class OrderController extends OnAuthController
 
         $this->previewHandler = new PreviewHandler($this->handlers);
 
-        $config = AddonHelper::getBackendConfig();
+        $config = AddonHelper::getConfig();
         /** @var AccessToken $identity */
         $identity = Yii::$app->user->identity;
 
@@ -109,7 +111,7 @@ class OrderController extends OnAuthController
 
         $identity = Yii::$app->user->identity;
         $model = $this->previewForm;
-        !$model->shipping_type && $model->shipping_type = ShippingTypeEnum::MERCHANT;
+        !$model->shipping_type && $model->shipping_type = ShippingTypeEnum::LOGISTICS;
         $model->member = Yii::$app->tinyShopService->member->findById($identity->member_id);
         empty($model->address_id) && $model->address = Yii::$app->services->memberAddress->findDefaultByMemberId($identity->member_id); // 默认地址
         $model->attributes = Yii::$app->request->get();
@@ -143,7 +145,7 @@ class OrderController extends OnAuthController
             'account' => $model->member->account,
             'address' => $model->address,
             'products' => $model->orderProducts,
-            'products_marketing_rule' => $initOrderData->rule, // 被触发的自带营销规则
+            'marketing_details' => $model->marketingDetails, // 被触发的自带营销规则
             'is_full_mail' => $model->is_full_mail,
             'is_logistics' => $model->is_logistics,
             'max_use_point' => $model->max_use_point,
@@ -206,7 +208,7 @@ class OrderController extends OnAuthController
                     'num' => $order->point,
                     'credit_group' => 'orderCreate',
                     'map_id' => $order->id,
-                    'remark' => '订单创建',
+                    'remark' => '【微商城】订单支付',
                 ]));
             }
 
@@ -214,8 +216,10 @@ class OrderController extends OnAuthController
             $order->pay_money == 0 && Yii::$app->tinyShopService->order->pay($order, $order->payment_type);
 
             // 删除购物车
-            $sku_ids = ArrayHelper::getColumn($model->orderProducts, 'sku_id');
-            !empty($sku_ids) && Yii::$app->tinyShopService->memberCartItem->deleteBySkuIds($sku_ids, $order->buyer_id);
+            if ($model->type == PreviewTypeEnum::CART) {
+                $sku_ids = ArrayHelper::getColumn($model->orderProducts, 'sku_id');
+                !empty($sku_ids) && Yii::$app->tinyShopService->memberCartItem->deleteBySkuIds($sku_ids, $order->buyer_id);
+            }
 
             $transaction->commit();
 
@@ -241,7 +245,7 @@ class OrderController extends OnAuthController
 
         $identity = Yii::$app->user->identity;
         $model = $this->previewForm;
-        $model->shipping_type = ShippingTypeEnum::MERCHANT;
+        $model->shipping_type = ShippingTypeEnum::LOGISTICS;
         $model->member = Yii::$app->tinyShopService->member->findById($identity->member_id);
         $model->attributes = Yii::$app->request->get();
         $model->address = Yii::$app->services->memberAddress->findById($model->address_id, $identity->member_id); // 默认地址
@@ -253,7 +257,7 @@ class OrderController extends OnAuthController
         // 触发 - 初始化数据
         $model = (new InitOrderData())->execute($model, $model->type);
         // 触发 - 营销
-        $model = $this->previewHandler->start($model);
+        $model = $this->previewHandler->start($model, true);
         if ($model->getErrors() || !$model->validate()) {
             return ResultHelper::json(422, $this->getError($model));
         }

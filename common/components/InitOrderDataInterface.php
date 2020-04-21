@@ -11,8 +11,8 @@ use addons\TinyShop\common\models\order\OrderProduct;
 use addons\TinyShop\common\models\forms\PreviewForm;
 use addons\TinyShop\common\enums\ProductMarketingEnum;
 use addons\TinyShop\common\enums\PointExchangeTypeEnum;
-use addons\TinyShop\common\components\purchase\PresellBuyPurchase;
-use addons\TinyShop\common\components\purchase\CartPurchase;
+use addons\TinyShop\common\traits\CalculatePriceTrait;
+use addons\TinyShop\common\components\purchase\PointExchangePurchase;
 
 /**
  * Interface InitOrderDataInterface
@@ -20,24 +20,7 @@ use addons\TinyShop\common\components\purchase\CartPurchase;
  */
 abstract class InitOrderDataInterface
 {
-    /**
-     * 触发的自带营销规则记录
-     *
-     * 例子
-     *
-     * '''
-     * [
-     *    [
-     *        'sku_id' => 1, // 触发的sku id
-     *        'type' => '', // 触发类型
-     *        'data' => [], // 触发的具体内容
-     *    ]
-     * ]
-     * '''
-     *
-     * @var array
-     */
-    public $rule = [];
+    use CalculatePriceTrait;
 
     /**
      * 创建记录
@@ -77,70 +60,101 @@ abstract class InitOrderDataInterface
         // 重组默认商品信息
         $defaultProducts = ArrayHelper::arrayKey($previewForm->defaultProducts, 'id');
         $orderProducts = $previewForm->orderProducts;
-        $previewForm->product_money = 0;
 
-        /** @var OrderProduct $orderProduct */
-        foreach ($orderProducts as $orderProduct) {
-            $defaultProduct = $defaultProducts[$orderProduct->product_id];
-
-            // 创建订单校验
-            if ($this->isNewRecord == true) {
-                // 校验下单类型
-                if (PointExchangeTypeEnum::isIntegralBuy($orderProduct->point_exchange_type) && $type != PresellBuyPurchase::getType()) {
-                    throw new UnprocessableEntityHttpException($orderProduct->product_name . '只能使用积分下单类型');
-                }
-
-                // 限购
-                $myMaxBuy = $defaultProduct['myGet']['all_num'] ?? 0;
-                if ($defaultProduct['max_buy'] > 0 && (($myMaxBuy + $orderProduct->num) > $defaultProduct['max_buy'])) {
-                    throw new UnprocessableEntityHttpException($orderProduct->product_name . ' 最多可购买数量为 ' . $defaultProduct['max_buy']);
-                }
+        $groupOrderProducts = [];
+        /** @var OrderProduct $item 产品重新归类组别 */
+        foreach ($orderProducts as $item) {
+            if (!isset($groupOrderProducts[$item->product_id])) {
+                $groupOrderProducts[$item->product_id] = [];
+                $groupOrderProducts[$item->product_id]['product_money'] = 0;
+                $groupOrderProducts[$item->product_id]['count'] = 0;
+                $groupOrderProducts[$item->product_id]['name'] = $item->product_name;
+                $groupOrderProducts[$item->product_id]['products'] = [];
             }
 
-            // TODO 满减送
+            $groupOrderProducts[$item->product_id]['product_money'] += $item->product_money;
+            $groupOrderProducts[$item->product_id]['count'] += $item->num;
 
-            // 阶梯优惠
-            list($total_price, $price, $ladderPreferentialTrigger) = Yii::$app->tinyShopService->productLadderPreferential->getPrice($defaultProduct['ladderPreferential'], $orderProduct->num, $orderProduct->price);
-            if ($orderProduct->product_money != $total_price) {
-                $orderProduct->product_money = $total_price;
-                $orderProduct->price = $price;
-                // 记录规则
-                $this->setRule($orderProduct->sku_id, ProductMarketingEnum::LADDER_PREFERENTIAL, $ladderPreferentialTrigger);
-            }
-
-            // 赠送积分
-            $givePoint = $this->giveIntegral($defaultProduct['integral_give_type'], $defaultProduct['give_point'], $orderProduct->product_money);
-            if ($givePoint > 0) {
-                $orderProduct->give_point = $givePoint * $orderProduct->num;
-                $previewForm->give_point += $orderProduct->give_point;
-                // 记录规则
-                $this->setRule($orderProduct->sku_id, ProductMarketingEnum::GIVE_POINT, $orderProduct->give_point);
-            }
-
-            $previewForm->product_money += $orderProduct->product_money;
-            unset($productMoney, $ladderPreferentialTrigger, $givePoint);
+            $groupOrderProducts[$item->product_id]['products'][] = $item;
         }
 
-        unset($defaultProducts);
+        // 写入组别
+        $previewForm->groupOrderProducts = $groupOrderProducts;
+        // 重新计算价格
+        $previewForm = $this->calculatePrice($previewForm);
+
+        foreach ($groupOrderProducts as $product_id => &$groupOrderProduct) {
+            $defaultProduct = $defaultProducts[$product_id];
+            // 创建订单校验
+            if ($this->isNewRecord == true) {
+                // 限购
+                $myMaxBuy = $defaultProduct['myGet']['all_num'] ?? 0;
+                if ($defaultProduct['max_buy'] > 0 && (($myMaxBuy + $groupOrderProduct['count']) > $defaultProduct['max_buy'])) {
+                    throw new UnprocessableEntityHttpException($groupOrderProduct['product_name'] . ' 最多可购买数量为 ' . $defaultProduct['max_buy']);
+                }
+            }
+
+            // 非积分和预售下单触发
+            if (!in_array($type, [PointExchangePurchase::getType()])) {
+                //-------------------------- 会员折扣 -------------------------- //
+                if ($previewForm->member->current_level > 0) {
+                    $memberDiscount = Yii::$app->tinyShopService->productMemberDiscount->findByProductIdAndLevel($product_id, $previewForm->member->current_level);
+                    if ($memberDiscount && !empty($memberDiscount['memberLevel'])) {
+                        $price = $groupOrderProduct['product_money'] * $memberDiscount['memberLevel']['discount'];
+                        $price = BcHelper::div($price, 100);
+
+                        $previewForm->marketingDetails[] = [
+                            'marketing_id' => $memberDiscount['id'],
+                            'marketing_type' => ProductMarketingEnum::MEMBER_DISCOUNT,
+                            'marketing_condition' => '会员等级' . $memberDiscount['memberLevel']['name'] . '，折扣减' . $price,
+                            'discount_money' => $price,
+                            'product_id' => $product_id,
+                        ];
+                    }
+                }
+
+                //-------------------------- 阶梯优惠 -------------------------- //
+
+                $ladderPreferential = Yii::$app->tinyShopService->productLadderPreferential->getPrice($defaultProduct['ladderPreferential'], $groupOrderProduct['count']);
+                if ($ladderPreferential) {
+                    $previewForm->marketingDetails[] = [
+                        'marketing_id' => $ladderPreferential['id'],
+                        'marketing_type' => ProductMarketingEnum::LADDER_PREFERENTIAL,
+                        'marketing_condition' => '满' . $ladderPreferential['quantity'] . '件，每件减' . $ladderPreferential['price'],
+                        'discount_money' => $ladderPreferential['price'] * $groupOrderProduct['count'],
+                        'product_id' => $product_id,
+                    ];
+                }
+            }
+
+            /** @var OrderProduct $orderProduct */
+            foreach ($groupOrderProduct['products'] as $orderProduct) {
+                // 创建订单校验
+                if ($this->isNewRecord == true) {
+                    // 校验下单类型
+                    if (PointExchangeTypeEnum::isIntegralBuy($orderProduct->point_exchange_type) && $type != PointExchangePurchase::getType()) {
+                        throw new UnprocessableEntityHttpException($orderProduct->product_name . '只能使用积分下单类型');
+                    }
+                }
+
+                // 赠送积分
+                $givePoint = $this->giveIntegral($defaultProduct['integral_give_type'], $defaultProduct['give_point'], $orderProduct->product_money);
+                if ($givePoint > 0) {
+                    $allGivePoint = $givePoint * $orderProduct->num;
+                    // 记录规则
+                    $previewForm->marketingDetails[] = [
+                        'marketing_id' => $orderProduct->product_id,
+                        'marketing_type' => ProductMarketingEnum::GIVE_POINT,
+                        'marketing_condition' => $groupOrderProduct['name'] . '赠送' . $allGivePoint . '积分',
+                        'product_id' => $orderProduct->product_id,
+                        'sku_id' => $orderProduct->sku_id,
+                        'give_point' => $allGivePoint,
+                    ];
+                }
+            }
+        }
 
         return $previewForm;
-    }
-
-    /**
-     * 写入规则
-     *
-     * @param $sku_id
-     * @param $type
-     * @param $data
-     */
-    protected function setRule($sku_id, $type, $data)
-    {
-        $this->rule[] = [
-            'sku_id' => $sku_id, // 触发的sku id
-            'title' => ProductMarketingEnum::getValue($type), // 触发类型说明
-            'type' => $type, // 触发类型
-            'data' => $data, // 触发的具体内容
-        ];
     }
 
     /**

@@ -75,7 +75,7 @@ class CouponController extends UserAuthController
             'query' => $this->modelClass::find()
                 ->where($where)
                 ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-                ->with(['usableProduct', 'couponType'])
+                ->with(['usableProduct', 'couponType', 'merchant'])
                 ->orderBy($orderBy)
                 ->asArray(),
             'pagination' => [

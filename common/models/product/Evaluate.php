@@ -87,7 +87,8 @@ class Evaluate extends \common\models\base\BaseModel
             [['scores'], 'integer', 'min' => 1, 'max' => 5],
             [['covers', 'again_covers'], 'safe'],
             [['scores', 'order_product_id'], 'required'],
-            [['merchant_name', 'member_head_portrait', 'product_name', 'member_nickname'], 'string', 'max' => 100],
+            [['member_head_portrait'], 'string', 'max' => 150],
+            [['merchant_name', 'product_name', 'member_nickname'], 'string', 'max' => 100],
             [
                 ['product_picture', 'sku_name', 'content', 'video', 'explain_first', 'again_content', 'again_explain'],
                 'string',

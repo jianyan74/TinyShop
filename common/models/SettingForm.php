@@ -33,14 +33,18 @@ class SettingForm extends Model
 
     public $is_logistics = 0;
     public $buyer_self_lifting = 0;
+    public $is_delivery_shop = 0;
 
     public $order_balance_pay = 1;
     public $order_wechat_pay = 0;
     public $order_ali_pay = 0;
+    public $order_cash_against_pay = 0;
 
     public $protocol_register;
     public $protocol_privacy;
     public $protocol_recharge;
+
+    public $is_open_commission = 0;
 
     /**
      * {@inheritdoc}
@@ -56,11 +60,14 @@ class SettingForm extends Model
                     'order_balance_pay',
                     'order_wechat_pay',
                     'order_ali_pay',
+                    'order_cash_against_pay',
                     'shopping_back_points',
                     'after_sale_date',
                     'evaluate_day',
                     'order_delivery_complete_time',
                     'is_logistics',
+                    'is_delivery_shop',
+                    'is_open_commission',
                 ],
                 'integer',
                 'min' => 0,
@@ -82,9 +89,10 @@ class SettingForm extends Model
         return [
             'order_auto_delinery' => '自动收货时间(天)',
             'order_buy_close_time' => '订单自动关闭时间(分钟)',
-            'order_balance_pay' => '是否开启余额支付',
-            'order_wechat_pay' => '是否开启微信支付',
-            'order_ali_pay' => '是否开启支付宝支付',
+            'order_balance_pay' => '开启余额支付',
+            'order_wechat_pay' => '开启微信支付',
+            'order_ali_pay' => '开启支付宝支付',
+            'order_cash_against_pay' => '开启货到付款支付',
             'order_delivery_complete_time' => '订单完成时间(天)',
             'shopping_back_points' => '购物返积分设置',
             'evaluate_day' => '系统默认评价时间(天)',
@@ -100,11 +108,13 @@ class SettingForm extends Model
             'share_cover' => '分享封面',
             'share_desc' => '分享描述',
             'share_link' => '分享链接',
-            'is_logistics' => '是否允许选择物流',
-            'buyer_self_lifting' => '是否允许买家自提',
+            'is_logistics' => '允许选择物流',
+            'buyer_self_lifting' => '开启买家自提',
+            'is_delivery_shop' => '开启本地配送',
             'protocol_register' => '注册协议',
             'protocol_privacy' => '隐私协议',
             'protocol_recharge' => '充值协议',
+            'is_open_commission' => '开启分销',
         ];
     }
 

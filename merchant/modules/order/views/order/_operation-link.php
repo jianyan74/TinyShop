@@ -34,7 +34,7 @@ $br = empty($class) ? '<br>' : '';
     <!--已支付-->
 <?php if ($model->order_status == OrderStatusEnum::PAY) { ?>
     <!--自提-->
-    <?php if ($model->shipping_type == ShippingTypeEnum::VISIT) { ?>
+    <?php if ($model->shipping_type == ShippingTypeEnum::PICKUP) { ?>
         <?= Html::linkButton(['pickup', 'id' => $model->id], '提货', [
             'class' => !empty($class) ? $class : 'orange',
             'data-toggle' => 'modal',

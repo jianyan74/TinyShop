@@ -28,7 +28,7 @@ class Collect extends Follow
     public function getProduct()
     {
         return $this->hasOne(Product::class, ['id' => 'topic_id'])
-            ->select(['id', 'name', 'picture', 'status'])
+            ->select(['id', 'name', 'picture', 'star', 'transmit_num', 'comment_num', 'collect_num', 'view', 'product_status', 'status'])
             ->with('minPriceSku');
     }
 }

@@ -31,7 +31,7 @@ class PickupService extends Service
         $model->member_id = $order->buyer_id;
         $model->order_id = $order->id;
         $model->pickup_id = $point->id;
-        $model->pickup_code = StringHelper::randomNum('', 6);
+        $model->pickup_code = StringHelper::random(6, true);
         $model->save();
     }
 }

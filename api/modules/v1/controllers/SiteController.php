@@ -2,12 +2,15 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers;
 
+use common\helpers\HashidsHelper;
 use Yii;
 use yii\web\NotFoundHttpException;
 use common\helpers\ResultHelper;
 use common\helpers\ArrayHelper;
 use common\models\member\Member;
 use common\models\common\SmsLog;
+use common\enums\StatusEnum;
+use common\helpers\AddonHelper;
 use api\controllers\OnAuthController;
 use addons\TinyShop\api\modules\v1\forms\UpPwdForm;
 use addons\TinyShop\api\modules\v1\forms\LoginForm;
@@ -15,6 +18,7 @@ use addons\TinyShop\api\modules\v1\forms\RefreshForm;
 use addons\TinyShop\api\modules\v1\forms\MobileLogin;
 use addons\TinyShop\api\modules\v1\forms\SmsCodeForm;
 use addons\TinyShop\api\modules\v1\forms\RegisterForm;
+use addons\TinyShop\common\models\SettingForm;
 
 /**
  * Class SiteController
@@ -152,10 +156,14 @@ class SiteController extends OnAuthController
             return ResultHelper::json(422, $this->getError($model));
         }
 
+        $parent = $model->getParent();
+
         $member = new Member();
         $member->attributes = ArrayHelper::toArray($model);
+        $member->promo_code = '';
         $member->merchant_id = !empty($this->getMerchantId()) ? $this->getMerchantId() : 0;
         $member->password_hash = Yii::$app->security->generatePasswordHash($model->password);
+        $member->pid = $parent ? $parent->id : 0;
         if (!$member->save()) {
             return ResultHelper::json(422, $this->getError($member));
         }
@@ -198,6 +206,16 @@ class SiteController extends OnAuthController
         $data['member']['coupon_num'] = Yii::$app->tinyShopService->marketingCoupon->findCountByMemberId($data['member']['id']);
         // 订单数量统计
         $data['member']['order_synthesize_num'] = Yii::$app->tinyShopService->order->getOrderCountGroupByMemberId($data['member']['id']);
+        // 购物车数量
+        $data['member']['cart_num'] = Yii::$app->tinyShopService->memberCartItem->count($data['member']['id']);
+        $data['promoter'] = '';
+        // 开启分销商
+        $setting = new SettingForm();
+        $setting->attributes = AddonHelper::getConfig();
+        $member['is_open_commission'] = $setting->is_open_commission;
+        if ($setting->is_open_commission == StatusEnum::ENABLED) {
+            $data['promoter'] = Yii::$app->tinyDistributionService->promoter->findByMemberId($data['member']['id']);
+        }
 
         return $data;
     }

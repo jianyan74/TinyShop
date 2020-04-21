@@ -7,7 +7,7 @@ use common\helpers\Html;
 
 <div id="<?= $boxId ?>">
     <span class="btn btn-primary btn-sm openIframeByProduct"
-          href="<?= Url::to(['/product/product/select']) ?>">选择商品</span>
+          href="<?= Url::to(['/product/product/select', 'multiple' => true]) ?>">选择商品</span>
     <table class="table table-hover table-bordered" style="margin-top: 10px">
         <thead>
         <tr>

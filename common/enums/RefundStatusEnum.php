@@ -77,6 +77,7 @@ class RefundStatusEnum extends BaseEnum
         return [
             self::NO_PASS_ALWAYS,
             self::CANCEL,
+            0
         ];
     }
 }

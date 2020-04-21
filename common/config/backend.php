@@ -140,7 +140,7 @@ return [
         ],
         [
             'title' => '物流配送',
-            'route' => 'express-company/index',
+            'route' => 'base/express-company/index',
             'icon' => 'fa fa-truck',
         ],
         [
@@ -188,12 +188,8 @@ return [
                     'route' => 'statistics/product-hot/index',
                 ],
                 [
-                    'title' => '运营报告',
-                    'route' => 'statistics/sus-res/index',
-                ],
-                [
-                    'title' => '销售排行',
-                    'route' => 'statistics/sales-ranking/index',
+                    'title' => '交易分析',
+                    'route' => 'statistics/transaction-analyze/index',
                 ],
             ]
         ],

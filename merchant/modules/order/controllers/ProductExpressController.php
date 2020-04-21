@@ -42,6 +42,15 @@ class ProductExpressController extends BaseController
                     throw new NotFoundHttpException($this->getError($model));
                 }
 
+                // 记录操作
+                Yii::$app->tinyShopService->orderAction->create(
+                    '进行发货',
+                    $order->id,
+                    $order->order_status,
+                    Yii::$app->user->identity->id,
+                    Yii::$app->user->identity->username
+                );
+
                 $transaction->commit();
 
                 return $this->message('修改成功', $this->redirect(Yii::$app->request->referrer));

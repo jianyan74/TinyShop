@@ -6,7 +6,10 @@ use Yii;
 use yii\web\NotFoundHttpException;
 use common\helpers\ResultHelper;
 use common\models\member\Member;
+use common\enums\StatusEnum;
+use common\helpers\AddonHelper;
 use api\controllers\OnAuthController;
+use addons\TinyShop\common\models\SettingForm;
 
 /**
  * 个人信息
@@ -39,8 +42,19 @@ class MemberController extends OnAuthController
 
         // 优惠券数量
         $member['coupon_num'] = Yii::$app->tinyShopService->marketingCoupon->findCountByMemberId($member_id);
+        // 购物车数量
+        $member['cart_num'] = Yii::$app->tinyShopService->memberCartItem->count($member_id);
         // 订单数量统计
         $member['order_synthesize_num'] = Yii::$app->tinyShopService->order->getOrderCountGroupByMemberId($member_id);
+        $member['promoter'] = '';
+
+        // 开启分销商
+        $setting = new SettingForm();
+        $setting->attributes = AddonHelper::getConfig();
+        $member['is_open_commission'] = $setting->is_open_commission;
+        if ($setting->is_open_commission == StatusEnum::ENABLED) {
+            $member['promoter'] = Yii::$app->tinyDistributionService->promoter->findByMemberId($member_id);
+        }
 
         return $member;
     }

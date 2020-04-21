@@ -31,6 +31,7 @@ class SmsCodeForm extends Model
     {
         return [
             [['mobile', 'usage'], 'required'],
+            [['mobile'], 'isRegister'],
             [['usage'], 'in', 'range' => array_keys(SmsLog::$usageExplain)],
             ['mobile', 'match', 'pattern' => RegularHelper::mobile(), 'message' => '请输入正确的手机号'],
         ];
@@ -45,6 +46,16 @@ class SmsCodeForm extends Model
             'mobile' => '手机号码',
             'usage' => '用途',
         ];
+    }
+
+    /**
+     * @param $attribute
+     */
+    public function isRegister($attribute)
+    {
+        if ($this->usage == SmsLog::USAGE_REGISTER && Yii::$app->services->member->findByMobile($this->mobile)) {
+            $this->addError($attribute, '该手机号码已注册');
+        }
     }
 
     /**
