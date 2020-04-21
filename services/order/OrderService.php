@@ -499,22 +499,6 @@ class OrderService extends \common\components\Service
         $order->order_status = OrderStatusEnum::ACCOMPLISH;
         $order->finish_time = time();
         $order->save();
-
-        // 分销完成
-        $setting = $this->getSetting();
-        if ($setting->is_open_commission == StatusEnum::ENABLED) {
-            Yii::$app->tinyDistributionService->promoterRecord->accomplish($order['order_sn'], 'order', Yii::$app->params['addon']['name']);
-        }
-
-        // 打钱给商户
-        Yii::$app->services->merchantCreditsLog->incrMoney(new MerchantCreditsLogForm([
-            'merchant' => Yii::$app->services->merchant->findById($order->merchant_id),
-            'num' => $order->pay_money - $order->refund_balance_money,
-            'map_id' => $order->id,
-            'pay_type' => $order->payment_type,
-            'credit_group' => 'tinyShop' . OrderTypeEnum::getAlias($order->order_type),
-            'remark' => '【微商城】' . OrderTypeEnum::getValue($order->order_type) . ';订单号:' . $order->order_sn,
-        ]));
     }
 
     /**
