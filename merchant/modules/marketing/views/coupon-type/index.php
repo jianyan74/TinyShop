@@ -23,7 +23,11 @@ $this->params['breadcrumbs'][] = $this->title;
                     'dataProvider' => $dataProvider,
                     'filterModel' => $searchModel,
                     //重新定义分页样式
-                    'tableOptions' => ['class' => 'table table-hover rf-table'],
+                    'tableOptions' => [
+                        'class' => 'table table-hover rf-table',
+                        'fixedNumber' => 2,
+                        'fixedRightNumber' => 1,
+                    ],
                     'options' => [
                         'id' => 'grid',
                     ],
@@ -112,10 +116,14 @@ $this->params['breadcrumbs'][] = $this->title;
                         ],
                         [
                             'attribute' => 'is_show',
+                            'filter' => Html::activeDropDownList($searchModel, 'is_show', \common\enums\WhetherEnum::getMap(), [
+                                    'prompt' => '全部',
+                                    'class' => 'form-control'
+                                ]
+                            ),
                             'value' => function ($model) {
                                 return Html::whether($model->is_show);
                             },
-                            'filter' => false,
                             'format' => 'raw',
                         ],
                         [

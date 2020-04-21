@@ -51,7 +51,7 @@ class CustomerService extends Service
 
         /** @var Order $order */
         $order = $orderProduct->order;
-        $config = AddonHelper::getBackendConfig();
+        $config = AddonHelper::getConfig();
         $after_sale = $config['after_sale_date'] ?? '';
         if (!empty($after_sale) && ($order->finish_time + $after_sale * 60 * 60 * 24) < time()) {
             throw new UnprocessableEntityHttpException('可售后时间已过，不可申请');
@@ -74,6 +74,7 @@ class CustomerService extends Service
         } else {
             $model = new Customer();
             $model->attributes = ArrayHelper::toArray($orderProduct);
+            $model->merchant_id = $orderProduct['merchant_id'];
             $model->order_product_id = $orderProduct['id'];
         }
 
@@ -213,7 +214,14 @@ class CustomerService extends Service
      */
     public function refundDelivery($id)
     {
-        $model = $this->findByIdAndVerify($id);
+        $model = Customer::find()
+            ->where(['id' => $id, 'status' => StatusEnum::ENABLED])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->one();
+
+        if (!$model) {
+            throw new UnprocessableEntityHttpException('申请售后记录不存在');
+        }
 
         if ($model->refund_status != RefundStatusEnum::AFFIRM_SALES_RETURN) {
             throw new UnprocessableEntityHttpException('确认收货失败，已经被处理');
@@ -289,6 +297,22 @@ class CustomerService extends Service
             ->andFilterWhere(['member_id' => $member_id])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->one();
+    }
+
+    /**
+     * @param $order_product_id
+     * @param $member_id
+     * @return array|\yii\db\ActiveRecord|null
+     */
+    public function findByOrderProductIds($order_product_ids, $member_id)
+    {
+        return Customer::find()
+            ->where(['status' => StatusEnum::ENABLED])
+            ->andWhere(['in', 'order_product_id', $order_product_ids])
+            ->andFilterWhere(['member_id' => $member_id])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->asArray()
+            ->all();
     }
 
     /**

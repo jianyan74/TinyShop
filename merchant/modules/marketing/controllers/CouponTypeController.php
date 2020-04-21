@@ -8,6 +8,7 @@ use common\enums\StatusEnum;
 use common\models\base\SearchModel;
 use addons\TinyShop\merchant\forms\CouponTypeForm;
 use addons\TinyShop\merchant\controllers\BaseController;
+use yii\web\NotFoundHttpException;
 
 /**
  * Class MarketingCouponTypeController
@@ -45,6 +46,35 @@ class CouponTypeController extends BaseController
         $dataProvider->query
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
             ->andWhere(['merchant_id' => $this->getMerchantId()]);
+
+        return $this->render($this->action->id, [
+            'dataProvider' => $dataProvider,
+            'searchModel' => $searchModel,
+        ]);
+    }
+
+    /**
+     * @return string
+     * @throws NotFoundHttpException
+     */
+    public function actionSelect()
+    {
+        $this->layout = '@backend/views/layouts/default';
+
+        $searchModel = new SearchModel([
+            'model' => $this->modelClass,
+            'scenario' => 'default',
+            'partialMatchAttributes' => ['name'], // 模糊查询
+            'defaultOrder' => [
+                'id' => SORT_DESC,
+            ],
+            'pageSize' => $this->pageSize,
+        ]);
+
+        $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+        $dataProvider->query
+            ->andWhere(['status' => StatusEnum::ENABLED])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()]);
 
         return $this->render($this->action->id, [
             'dataProvider' => $dataProvider,

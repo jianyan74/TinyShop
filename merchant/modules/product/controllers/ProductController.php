@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\merchant\modules\product\controllers;
 
+use addons\TinyShop\common\enums\DecimalReservationEnum;
 use Yii;
 use yii\web\NotFoundHttpException;
 use yii\helpers\ArrayHelper;
@@ -11,6 +12,9 @@ use common\helpers\ResultHelper;
 use addons\TinyShop\common\models\product\Product;
 use addons\TinyShop\merchant\forms\ProductForm;
 use addons\TinyShop\merchant\controllers\BaseController;
+use addons\TinyShop\common\models\product\VirtualType;
+use addons\TinyShop\common\enums\VirtualProductGroupEnum;
+use addons\TinyShop\common\models\SettingForm;
 
 /**
  * Class ProductController
@@ -46,7 +50,7 @@ class ProductController extends BaseController
             ->andWhere(['status' => StatusEnum::ENABLED])
             ->andWhere(['product_status' => $product_status])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->with(['cate']);
+            ->with(['cate', 'virtualType']);
 
         // 库存报警
         $stock_warning && $dataProvider->query->andWhere("warning_stock > stock");
@@ -68,10 +72,25 @@ class ProductController extends BaseController
     public function actionEdit()
     {
         $id = Yii::$app->request->get('id', null);
+        $virtual_group = Yii::$app->request->get('virtual_group');
 
-        $model = $this->findModel($id);
+        $model = $this->findFormModel($id);
         $model->tags = !empty($model->tags) ? explode(',', $model->tags) : [];
         $model->covers = unserialize($model->covers);
+        $model->defaultMemberDiscount = Yii::$app->tinyShopService->productMemberDiscount->getLevelListByProductId($id);
+        $model->member_level_decimal_reservation = $model->defaultMemberDiscount[0]['decimal_reservation_number'] ?? DecimalReservationEnum::DEFAULT;
+
+        /** @var VirtualType $virtualType 虚拟商品 */
+        $virtualType = $model->virtualType;
+        if (!$virtualType && $virtual_group) {
+            $virtualType = new VirtualType();
+            $virtualType = $virtualType->loadDefaultValues();
+            $virtualType->group = $virtual_group;
+            $virtualType->value = [];
+        }
+
+        // 分销配置
+        $commissionRate = Yii::$app->tinyShopService->productCommissionRate->findModelByProductId($id);
 
         if (Yii::$app->request->isAjax && $model->load(Yii::$app->request->post())) {
             $data = Yii::$app->request->post();
@@ -83,13 +102,42 @@ class ProductController extends BaseController
                 $model->attributeValueData = $data['attributeValue'] ?? [];
                 $model->specValueData = $data['specValue'] ?? [];
                 $model->specValueFieldData = $data['specValueFieldData'] ?? [];
+                $model->memberDiscount = $data[$model->formName()]['memberDiscount'] ?? [];
                 $model->ladderPreferentialData = $data[$model->formName()]['ladderPreferentialData'] ?? [];
+                // 分销载入
+                $commissionRate->load($data);
 
                 !empty($model->covers) && $model->covers = serialize($model->covers);
                 !empty($model->tags) && $model->tags = implode(',', $model->tags);
 
+                // 分销开启状态
+                $model->is_open_commission = $commissionRate->status;
                 if (!$model->save()) {
                     throw new NotFoundHttpException($this->getError($model));
+                }
+
+                // 分销
+                $commissionRate->product_id = $model->id;
+                if (!$commissionRate->save()) {
+                    throw new NotFoundHttpException($this->getError($commissionRate));
+                }
+
+                // 虚拟商品
+                if ($virtualType) {
+                    $virtualType->load($data);
+                    $virtualType->product_id = $model->id;
+                    $virtual = VirtualProductGroupEnum::getModel($virtualType->group, $data);
+                    if (!$virtual->validate()) {
+                        throw new NotFoundHttpException($this->getError($virtual));
+                    }
+
+                    $virtual = ArrayHelper::toArray($virtual);
+                    unset($virtual['period'], $virtual['confine_use_number']);
+                    $virtualType->value = $virtual;
+
+                    if (!$virtualType->save()) {
+                        throw new NotFoundHttpException($this->getError($virtualType));
+                    }
                 }
 
                 $transaction->commit();
@@ -109,6 +157,10 @@ class ProductController extends BaseController
         empty($model->ladderPreferentialData) && $model->ladderPreferentialData = [[]];
         $model->ladderPreferentialData = array_reverse($model->ladderPreferentialData);
 
+        // 配置
+        $setting = new SettingForm();
+        $setting->attributes = $this->getConfig();
+
         return $this->render($this->action->id, [
             'model' => $model,
             'cates' => Yii::$app->tinyShopService->productCate->getMapList(),
@@ -122,6 +174,10 @@ class ProductController extends BaseController
             'specValue' => $specValue,
             'specValuejsData' => $specValuejsData,
             'productStatusExplain' => Product::$productStatusExplain,
+            'commissionRate' => $commissionRate,
+            'virtualType' => $virtualType,
+            'virtual_group' => $virtual_group,
+            'setting' => $setting,
         ]);
     }
 
@@ -429,7 +485,24 @@ class ProductController extends BaseController
      */
     protected function findModel($id)
     {
-        if (empty($id) || empty(($model = ProductForm::find()->where(['id' => $id])->andWhere(['merchant_id' => $this->getMerchantId()])->one()))) {
+        if (empty($id) || empty(($model = Product::find()->where(['id' => $id])->andWhere(['merchant_id' => $this->getMerchantId()])->one()))) {
+            $model = new ProductForm();
+            $model->merchant_id = $this->getMerchantId();
+            $model->loadDefaultValues();
+        }
+
+        return $model;
+    }
+
+    /**
+     * 返回模型
+     *
+     * @param $id
+     * @return ProductForm|array|\yii\db\ActiveRecord|null
+     */
+    protected function findFormModel($id)
+    {
+        if (empty($id) || empty(($model = ProductForm::find()->where(['id' => $id])->andFilterWhere(['merchant_id' => $this->getMerchantId()])->one()))) {
             $model = new ProductForm();
             $model->merchant_id = $this->getMerchantId();
             $model->loadDefaultValues();

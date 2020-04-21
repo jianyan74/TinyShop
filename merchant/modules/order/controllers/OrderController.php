@@ -199,6 +199,15 @@ class OrderController extends BaseController
         try {
             Yii::$app->tinyShopService->order->close($id);
 
+            // 记录操作
+            Yii::$app->tinyShopService->orderAction->create(
+                '关闭订单',
+                $id,
+                OrderStatusEnum::NOT_PAY,
+                Yii::$app->user->identity->id,
+                Yii::$app->user->identity->username
+            );
+
             return ResultHelper::json(200, '操作成功');
         } catch (\Exception $e) {
             return ResultHelper::json(422, $e->getMessage());
@@ -215,6 +224,15 @@ class OrderController extends BaseController
     {
         try {
             Yii::$app->tinyShopService->order->takeDelivery($id);
+
+            // 记录操作
+            Yii::$app->tinyShopService->orderAction->create(
+                '确认收货',
+                $id,
+                OrderStatusEnum::SHIPMENTS,
+                Yii::$app->user->identity->id,
+                Yii::$app->user->identity->username
+            );
 
             return ResultHelper::json(200, '操作成功');
         } catch (\Exception $e) {
@@ -260,6 +278,14 @@ class OrderController extends BaseController
 
                 // 进行收货
                 Yii::$app->tinyShopService->order->takeDelivery($id);
+                // 记录操作
+                Yii::$app->tinyShopService->orderAction->create(
+                    '确认收货',
+                    $id,
+                    OrderStatusEnum::SHIPMENTS,
+                    Yii::$app->user->identity->id,
+                    Yii::$app->user->identity->username
+                );
 
                 $transaction->commit();
 
@@ -309,10 +335,7 @@ class OrderController extends BaseController
     protected function findModel($id)
     {
         /* @var $model Order */
-        if (empty($id) || empty(($model = $this->modelClass::findOne([
-                'id' => $id,
-                'merchant_id' => $this->getMerchantId()
-            ])))) {
+        if (empty($id) || empty($model = $this->modelClass::find()->where(['id' => $id])->andFilterWhere(['merchant_id' => $this->getMerchantId()])->one())) {
             throw new NotFoundHttpException('找不到订单');
         }
 

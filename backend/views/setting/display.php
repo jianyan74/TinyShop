@@ -17,8 +17,8 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                 <li><a data-toggle="tab" href="#tab-2" aria-expanded="false">支付设置</a></li>
                 <li><a data-toggle="tab" href="#tab-3" aria-expanded="false">配送设置</a></li>
                 <li><a data-toggle="tab" href="#tab-4" aria-expanded="false">发票设置</a></li>
-                <li><a data-toggle="tab" href="#tab-5" aria-expanded="false">相关协议</a></li>
-                <li><a data-toggle="tab" href="#tab-6" aria-expanded="false">版权</a></li>
+                <li><a data-toggle="tab" href="#tab-6" aria-expanded="false">相关协议</a></li>
+                <li><a data-toggle="tab" href="#tab-7" aria-expanded="false">版权</a></li>
             </ul>
             <div class="tab-content">
                 <div id="tab-1" class="tab-pane active">
@@ -50,12 +50,14 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                         <?= $form->field($model, 'order_wechat_pay')->radioList(WhetherEnum::getMap()); ?>
                         <?= $form->field($model, 'order_ali_pay')->radioList(WhetherEnum::getMap()); ?>
                         <?= $form->field($model, 'order_balance_pay')->radioList(WhetherEnum::getMap()); ?>
+                        <?= $form->field($model, 'order_cash_against_pay')->radioList(WhetherEnum::getMap()); ?>
                     </div>
                 </div>
                 <div id="tab-3" class="tab-pane">
                     <div class="panel-body">
                         <?= $form->field($model, 'buyer_self_lifting')->radioList(WhetherEnum::getMap()); ?>
                         <?= $form->field($model, 'is_logistics')->radioList(WhetherEnum::getMap()); ?>
+                        <?= $form->field($model, 'is_delivery_shop')->radioList(WhetherEnum::getMap()); ?>
                     </div>
                 </div>
                 <div id="tab-4" class="tab-pane">
@@ -64,14 +66,14 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                         <?= $form->field($model, 'order_invoice_content')->textarea(); ?>
                     </div>
                 </div>
-                <div id="tab-5" class="tab-pane">
+                <div id="tab-6" class="tab-pane">
                     <div class="panel-body">
                         <?= $form->field($model, 'protocol_register')->widget(\common\widgets\ueditor\UEditor::class); ?>
                         <?= $form->field($model, 'protocol_privacy')->widget(\common\widgets\ueditor\UEditor::class); ?>
                         <?= $form->field($model, 'protocol_recharge')->widget(\common\widgets\ueditor\UEditor::class); ?>
                     </div>
                 </div>
-                <div id="tab-6" class="tab-pane">
+                <div id="tab-7" class="tab-pane">
                     <div class="panel-body">
                         <?= $form->field($model, 'copyright_logo')->widget(Files::class, [
                             'type' => 'images',

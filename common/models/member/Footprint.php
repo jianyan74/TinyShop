@@ -64,7 +64,7 @@ class Footprint extends \common\models\base\BaseModel
     public function getProduct()
     {
         return $this->hasOne(Product::class, ['id' => 'product_id'])
-            ->select(['id', 'name', 'picture', 'status'])
+            ->select(['id', 'name', 'picture', 'star', 'transmit_num', 'comment_num', 'collect_num', 'view', 'product_status', 'status'])
             ->with('minPriceSku');
     }
 }

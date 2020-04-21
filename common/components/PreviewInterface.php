@@ -14,16 +14,15 @@ use addons\TinyShop\common\models\forms\PreviewForm;
 abstract class PreviewInterface
 {
     /**
+     * @var bool
+     */
+    public $status = false;
+    /**
      * 创建记录
      *
      * @var bool
      */
     public $isNewRecord = false;
-
-    /**
-     * @var bool
-     */
-    public $status = false;
 
     /**
      * 执行

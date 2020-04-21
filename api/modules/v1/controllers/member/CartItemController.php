@@ -227,7 +227,7 @@ class CartItemController extends UserAuthController
     public function actionClear()
     {
         // 清空失效的购物车产品
-        $lose_status = Yii::$app->request->get('lose_status') == StatusEnum::ENABLED ? true : false;
+        $lose_status = Yii::$app->request->post('lose_status');
 
         return Yii::$app->tinyShopService->memberCartItem->clear($this->member_id, $lose_status);
     }

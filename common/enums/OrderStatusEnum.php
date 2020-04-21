@@ -24,6 +24,8 @@ class OrderStatusEnum extends BaseEnum
     const REPEAL = -4;
     const REPEAL_APPLY = -5;
     const WHOLESALE = 101;
+    const SUBSCRIPTION_PAY = 201;
+    const STOCK_UP = 202;
 
     /**
      * @return array
@@ -33,6 +35,7 @@ class OrderStatusEnum extends BaseEnum
         return [
             self::NOT_PAY => '待付款',
             // 拼团
+            // self::WHOLESALE => '待成团',
             self::PAY => '待发货', // 已付款
             self::SHIPMENTS => '已发货',
             self::SING => '已收货',

@@ -65,7 +65,7 @@ class SpecController extends BaseController
         $id = $request->get('id', null);
         $model = $this->findModel($id);
         if ($model->load($request->post()) && $model->save()) {
-            return $this->redirect(['index']);
+            return $this->referrer();
         }
 
         return $this->render($this->action->id, [

@@ -3,6 +3,8 @@
 use yii\grid\GridView;
 use common\helpers\Html;
 use common\helpers\ImageHelper;
+use common\helpers\Url;
+use addons\TinyShop\common\enums\VirtualProductGroupEnum;
 use addons\TinyShop\common\enums\PointExchangeTypeEnum;
 
 ?>
@@ -16,7 +18,11 @@ use addons\TinyShop\common\enums\PointExchangeTypeEnum;
                         'dataProvider' => $dataProvider,
                         'filterModel' => $searchModel,
                         //重新定义分页样式
-                        'tableOptions' => ['class' => 'table table-hover rf-table'],
+                        'tableOptions' => [
+                            'class' => 'table table-hover rf-table',
+                            'fixedNumber' => 2,
+                            'fixedRightNumber' => 1,
+                        ],
                         'options' => [
                             'id' => 'grid'
                         ],
@@ -50,7 +56,12 @@ use addons\TinyShop\common\enums\PointExchangeTypeEnum;
                                 'format' => 'raw',
                                 'value' => function ($model) {
                                     $html = $model->name . '<br>';
+                                    $group = isset($model->virtualType->group)
+                                        ? VirtualProductGroupEnum::getValue($model->virtualType->group)
+                                        : '普通商品';
+
                                     $html .= '<span class="label label-default is_hot m-r-xs">' . PointExchangeTypeEnum::getValue($model->point_exchange_type) .'</span>';
+                                    $html .= '<span class="label label-default is_hot m-r-xs">' . $group .'</span>';
 
                                     return $html;
                                 },

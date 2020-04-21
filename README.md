@@ -45,6 +45,10 @@ git clone https://github.com/jianyan74/TinyShop.git
 
 http://www.rageframe.com
 
+### 更新说明
+
+[更新日志](docs/guide-zh-CN/start-update-log.md)
+
 ### 问题反馈
 
 在使用中有任何问题，欢迎反馈给我，可以用以下联系方式跟我交流

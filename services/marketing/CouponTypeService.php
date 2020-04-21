@@ -27,7 +27,7 @@ class CouponTypeService extends Service
     {
         // 是否可领取
         $model['is_get'] = StatusEnum::ENABLED;
-        if (isset($model['myGet']['count']) && $model['myGet']['count'] >= $model['max_fetch']) {
+        if (isset($model['myGet']['count']) && $model['myGet']['count'] >= $model['max_fetch'] && $model['max_fetch'] > 0) {
             $model['is_get'] = StatusEnum::DISABLED;
         }
         !isset($model['myGet']) && $model['myGet'] = null;
@@ -64,7 +64,7 @@ class CouponTypeService extends Service
      *
      * @param $product_id
      */
-    public function getCanReceiveCouponByProductId($product_id, $member_id)
+    public function getCanReceiveCouponByProductId($product_id, $member_id, $merchant_id)
     {
         $with = [];
         if (!empty($member_id)) {
@@ -80,14 +80,14 @@ class CouponTypeService extends Service
             ->andWhere(['range_type' => RangeTypeEnum::ALL])
             ->andWhere(['<', 'get_start_time', time()])
             ->andWhere(['>', 'get_end_time', time()])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->orFilterWhere([
+            ->andWhere(['merchant_id' => $merchant_id])
+            ->orWhere([
                 'and',
                 ['in', 'id', $ids],
                 ['<', 'get_start_time', time()],
                 ['>', 'get_end_time', time()],
                 ['status' => StatusEnum::ENABLED],
-                ['merchant_id' => $this->getMerchantId()],
+                ['merchant_id' => $merchant_id],
             ])
             ->with($with)
             ->asArray()

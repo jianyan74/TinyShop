@@ -83,7 +83,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         <td><?= ShippingTypeEnum::getValue($model['shipping_type']) ?>  <?= $model['company_name'] ?></td>
                     </tr>
                     <!-- 物流配送 -->
-                    <?php if (in_array($model['shipping_type'], [ShippingTypeEnum::MERCHANT, ShippingTypeEnum::LOCAL_DISTRIBUTION])) { ?>
+                    <?php if (in_array($model['shipping_type'], [ShippingTypeEnum::LOGISTICS, ShippingTypeEnum::CASH_AGAINST])) { ?>
                         <tr>
                             <th>配送时间：</th>
                             <td>工作日、双休日与节假日均可送货</td>
@@ -98,7 +98,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         </tr>
                     <?php } ?>
                     <!-- 自提 -->
-                    <?php if (ShippingTypeEnum::VISIT == $model['shipping_type']) { ?>
+                    <?php if (ShippingTypeEnum::PICKUP == $model['shipping_type']) { ?>
                         <tr>
                             <th>自提地点：</th>
                             <td>
@@ -278,11 +278,12 @@ $this->params['breadcrumbs'][] = $this->title;
         <div class="box">
             <div class="box-body">
                 <div class="pull-right">
-                    商品总金额：<?= Yii::$app->formatter->asDecimal($model['product_money'], 2) ?>，
-                    代金券：￥-<?= $model['coupon_money'] ?>，
-                    余额支付：￥-<?= Yii::$app->formatter->asDecimal($model['user_money'], 2) ?>，
-                    发票税额：￥<?= $model['tax_money'] ?>，
-                    积分抵扣：￥ -<?= $model['point_money'] ?>，
+                    商品总金额：<?= Yii::$app->formatter->asDecimal($model['order_money'], 2) ?>，
+                    <?php if ($model['coupon_money'] > 0) {?>代金券：￥-<?= $model['coupon_money'] ?>，<?php } ?>
+                    <?php if ($model['user_money'] > 0) {?>余额支付：￥-<?= Yii::$app->formatter->asDecimal($model['user_money'], 2) ?>，<?php } ?>
+                    <?php if ($model['tax_money'] > 0) {?>发票税额：￥<?= $model['tax_money'] ?>，<?php } ?>
+                    <?php if ($model['point'] > 0) {?>使用积分：<?= $model['point'] ?>，<?php } ?>
+                    <?php if ($model['point_money'] > 0) {?>积分抵扣：￥ -<?= $model['point_money'] ?>，<?php } ?>
                     实际需支付：<b class="red">￥<?= Yii::$app->formatter->asDecimal($model['pay_money'], 2) ?></b> （含运费
                     ￥<?= Yii::$app->formatter->asDecimal($model['shipping_money'], 2) ?>）
                 </div>

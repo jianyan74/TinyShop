@@ -65,5 +65,5 @@ interface CartItemInterface
      *
      * @param $product_id
      */
-    public function loseByProductId($product_id);
+    public function loseByProductIds(array $product_idsa);
 }

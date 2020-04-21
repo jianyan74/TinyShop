@@ -31,7 +31,7 @@ class OrderCustomerController extends UserAuthController
      * @throws NotFoundHttpException
      * @throws \yii\web\UnprocessableEntityHttpException
      */
-    public function actionRefundApply()
+    public function actionApply()
     {
         $model = new CustomerRefundForm();
         $model->setScenario('apply');
@@ -51,7 +51,7 @@ class OrderCustomerController extends UserAuthController
      * @throws NotFoundHttpException
      * @throws \yii\web\UnprocessableEntityHttpException
      */
-    public function actionRefundSalesReturn()
+    public function actionSalesReturn()
     {
         $model = new CustomerRefundForm();
         $model->setScenario('salesReturn');
@@ -70,7 +70,7 @@ class OrderCustomerController extends UserAuthController
      * @throws NotFoundHttpException
      * @throws \yii\web\UnprocessableEntityHttpException
      */
-    public function actionRefundClose()
+    public function actionClose()
     {
         $model = new CustomerRefundForm();
         $model->attributes = Yii::$app->request->post();

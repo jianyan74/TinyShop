@@ -23,10 +23,8 @@ class Bootstrap implements AddonWidget
      */
     public function run($addon)
     {
-        Yii::$app->services->merchant->setId(1);
-
         // TODO 临时测试
-        $config = AddonHelper::getBackendConfig();
+        $config = AddonHelper::getConfig();
         $merchant_id = Yii::$app->services->merchant->getId();
         Yii::$app->tinyShopService->order->signAll($config, $merchant_id); // 自动收货
         Yii::$app->tinyShopService->order->finalizeAll($config, $merchant_id); // 完成订单

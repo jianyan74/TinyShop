@@ -80,7 +80,7 @@ class ConfigController extends OnAuthController
         ]));
 
         $result = [];
-        $allConfig = AddonHelper::getBackendConfig();
+        $allConfig = AddonHelper::getConfig();
         foreach ($field as $item) {
             $result[$item] = $allConfig[$item] ?? '';
         }

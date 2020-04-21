@@ -2,15 +2,17 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\product;
 
-use addons\TinyShop\common\enums\PointExchangeTypeEnum;
 use Yii;
 use yii\data\ActiveDataProvider;
 use yii\helpers\Json;
 use common\helpers\ResultHelper;
 use common\enums\StatusEnum;
+use common\helpers\AddonHelper;
 use addons\TinyShop\common\models\product\Product;
 use api\controllers\OnAuthController;
 use addons\TinyShop\common\models\forms\ProductSearch;
+use addons\TinyShop\common\enums\PointExchangeTypeEnum;
+use addons\TinyShop\common\models\SettingForm;
 
 /**
  * 产品
@@ -86,8 +88,26 @@ class ProductController extends OnAuthController
             }
         }
 
+        // 查询开启分销 (非积分兑换才可以)
+        $model['commissionRate'] = [];
+        $setting = new SettingForm();
+        $setting->attributes = AddonHelper::getConfig();
+        if (
+            $setting->is_open_commission == StatusEnum::ENABLED &&
+            !PointExchangeTypeEnum::isIntegralBuy($model['point_exchange_type']) &&
+            $model['is_open_commission'] == StatusEnum::ENABLED
+        ) {
+            $model['commissionRate'] = Yii::$app->tinyShopService->productCommissionRate->findByProductId($model['id']);
+        }
+
+        // 营销
+        $model['marketing'] = [];
+        if (!empty($model['marketing_id']) && !empty($model['marketing_type'])) {
+            $model['marketing'] = Yii::$app->tinyShopService->marketing->findByIdAndType($model);
+        }
+
         // 可领优惠券
-        $canReceiveCoupon = Yii::$app->tinyShopService->marketingCouponType->getCanReceiveCouponByProductId($id, $member_id);
+        $canReceiveCoupon = Yii::$app->tinyShopService->marketingCouponType->getCanReceiveCouponByProductId($id, $member_id, $model['merchant_id']);
         foreach ($canReceiveCoupon as &$item) {
             $item = Yii::$app->tinyShopService->marketingCouponType->regroupShow($item);
         }
@@ -107,6 +127,13 @@ class ProductController extends OnAuthController
                 $model['is_buy'] = StatusEnum::DISABLED;
             }
         }
+
+        // 积分抵现
+        $model['pointConfig'] = Yii::$app->tinyShopService->marketingPointConfig->findOne($model['merchant_id']);
+        // 满包邮
+        $model['fullMail'] = Yii::$app->tinyShopService->marketingFullMail->findOne($model['merchant_id']);
+        $model['fullGive'] = [];
+        $model['combination'] = [];
 
         return $model;
     }

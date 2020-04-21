@@ -13,9 +13,11 @@ use common\enums\BaseEnum;
  */
 class ShippingTypeEnum extends BaseEnum
 {
-    const MERCHANT = 1;
-    const VISIT = 2;
-    const LOCAL_DISTRIBUTION = 3;
+    const LOGISTICS = 1;
+    const PICKUP = 2;
+    const CASH_AGAINST = 3;
+    const LOCAL_DISTRIBUTION = 4;
+    const VIRTUAL = 5;
 
     /**
      * @return array
@@ -23,9 +25,11 @@ class ShippingTypeEnum extends BaseEnum
     public static function getMap(): array
     {
         return [
-            self::MERCHANT => '物流配送',
-            self::VISIT => '买家自提',
+            self::LOGISTICS => '物流配送',
+            self::PICKUP => '买家自提',
+            self::CASH_AGAINST => '货到付款',
             self::LOCAL_DISTRIBUTION => '本地配送',
+            self::VIRTUAL => '虚拟商品',
         ];
     }
 }

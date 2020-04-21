@@ -2,9 +2,7 @@
 
 namespace addons\TinyShop\merchant\controllers;
 
-use common\enums\AppEnum;
 use Yii;
-use common\helpers\AddonHelper;
 use common\helpers\ArrayHelper;
 use common\interfaces\AddonsSetting;
 use addons\TinyShop\common\models\SettingForm;
@@ -24,11 +22,11 @@ class SettingController extends BaseController implements AddonsSetting
     {
         $request = Yii::$app->request;
         $model = new SettingForm();
-        $model->attributes = AddonHelper::getBackendConfig(true);
+        $model->attributes = $this->getConfig();
         if ($model->load($request->post()) && $model->validate()) {
-            AddonHelper::setConfig(ArrayHelper::toArray($model), '', AppEnum::BACKEND);
+            $this->setConfig(ArrayHelper::toArray($model));
 
-            return $this->message('修改成功', $this->redirect(['display']));
+            return $this->message('保存成功', $this->redirect(['display']));
         }
 
         return $this->render('@addons/TinyShop/backend/views/setting/display', [

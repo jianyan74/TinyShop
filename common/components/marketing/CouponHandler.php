@@ -12,6 +12,7 @@ use addons\TinyShop\common\components\PreviewInterface;
 use addons\TinyShop\common\enums\RangeTypeEnum;
 use addons\TinyShop\common\enums\PreferentialTypeEnum;
 use addons\TinyShop\common\models\order\OrderProduct;
+use addons\TinyShop\common\enums\ProductMarketingEnum;
 
 /**
  * 优惠券
@@ -53,21 +54,39 @@ class CouponHandler extends PreviewInterface
         if ($coupon['couponType']['range_type'] ==  RangeTypeEnum::ASSIGN) {
             $couponProductIds = ArrayHelper::getColumn($coupon->couponProduct, 'product_id');
             // 判断是否在可用产品内
-            $productIds = ArrayHelper::getColumn($form->orderProducts, 'product_id');
+            $productIds = array_keys($form->groupOrderProducts);
             // 有效的产品id
             $usableIds = $this->usableVerify($couponProductIds, $productIds);
 
             // 折扣获取最高价产品进行折扣
             $money = 0;
-            /** @var OrderProduct $orderProduct */
-            foreach ($form->orderProducts as $orderProduct) {
-                if (in_array($orderProduct->product_id, $usableIds) && ($orderProduct->product_money > $money)) {
-                    $money = $orderProduct->product_money;
+            $product_id = 0;
+            foreach ($form->groupOrderProducts as $key => $groupOrderProduct) {
+                if (in_array($key, $usableIds) && ($groupOrderProduct['product_money'] > $money)) {
+                    $money = $groupOrderProduct['product_money'];
+                    $product_id = $key;
                 }
             }
 
+            // 记录营销
+            $form->marketingDetails[] = [
+                'marketing_id' => $coupon['couponType']['id'],
+                'marketing_type' => ProductMarketingEnum::COUPON,
+                'marketing_condition' => '满' . $coupon['at_least'] . '元，减' . $coupon['money'],
+                'discount_money' => $coupon['money'],
+                'product_id' => $product_id,
+            ];
+
             $form->coupon_money = $this->getCouponMoney($money, $coupon);
         } else {
+            // 记录营销
+            $form->marketingDetails[] = [
+                'marketing_id' => $coupon['couponType']['id'],
+                'marketing_type' => ProductMarketingEnum::COUPON,
+                'marketing_condition' => '满' . $coupon['at_least'] . '元，减' . $coupon['money'],
+                'discount_money' => $coupon['money'],
+            ];
+
             $form->coupon_money = $this->getCouponMoney($form->product_money, $coupon);
         }
 

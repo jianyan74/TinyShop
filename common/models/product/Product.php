@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\common\models\product;
 
+use common\helpers\StringHelper;
 use Yii;
 use yii\db\ActiveQuery;
 use common\behaviors\MerchantBehavior;
@@ -16,9 +17,11 @@ use addons\TinyShop\common\models\order\OrderProduct;
  * This is the model class for table "{{%addon_shop_product}}".
  *
  * @property string $id
- * @property string $name 商品标题
- * @property int $cate_id 商品分类编号
  * @property int $merchant_id 商家编号
+ * @property string $name 商品标题
+ * @property string $picture 商品主图
+ * @property string $cate_id 商品分类编号
+ * @property string $brand_id 品牌编号
  * @property int $type_id 类型编号
  * @property string $sketch 简述
  * @property string $intro 商品描述
@@ -26,11 +29,12 @@ use addons\TinyShop\common\models\order\OrderProduct;
  * @property string $tags 标签
  * @property string $marque 商品型号
  * @property string $barcode 仓库条码
- * @property int $brand_id 品牌编号
  * @property int $sales 虚拟购买量
+ * @property int $real_sales 实际销量
  * @property string $price 商品价格
  * @property string $market_price 市场价格
  * @property string $cost_price 成本价
+ * @property string $wholesale_price 拼团价格
  * @property int $stock 库存量
  * @property int $warning_stock 库存警告
  * @property string $covers 幻灯片
@@ -39,33 +43,54 @@ use addons\TinyShop\common\models\order\OrderProduct;
  * @property string $is_package 是否是套餐
  * @property string $is_attribute 启用商品规格
  * @property int $sort 排序
- * @property int $product_status 状态 -1=>下架,1=>上架,2=>预售,0=>未上架
+ * @property int $product_status 商品状态 0下架，1正常，10违规（禁售）
  * @property int $shipping_type 运费类型 1免邮2买家付邮费
  * @property string $shipping_fee 运费
  * @property int $shipping_fee_id 物流模板id
  * @property int $shipping_fee_type 计价方式1.计件2.体积3.重量
  * @property string $product_weight 商品重量
  * @property string $product_volume 商品体积
- * @property int $promotion_type 促销类型 0无促销，1团购，2限时折扣
- * @property int $promote_id 促销活动ID
- * @property string $promotion_price 商品促销价格
- * @property int $point_exchange_type 积分兑换类型 0 非积分兑换 1 只能积分兑换
+ * @property int $marketing_type 促销类型 0无促销，1团购，2限时折扣
+ * @property int $marketing_id 促销活动ID
+ * @property string $marketing_price 商品促销价格
+ * @property int $point_exchange_type 积分兑换类型
  * @property int $point_exchange 积分兑换
+ * @property int $max_use_point 积分抵现最大可用积分数 0为不可使用
+ * @property int $integral_give_type 积分赠送类型 0固定值 1按比率
  * @property int $give_point 购买商品赠送积分
  * @property int $min_buy 最少买几件
  * @property int $max_buy 限购 0 不限购
  * @property string $view 商品点击数量
+ * @property string $star 好评星级
  * @property string $collect_num 收藏数量
- * @property int $star 好评星级
- * @property int $comment_num 评价数
+ * @property string $comment_num 评价数
  * @property int $transmit_num 分享数
  * @property string $province_id 一级地区id
  * @property string $city_id 二级地区id
- * @property int $is_stock_visible 页面不显示库存
+ * @property int $area_id 三级地区
+ * @property string $address_name 地址
+ * @property int $is_stock_visible 库存显示 0不显示1显示
  * @property int $is_hot 是否热销商品
  * @property int $is_recommend 是否推荐
  * @property int $is_new 是否新品
  * @property int $is_bill 是否开具增值税发票 1是，0否
+ * @property int $base_attribute_id 商品类型
+ * @property string $base_attribute_format 商品规格
+ * @property double $match_point 实物与描述相符（根据评价计算）
+ * @property double $match_ratio 实物与描述相符（根据评价计算）百分比
+ * @property int $sale_date 上下架时间
+ * @property int $is_virtual 是否虚拟商品
+ * @property int $production_date 生产日期
+ * @property string $shelf_life 保质期
+ * @property int $is_open_presell 是否支持预售
+ * @property int $presell_time 预售发货时间
+ * @property int $presell_day 预售发货天数
+ * @property int $presell_delivery_type 预售发货方式1. 按照预售发货时间 2.按照预售发货天数
+ * @property string $presell_price 预售金额
+ * @property string $unit 商品单位
+ * @property string $video_url 展示视频
+ * @property int $supplier_id 供货商id
+ * @property int $is_open_commission 是否支持分销
  * @property int $status 状态
  * @property string $created_at 创建时间
  * @property string $updated_at 更新时间
@@ -77,9 +102,6 @@ class Product extends \common\models\base\BaseModel
     const PRODUCT_STATUS_PUTAWAY = 1;
     const PRODUCT_STATUS_SOLD_OUT = 0;
     const PRODUCT_STATUS_FORBID = 10; // 禁售
-
-    const SHIPPING_TYPE_FULL_MAIL = 1;
-    const SHIPPING_TYPE_USER_PAY = 2;
 
     /**
      * 上下架
@@ -124,8 +146,7 @@ class Product extends \common\models\base\BaseModel
                     'shipping_type',
                     'shipping_fee_id',
                     'shipping_fee_type',
-                    'promotion_type',
-                    'promote_id',
+                    'marketing_id',
                     'point_exchange_type',
                     'point_exchange',
                     'give_point',
@@ -146,6 +167,9 @@ class Product extends \common\models\base\BaseModel
                     'is_bill',
                     'is_virtual',
                     'real_sales',
+                    'is_open_presell',
+                    'presell_delivery_type',
+                    'presell_day',
                     'status',
                     'created_at',
                     'updated_at',
@@ -162,16 +186,24 @@ class Product extends \common\models\base\BaseModel
                     'shipping_fee',
                     'product_weight',
                     'product_volume',
-                    'promotion_price',
+                    'marketing_price',
                     'max_use_point',
+                    'presell_price',
                 ],
                 'number',
                 'min' => 0,
             ],
-            [['covers'], 'safe'],
+            [
+                [
+                    'shelf_life',
+                ],
+                'integer',
+                'min' => 0,
+            ],
+            [['covers', 'presell_time', 'production_date'], 'safe'],
             [['name'], 'string', 'max' => 255],
             [['sketch', 'keywords', 'address_name'], 'string', 'max' => 200],
-            [['marque', 'barcode', 'picture', 'video_url'], 'string', 'max' => 100],
+            [['marque', 'barcode', 'picture', 'video_url', 'marketing_type'], 'string', 'max' => 100],
             [['unit'], 'string', 'max' => 20],
             [['tags'], 'safe'],
         ];
@@ -184,15 +216,15 @@ class Product extends \common\models\base\BaseModel
     {
         return [
             'id' => 'ID',
-            'name' => '标题',
+            'name' => '商品名称',
             'cate_id' => '分类',
             'merchant_id' => 'Merchant ID',
             'type_id' => '产品类型',
-            'sketch' => '促销语',
+            'sketch' => '商品促销语',
             'intro' => '商品描述',
             'keywords' => '关键字',
             'tags' => '标签',
-            'marque' => '商品型号',
+            'marque' => '商家编码',
             'barcode' => '仓库条码',
             'brand_id' => '品牌',
             'price' => '销售价',
@@ -208,18 +240,20 @@ class Product extends \common\models\base\BaseModel
             'base_attribute_id' => '商品类型',
             'state' => '审核状态',
             'is_package' => '是否套餐',
-            'is_attribute' => '启用商品规格',
+            'is_attribute' => '商品规格',
             'sort' => '排序',
             'product_status' => '商品状态',
+            'production_date' => '生产日期',
+            'shelf_life' => '保质期',
             'shipping_type' => '运费设置',
             'shipping_fee' => '运费',
             'shipping_fee_id' => '物流公司',
             'shipping_fee_type' => '计价方式',
             'product_weight' => '商品重量',
             'product_volume' => '商品体积',
-            'promotion_type' => '促销类型',
-            'promote_id' => '促销活动id',
-            'promotion_price' => '商品促销价格',
+            'marketing_type' => '促销类型',
+            'marketing_id' => '促销活动id',
+            'marketing_price' => '商品促销价格',
             'point_exchange_type' => '积分兑换设置',
             'point_exchange' => '兑换所需积分',
             'max_use_point' => '最大可使用积分',
@@ -237,6 +271,11 @@ class Product extends \common\models\base\BaseModel
             'province_id' => '所在省',
             'city_id' => '所在市',
             'area_id' => '所在区',
+            'is_open_presell' => '是否支持预售',
+            'presell_time' => '预售发货时间',
+            'presell_day' => '预售发货天数',
+            'presell_delivery_type' => '预售发货方式',
+            'presell_price' => '预售金额',
             'unit' => '商品单位',
             'is_stock_visible' => '库存显示',
             'is_hot' => '热门',
@@ -313,6 +352,19 @@ class Product extends \common\models\base\BaseModel
     }
 
     /**
+     * 关联第一个sku
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getFirstSku()
+    {
+        return $this->hasOne(Sku::class, ['product_id' => 'id'])
+            ->where(['status' => StatusEnum::ENABLED])
+            ->select(['id', 'product_id', 'name', 'picture', 'price', 'market_price', 'cost_price', 'stock', 'code', 'data'])
+            ->orderBy('id asc');
+    }
+
+    /**
      * 关最小sku
      *
      * @return \yii\db\ActiveQuery
@@ -323,6 +375,36 @@ class Product extends \common\models\base\BaseModel
             ->where(['status' => StatusEnum::ENABLED])
             ->select(['id', 'product_id', 'price', 'market_price', 'cost_price', 'stock', 'code'])
             ->orderBy('price');
+    }
+
+    /**
+     * 关联虚拟物品
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getVirtualType()
+    {
+        return $this->hasOne(VirtualType::class, ['product_id' => 'id']);
+    }
+
+    /**
+     * 关联拼团
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getWholesaleProduct()
+    {
+        return $this->hasOne(WholesaleProduct::class, ['product_id' => 'id']);
+    }
+
+    /**
+     * 分销配置
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getCommissionRate()
+    {
+        return $this->hasMany(CommissionRate::class, ['product_id' => 'id']);
     }
 
     /**
@@ -432,10 +514,17 @@ class Product extends \common\models\base\BaseModel
      */
     public function beforeSave($insert)
     {
+        $this->presell_time = StringHelper::dateToInt($this->presell_time);
+        $this->production_date = StringHelper::dateToInt($this->production_date);
+        empty($this->supplier_id) && $this->supplier_id = 0;
+        empty($this->brand_id) && $this->brand_id = 0;
+        empty($this->province_id) && $this->province_id = 0;
+        empty($this->city_id) && $this->city_id = 0;
+        empty($this->area_id) && $this->area_id = 0;
+
         // 让sku失效
-        if (in_array($this->status,
-                [StatusEnum::DELETE, StatusEnum::DISABLED]) || $this->product_status == StatusEnum::DISABLED) {
-            Yii::$app->tinyShopService->memberCartItem->loseByProductId($this->id);
+        if (in_array($this->status, [StatusEnum::DELETE, StatusEnum::DISABLED]) || $this->product_status == StatusEnum::DISABLED) {
+            Yii::$app->tinyShopService->memberCartItem->loseByProductIds([$this->id]);
         }
 
         return parent::beforeSave($insert);

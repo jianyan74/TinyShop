@@ -72,7 +72,7 @@ class PayController extends OnAuthController
         /********************************** 余额支付 *********************************/
         /*---------------------------------------------------------------------------*/
 
-        $config = AddonHelper::getBackendConfig();
+        $config = AddonHelper::getConfig();
         if (!isset($config['order_balance_pay']) || $config['order_balance_pay'] == StatusEnum::DISABLED) {
             throw new UnprocessableEntityHttpException('不支持余额支付');
         }
@@ -92,7 +92,7 @@ class PayController extends OnAuthController
                 'num' => $order->pay_money,
                 'credit_group' => 'orderCreate',
                 'map_id' => $order_id,
-                'remark' => '订单余额支付',
+                'remark' => '【微商城】订单余额支付',
             ]));
 
             Yii::$app->tinyShopService->order->pay($order, PayTypeEnum::USER_MONEY);

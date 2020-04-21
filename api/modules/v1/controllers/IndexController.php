@@ -35,7 +35,7 @@ class IndexController extends OnAuthController
      */
     public function actionIndex()
     {
-        $config = AddonHelper::getBackendConfig();
+        $config = AddonHelper::getConfig();
         $member_id = !Yii::$app->user->isGuest ? Yii::$app->user->identity->member_id : '';
 
         // 热门

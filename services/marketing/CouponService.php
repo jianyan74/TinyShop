@@ -197,9 +197,10 @@ class CouponService extends Service
         $rows = [];
         for ($i = 0; $i < $count; $i++) {
             $code = time() . rand(10000, 99999);
+            $merchant_id = Yii::$app->services->merchant->getId();
             $rows[] = [
                 'coupon_type_id' => $couponType->id,
-                'merchant_id' => Yii::$app->services->merchant->getId(),
+                'merchant_id' => empty($merchant_id) ? 0 : $merchant_id,
                 'code' => $code,
             ];
         }

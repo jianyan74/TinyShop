@@ -54,12 +54,12 @@ class CouponTypeController extends OnAuthController
         $data = new ActiveDataProvider([
             'query' => $this->modelClass::find()
                 ->where([
-                    'merchant_id' => $this->getMerchantId(),
                     'status' => StatusEnum::ENABLED,
                     'is_show' => WhetherEnum::ENABLED,
                 ])
+                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
                 ->orderBy('id desc')
-                ->with(ArrayHelper::merge($with, ['usableProduct']))
+                ->with(ArrayHelper::merge($with, ['usableProduct', 'merchant']))
                 ->asArray(),
             'pagination' => [
                 'pageSize' => $this->pageSize,

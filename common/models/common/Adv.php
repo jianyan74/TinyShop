@@ -43,7 +43,7 @@ class Adv extends \common\models\base\BaseModel
             [['title', 'cover', 'start_time', 'end_time'], 'required'],
             [['merchant_id', 'is_title_show', 'sort', 'status', 'created_at', 'updated_at'], 'integer'],
             [['title', 'location', 'jump_type'], 'string', 'max' => 30],
-            [['cover'], 'string', 'max' => 100],
+            [['cover'], 'string', 'max' => 200],
             [['silder_text', 'jump_link'], 'string', 'max' => 150],
         ];
     }
