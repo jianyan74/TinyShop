@@ -60,7 +60,11 @@ class ProductController extends OnAuthController
 
         $model = Yii::$app->tinyShopService->product->findViewById($id, $member_id);
         if (!$model) {
-            return ResultHelper::json(422, '产品找不到了或者已下架');
+            return ResultHelper::json(422, '商品找不到了');
+        }
+
+        if ($model['product_status'] == StatusEnum::DISABLED) {
+            return ResultHelper::json(422, '商品已下架');
         }
 
         // 销量

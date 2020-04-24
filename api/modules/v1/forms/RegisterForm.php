@@ -4,12 +4,12 @@ namespace addons\TinyShop\api\modules\v1\forms;
 
 use Yii;
 use yii\base\Model;
+use yii\web\UnprocessableEntityHttpException;
 use common\helpers\RegularHelper;
 use common\models\member\Member;
 use common\models\common\SmsLog;
 use common\models\validators\SmsCodeValidator;
 use addons\TinyShop\common\enums\AccessTokenGroupEnum;
-use yii\web\UnprocessableEntityHttpException;
 
 /**
  * Class RegisterForm
@@ -24,6 +24,7 @@ class RegisterForm extends Model
     public $code;
     public $group;
     public $realname;
+    public $nickname;
     public $head_portrait;
     public $promo_code;
     /**
@@ -38,7 +39,7 @@ class RegisterForm extends Model
     {
         return [
             [['mobile', 'group', 'code', 'password', 'password_repetition'], 'required'],
-            [['realname', 'head_portrait', 'promo_code'], 'string'],
+            [['realname', 'nickname', 'head_portrait', 'promo_code'], 'string'],
             [['password'], 'string', 'min' => 6],
             [['mobile'], 'isRegister'],
             ['promo_code', 'promoCodeVerify'],
@@ -59,6 +60,7 @@ class RegisterForm extends Model
             'head_portrait' => '头像',
             'promo_code' => '推广码',
             'realname' => '姓名',
+            'nickname' => '昵称',
             'password' => '密码',
             'password_repetition' => '重复密码',
             'group' => '类型',
