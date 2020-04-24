@@ -73,15 +73,8 @@ class MemberController extends OnAuthController
         if (!$model->save()) {
             return ResultHelper::json(422, $this->getError($model));
         }
-
-        $member_id = Yii::$app->user->identity->member_id;
-        $member = Member::find()
-            ->where(['id' => $member_id])
-            ->with(['account'])
-            ->asArray()
-            ->one();
-
-        return $member;
+		
+        return ResultHelper::json(200, 'OK');
     }
 
     /**
