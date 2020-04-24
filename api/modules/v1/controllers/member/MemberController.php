@@ -73,7 +73,7 @@ class MemberController extends OnAuthController
         if (!$model->save()) {
             return ResultHelper::json(422, $this->getError($model));
         }
-		
+		//避免返回敏感信息
         return ResultHelper::json(200, 'OK');
     }
 
