@@ -96,7 +96,7 @@ class CartItemService extends Service implements CartItemInterface
 
         foreach ($data as &$datum) {
             $datum['remark'] = '';
-            if ($data['status'] == StatusEnum::DISABLED) {
+            if ($datum['status'] == StatusEnum::DISABLED) {
                 if ($datum['product']['stock'] <= 0) {
                     $datum['remark'] = '库存不足';
                 }
@@ -315,7 +315,7 @@ class CartItemService extends Service implements CartItemInterface
             ->where(['in', 'id', $ids])
             ->andWhere(['status' => StatusEnum::ENABLED, 'member_id' => $member_id])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->with(['product.ladderPreferential', 'product.myGet' => function(ActiveQuery $query) use ($member_id) {
+            ->with(['product.ladderPreferential', 'product.discountProduct', 'product.myGet' => function(ActiveQuery $query) use ($member_id) {
                 return $query->andWhere(['member_id' => $member_id]);
             }, 'sku'])
             ->asArray()
