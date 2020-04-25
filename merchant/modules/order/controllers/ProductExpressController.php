@@ -33,7 +33,7 @@ class ProductExpressController extends BaseController
         if ($model->load(Yii::$app->request->post())) {
             $model->buyer_id = $order->buyer_id;
             $model->member_id = Yii::$app->user->identity->id;
-            $model->member_username = Yii::$app->user->identity->username;
+            $model->member_username = $order->receiver_name;
 
             // 事务
             $transaction = Yii::$app->db->beginTransaction();
