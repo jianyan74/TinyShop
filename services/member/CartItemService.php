@@ -315,7 +315,7 @@ class CartItemService extends Service implements CartItemInterface
             ->where(['in', 'id', $ids])
             ->andWhere(['status' => StatusEnum::ENABLED, 'member_id' => $member_id])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->with(['product.ladderPreferential', 'product.discountProduct', 'product.myGet' => function(ActiveQuery $query) use ($member_id) {
+            ->with(['product.ladderPreferential', 'product.myGet' => function(ActiveQuery $query) use ($member_id) {
                 return $query->andWhere(['member_id' => $member_id]);
             }, 'sku'])
             ->asArray()
