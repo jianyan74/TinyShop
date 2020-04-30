@@ -27,7 +27,7 @@ class HelperController extends OnAuthController
      *
      * @var array
      */
-    protected $authOptional = ['index', 'view'];
+    protected $authOptional = ['index', 'view','item'];
 
     /**
      * @return array|\yii\data\ActiveDataProvider
@@ -38,6 +38,23 @@ class HelperController extends OnAuthController
 
         return ArrayHelper::itemsMerge($data, 0, 'id', 'pid', 'child');
     }
+    
+    
+    /**
+	 * 获取帮助详情
+	 * 1099221484@qq.com
+	 */
+	public function actionItem()
+	{
+		$id = Yii::$app->request->get('id');
+		$data = Yii::$app->tinyShopService->helper->findById($id);
+		if(!$data){
+			return ResultHelper::json(422, '未找到相关帮助信息');
+		}
+		
+		return $data;
+		
+	}
 
     /**
      * 权限验证
