@@ -48,4 +48,13 @@ class HelperService extends Service
             ->asArray()
             ->all();
     }
+    
+    //用ID查询
+	public function findById($id)
+	{
+	    return Helper::find()
+	        ->where(['id' => $id])
+	        ->one();
+	}
+    
 }
