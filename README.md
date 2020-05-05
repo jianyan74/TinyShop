@@ -63,7 +63,7 @@ niushop： https://www.niushop.com.cn
 
 ### 版权信息
 
-RF微商城 遵循 [Apache2](README.md) 开源协议并 [附加使用协议](LICENSE-SUPPLEMENTAL.md) 发布，并提供商用免费使用。
+RF微商城 遵循 [Apache2](LICENSE.md) 开源协议并 [附加使用协议](LICENSE-SUPPLEMENTAL.md) 发布，并提供商用免费使用。
 
 本项目包含的第三方源码和二进制文件之版权信息另行标注。
 
