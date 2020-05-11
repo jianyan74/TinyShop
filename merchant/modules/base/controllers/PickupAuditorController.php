@@ -9,7 +9,6 @@ use common\models\base\SearchModel;
 use common\traits\MerchantCurd;
 use addons\TinyShop\merchant\controllers\BaseController;
 use addons\TinyShop\common\models\pickup\Auditor;
-use addons\TinyShop\common\models\product\Product;
 
 /**
  * 门店自提人员管理
@@ -72,7 +71,7 @@ class PickupAuditorController extends BaseController
             return ResultHelper::json(422, '请选择数据进行操作');
         }
 
-        Product::deleteAll(['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]]);
+        Auditor::deleteAll(['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]]);
 
         return ResultHelper::json(200, '批量操作成功');
     }
