@@ -58,7 +58,7 @@ class FullMailService extends Service
         if (
             $fullMail['is_open'] == StatusEnum::ENABLED &&
             $product_money >= $fullMail['full_mail_money'] &&
-            in_array($address['city_id'], StringHelper::parseAttr($fullMail['no_mail_city_ids']))
+            !in_array($address['city_id'], StringHelper::parseAttr($fullMail['no_mail_city_ids']))
         ) {
             return $fullMail;
         }
