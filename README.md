@@ -8,7 +8,7 @@
 
 开源地址: https://github.com/stavyan/TinyShop-UniApp
 
-### Demo
+### 开源版免费商用Demo
 
 H5 预览: http://h5.tinyshop.rageframe.com  
 后台预览: http://demo2.rageframe.com/backend    
@@ -16,6 +16,13 @@ H5 预览: http://h5.tinyshop.rageframe.com
 密码: 123456 
 
 ![image](docs/images/h5-qrcode.png) 
+
+### 商业版Demo
+
+H5 预览: http://uniapp.rageframe.com  
+后台预览: http://b2c.rageframe.com/backend    
+账号: demo   
+密码: 123456 
 
 ### 思维导图
 
