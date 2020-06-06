@@ -8,7 +8,7 @@
 
 开源地址: https://github.com/stavyan/TinyShop-UniApp
 
-### 开源免费商用Demo
+### Demo
 
 H5 预览: http://h5.tinyshop.rageframe.com  
 后台预览: http://demo2.rageframe.com/backend    
