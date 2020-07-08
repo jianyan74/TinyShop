@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
+use common\helpers\ArrayHelper;
 use Yii;
 use yii\data\ActiveDataProvider;
 use addons\TinyShop\common\models\member\Footprint;
@@ -32,7 +33,7 @@ class FootprintController extends UserAuthController
         $start_time = Yii::$app->request->get('start_time');
         $end_time = Yii::$app->request->get('end_time');
 
-        return new ActiveDataProvider([
+        $data = new ActiveDataProvider([
             'query' => $this->modelClass::find()
                 ->where(['status' => StatusEnum::ENABLED, 'member_id' => Yii::$app->user->identity->member_id])
                 ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
@@ -46,5 +47,7 @@ class FootprintController extends UserAuthController
                 'validatePage' => false,// 超出分页不返回data
             ],
         ]);
+
+        return $data;
     }
 }

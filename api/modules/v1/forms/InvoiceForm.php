@@ -2,9 +2,9 @@
 
 namespace addons\TinyShop\api\modules\v1\forms;
 
-use common\models\member\Invoice;
 use Yii;
 use yii\base\Model;
+use common\models\member\Invoice;
 
 /**
  * Class InvoiceForm

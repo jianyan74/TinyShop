@@ -29,7 +29,6 @@ class ShippingTypeEnum extends BaseEnum
             self::PICKUP => '买家自提',
             self::CASH_AGAINST => '货到付款',
             self::LOCAL_DISTRIBUTION => '本地配送',
-            self::VIRTUAL => '虚拟商品',
         ];
     }
 }

@@ -30,9 +30,9 @@ trait HasOneProduct
             'cost_price',
             'wholesale_price',
             'stock',
-            'real_sales',
-            'sales',
+            'total_sales',
             'shipping_type',
+            'unit',
         ]);
     }
 }

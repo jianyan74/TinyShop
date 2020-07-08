@@ -53,7 +53,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             'attribute' => 'show_type',
                             'filter' => false, //不显示搜索框
                             'value' => function ($model) use ($showTypeExplain) {
-                                return $showTypeExplain[$model->show_type];
+                                return $showTypeExplain[$model->show_type] ?? '';
                             },
                             'format' => 'raw',
                             'headerOptions' => ['class' => 'col-md-1'],
@@ -65,9 +65,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             'buttons' => [
                                 'edit' => function ($url, $model, $key) {
                                     return Html::edit(['edit', 'id' => $model->id]);
-                                },
-                                'status' => function ($url, $model, $key) {
-                                    return Html::status($model->status);
                                 },
                                 'delete' => function ($url, $model, $key) {
                                     return Html::delete(['destroy', 'id' => $model->id]);

@@ -7,7 +7,7 @@ use common\enums\StatusEnum;
 
 /**
  * This is the model class for table "{{%backend_notify}}".
- *
+ * @property int $merchant_id
  * @property string $id 主键
  * @property string $title 标题
  * @property string $content 消息内容
@@ -71,6 +71,7 @@ class Notify extends \common\models\base\BaseModel
                 ],
                 'integer',
             ],
+            ['params', 'safe'],
             [['synopsis'], 'string', 'max' => 255],
             [['title'], 'string', 'max' => 150],
             [['target_type', 'action', 'cover'], 'string', 'max' => 100],
@@ -98,6 +99,7 @@ class Notify extends \common\models\base\BaseModel
             'sender_display' => 'Sender Display',
             'sender_withdraw' => 'Sender Withdraw',
             'status' => '状态',
+            'params' => '参数',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
         ];

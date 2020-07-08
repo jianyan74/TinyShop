@@ -32,6 +32,21 @@ class PointExchangeTypeEnum extends BaseEnum
     }
 
     /**
+     * 返回类型
+     *
+     * @param bool $status
+     * @return array
+     */
+    public static function isIntegral($status = true)
+    {
+        if ($status == true) {
+            return [self::INTEGRAL_AND_MONEY, self::INTEGRAL];
+        }
+
+        return [self::NOT_EXCHANGE, self::INTEGRAL_OR_MONEY];
+    }
+
+    /**
      * 是否积分下单类型
      *
      * @param $point_exchange_type

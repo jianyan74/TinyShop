@@ -27,7 +27,6 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
             <div class="box-footer text-center">
                 <button class="btn btn-primary" type="submit">保存</button>
-                <span class="btn btn-white" onclick="history.go(-1)">返回</span>
             </div>
             <?php ActiveForm::end(); ?>
         </div>

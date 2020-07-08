@@ -6,11 +6,9 @@ use Yii;
 use yii\helpers\Json;
 use yii\web\UnprocessableEntityHttpException;
 use common\helpers\BcHelper;
-use common\enums\StatusEnum;
 use addons\TinyShop\common\models\forms\PreviewForm;
 use addons\TinyShop\common\models\order\OrderProduct;
 use addons\TinyShop\common\components\InitOrderDataInterface;
-use addons\TinyShop\common\models\product\VirtualType;
 
 /**
  * 立即下单
@@ -55,23 +53,13 @@ class BuyNowPurchase extends InitOrderDataInterface
         $orderProduct->num = $num;
         $orderProduct->price = $sku['price'];
         $orderProduct->product_money = BcHelper::mul($orderProduct->num, $orderProduct->price);
+        $orderProduct->product_original_money = $orderProduct->product_money;
         $orderProduct->product_picture = !empty($sku['picture']) ? $sku['picture'] : $sku['product']['picture'];
         $orderProduct->buyer_id = $form->member->id;
         $orderProduct->merchant_id = $sku['product']['merchant_id'];
         $orderProduct->point_exchange_type = $sku['product']['point_exchange_type'];
         $orderProduct->give_point = $sku['product']['give_point'];
-        $orderProduct->is_virtual = $sku['product']['is_virtual'];
         $orderProduct->is_open_commission = $sku['product']['is_open_commission'];
-
-        // 虚拟商品
-        if ($orderProduct->is_virtual == StatusEnum::ENABLED) {
-            /** @var VirtualType $productVirtualType */
-            $productVirtualType = Yii::$app->tinyShopService->productVirtualType->findByProductId($orderProduct->product_id);
-            // 虚拟商品类型
-            $form->is_virtual = $orderProduct->is_virtual;
-            $form->product_virtual_group = $productVirtualType->group;
-            $orderProduct->product_virtual_group = $productVirtualType->group;
-        }
 
         // 默认数据带下单数量方便计算
         $product = $sku['product'];
@@ -81,6 +69,7 @@ class BuyNowPurchase extends InitOrderDataInterface
         $form->merchant_id = $orderProduct->merchant_id;
         $form->product_count = $num;
         $form->product_money = $orderProduct->product_money;
+        $form->product_original_money = $orderProduct->product_money;
         $form->max_use_point = $sku['product']['max_use_point'] * $num; // 最多抵现积分
         $form->defaultProducts[] = $product;
         $form->orderProducts[] = $orderProduct;

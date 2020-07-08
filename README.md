@@ -1,8 +1,8 @@
-## RF 微商城
+## RF 商城
 
 ### 前言
 
-基于 [RageFrame2](https://github.com/jianyan74/rageframe2) 的一款免费开源的基础销售功能的微商城，前端基于 uni-app，一端发布多端通用，目前已经适配 H5、微信小程序、QQ小程序、Ios App、Android App。目前开源的版本功能为 V1 版，更多增强功能(V2、V3)敬请期待。
+基于 [RageFrame2](https://github.com/jianyan74/rageframe2) 的一款免费开源的基础销售功能的商城，前端基于 uni-app，一端发布多端通用，目前已经适配 H5、微信小程序、QQ小程序、Ios App、Android App。目前开源的版本功能为 V1 版，更多增强功能(V2、V3)敬请期待。
 
 ### 前端项目
 
@@ -23,7 +23,7 @@ H5 预览: http://h5.tinyshop.rageframe.com
 
 ### 安装
 
-1、安装 RageFrame (2.6.0以上)
+1、安装 RageFrame (2.6.40以上)
 
 项目介绍：https://github.com/jianyan74/rageframe2
 
@@ -63,7 +63,7 @@ niushop： https://www.niushop.com.cn
 
 ### 版权信息
 
-RF微商城 遵循 [Apache2](LICENSE.md) 开源协议并 [附加使用协议](LICENSE-SUPPLEMENTAL.md) 发布，并提供商用免费使用。
+RF商城 遵循 [Apache2](LICENSE.md) 开源协议并 [附加使用协议](LICENSE-SUPPLEMENTAL.md) 发布，并提供商用免费使用。
 
 本项目包含的第三方源码和二进制文件之版权信息另行标注。
 

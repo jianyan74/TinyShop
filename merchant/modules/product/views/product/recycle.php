@@ -13,14 +13,15 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
     <div class="col-sm-12">
         <div class="nav-tabs-custom">
             <ul class="nav nav-tabs">
-                <li><a href="<?= Url::to(['index', 'product_status' => 1])?>">出售中</a></li>
-                <li><a href="<?= Url::to(['index', 'product_status' => 0])?>">已下架</a></li>
-                <li><a href="<?= Url::to(['index', 'stock_warning' => 1])?>">库存报警</a></li>
-                <li class="active"><a href="<?= Url::to(['recycle'])?>">回收站</a></li>
+                <li><a href="<?= Url::to(['index', 'product_status' => 1]) ?>">出售中</a></li>
+                <li><a href="<?= Url::to(['index', 'product_status' => 0]) ?>">已下架</a></li>
+                <li><a href="<?= Url::to(['index', 'stock_warning' => 1]) ?>">库存报警</a></li>
+                <li class="active"><a href="<?= Url::to(['recycle']) ?>">回收站</a></li>
             </ul>
             <div class="tab-content">
                 <div class="col-sm-12 m-b-sm">
-                    <?= Html::a('批量删除</a>', "javascript:void(0);", ['class' => 'btn btn-white btn-sm m-l-n-md destroy-all']); ?>
+                    <?= Html::a('批量删除</a>', "javascript:void(0);",
+                        ['class' => 'btn btn-white btn-sm m-l-n-md destroy-all']); ?>
                     <?= Html::a('批量恢复</a>', "javascript:void(0);", ['class' => 'btn btn-white btn-sm restore-all']); ?>
                 </div>
                 <div class="active tab-pane">
@@ -30,14 +31,14 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                         //重新定义分页样式
                         'tableOptions' => ['class' => 'table table-hover'],
                         'options' => [
-                            'id' => 'grid'
+                            'id' => 'grid',
                         ],
                         'columns' => [
                             [
                                 'class' => 'yii\grid\CheckboxColumn',
                                 'checkboxOptions' => function ($model, $key, $index, $column) {
                                     return ['value' => $model->id];
-                                }
+                                },
                             ],
                             [
                                 'class' => 'yii\grid\SerialColumn',
@@ -45,7 +46,7 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                             ],
                             [
                                 'attribute' => 'covers',
-                                'label'=> '主图',
+                                'label' => '主图',
                                 'filter' => false, //不显示搜索框
                                 'value' => function ($model) {
                                     $covers = unserialize($model->covers);
@@ -59,10 +60,10 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                             'name',
                             [
                                 'attribute' => 'cate.title',
-                                'label'=> '产品分类',
+                                'label' => '产品分类',
                                 'filter' => Html::activeDropDownList($searchModel, 'cate_id', $cates, [
                                         'prompt' => '全部',
-                                        'class' => 'form-control'
+                                        'class' => 'form-control',
                                     ]
                                 ),
                                 'format' => 'raw',
@@ -80,10 +81,10 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                             [
                                 'header' => "操作",
                                 'class' => 'yii\grid\ActionColumn',
-                                'template'=> '{edit} {delete}',
+                                'template' => '{edit} {delete}',
                                 'buttons' => [
                                     'edit' => function ($url, $model, $key) {
-                                        return Html::edit(['restore','id' => $model['id']], '还原');
+                                        return Html::edit(['restore', 'id' => $model['id']], '还原');
                                     },
                                     'delete' => function ($url, $model, $key) {
                                         return Html::delete(['destroy', 'id' => $model->id]);
@@ -117,18 +118,24 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
     function sendData(url) {
         var ids = $("#grid").yiiGridView("getSelectedRows");
         $.ajax({
-            type : "post",
-            url : url,
-            dataType : "json",
-            data : {ids: ids},
-            success: function(data){
-                if (data.code == 200) {
-                    swal({
+            type: "post",
+            url: url,
+            dataType: "json",
+            data: {ids: ids},
+            success: function (data) {
+                if (parseInt(data.code) === 200) {
+                    swal('小手一抖打开一个窗', {
+                        buttons: {
+                            defeat: '确定',
+                        },
                         title: '操作成功',
-                        text  : '小手一抖就打开了一个框',
-                        type  : "success"
-                    }, function (){
-                        location.reload();
+                    }).then(function (value) {
+                        switch (value) {
+                            case "defeat":
+                                location.reload();
+                                break;
+                            default:
+                        }
                     });
                 } else {
                     rfWarning(data.message);

@@ -27,10 +27,10 @@ class PointConfigService extends Service
     /**
      * @return PointConfig
      */
-    public function one()
+    public function one($merchant_id)
     {
         /* @var $model PointConfig */
-        if (empty(($model = PointConfig::find()->where(['merchant_id' => Yii::$app->services->merchant->getId()])->one()))) {
+        if (empty(($model = PointConfig::find()->where(['merchant_id' => $merchant_id])->one()))) {
             $model = new PointConfig();
 
             return $model->loadDefaultValues();

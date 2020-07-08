@@ -2,7 +2,6 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\order;
 
-use addons\TinyShop\common\enums\PreviewTypeEnum;
 use Yii;
 use common\enums\StatusEnum;
 use common\helpers\ResultHelper;
@@ -21,6 +20,8 @@ use addons\TinyShop\common\components\marketing\UsePointHandler;
 use addons\TinyShop\common\components\marketing\CouponHandler;
 use addons\TinyShop\common\components\marketing\AfterHandler;
 use addons\TinyShop\common\enums\ShippingTypeEnum;
+use addons\TinyShop\common\enums\PreviewTypeEnum;
+use addons\TinyShop\common\models\SettingForm;
 
 /**
  * 订单
@@ -77,20 +78,23 @@ class OrderController extends OnAuthController
 
         $this->previewHandler = new PreviewHandler($this->handlers);
 
-        $config = AddonHelper::getConfig();
+        /** @var SettingForm $setting */
+        $setting = Yii::$app->tinyShopService->config->setting();
         /** @var AccessToken $identity */
         $identity = Yii::$app->user->identity;
 
         $model = new PreviewForm();
         $model = $model->loadDefaultValues();
         $model->buyer_id = $identity->member_id;
-        $model->is_logistics = $config['is_logistics'] ?? 0; // 物流可选
-        $model->buyer_self_lifting = $config['buyer_self_lifting'] ?? 0; // 开启自提
-        $model->pickup_point_is_open = $config['pickup_point_is_open'] ?? 0; // 自提运费开启
-        $model->pickup_point_fee = $config['pickup_point_fee'] ?? 0;
-        $model->pickup_point_freight = $config['pickup_point_freight'] ?? 0;
-        $model->order_invoice_tax = $config['order_invoice_tax'] ?? 0; // 税率
-        $model->invoice_content_default = isset($config['order_invoice_content']) ? explode(',', $config['order_invoice_content']) : [];
+        $model->close_all_logistics = $setting->close_all_logistics; // 配送关闭
+        $model->is_open_logistics = $setting->is_open_logistics; // 物流开启
+        $model->is_logistics = $setting->is_logistics; // 物流可选
+        $model->buyer_self_lifting = $setting->buyer_self_lifting ?? 0; // 开启自提
+        $model->pickup_point_is_open = $setting->pickup_point_is_open ?? 0; // 自提运费开启
+        $model->pickup_point_fee = $setting->pickup_point_fee ?? 0;
+        $model->pickup_point_freight = $setting->pickup_point_freight ?? 0;
+        $model->order_invoice_tax = $setting->order_invoice_tax; // 税率
+        $model->invoice_content_default = isset($setting->order_invoice_content) ? explode(',', $setting->order_invoice_content) : [];
 
         $this->previewForm = $model;
 
@@ -139,20 +143,23 @@ class OrderController extends OnAuthController
             $pickup_point = Yii::$app->tinyShopService->pickupPoint->getList();
         }
 
-        $coupons = Yii::$app->tinyShopService->marketingCoupon->getListByMemberId($identity->member_id, $model->orderProducts);
-
+        $coupons = [];
         return [
             'account' => $model->member->account,
             'address' => $model->address,
             'products' => $model->orderProducts,
-            'marketing_details' => $model->marketingDetails, // 被触发的自带营销规则
+            'marketing_full_details' => $model->marketingDetails,
+            'marketing_details' => Yii::$app->tinyShopService->marketing->mergeIdenticalMarketing($model->marketingDetails), // 被触发的自带营销规则
             'is_full_mail' => $model->is_full_mail,
             'is_logistics' => $model->is_logistics,
+            'is_open_logistics' => $model->is_open_logistics,
+            'close_all_logistics' => $model->close_all_logistics,
             'max_use_point' => $model->max_use_point,
             'preview' => ArrayHelper::toArray($model),
             'company' => $company,
-            'point_config' => Yii::$app->tinyShopService->marketingPointConfig->one(),
+            'point_config' => Yii::$app->tinyShopService->marketingPointConfig->one($model->merchant_id),
             'coupons' => $coupons,
+            'full_payment' => $model->full_payment,
             'pickup_point_config' => [
                 'list' => $pickup_point,
                 'buyer_self_lifting' => $model->buyer_self_lifting,
@@ -196,6 +203,11 @@ class OrderController extends OnAuthController
             return ResultHelper::json(422, $this->getError($model));
         }
 
+        // 配置信息
+        $setting = new SettingForm();
+        $setting->attributes = AddonHelper::getConfig(false, '', $model->merchant_id);
+        $model->close_time = time() + $setting->order_buy_close_time * 60;
+
         $transaction = Yii::$app->db->beginTransaction();
         try {
             // 订单来源
@@ -208,7 +220,7 @@ class OrderController extends OnAuthController
                     'num' => $order->point,
                     'credit_group' => 'orderCreate',
                     'map_id' => $order->id,
-                    'remark' => '【微商城】订单支付',
+                    'remark' => Yii::$app->params['tinyShopName']  . '订单支付',
                 ]));
             }
 
@@ -242,9 +254,16 @@ class OrderController extends OnAuthController
     {
         /** @var AccessToken $identity */
         /** @var PreviewForm $model */
-
         $identity = Yii::$app->user->identity;
         $model = $this->previewForm;
+
+        // 关闭了物流配送或者全部物流的情况下返回 0
+        if (!empty($model->close_all_logistics) || empty($model->is_open_logistics)) {
+            return [
+                'shipping_money' => 0,
+            ];
+        }
+
         $model->shipping_type = ShippingTypeEnum::LOGISTICS;
         $model->member = Yii::$app->tinyShopService->member->findById($identity->member_id);
         $model->attributes = Yii::$app->request->get();
@@ -260,6 +279,13 @@ class OrderController extends OnAuthController
         $model = $this->previewHandler->start($model, true);
         if ($model->getErrors() || !$model->validate()) {
             return ResultHelper::json(422, $this->getError($model));
+        }
+
+        // 包邮
+        if ($model->is_full_mail == true) {
+            return [
+                'shipping_money' => 0,
+            ];
         }
 
         return [

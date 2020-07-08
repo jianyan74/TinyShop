@@ -2,9 +2,6 @@
 
 namespace addons\TinyShop\services\product;
 
-use addons\TinyShop\common\enums\AccessTokenGroupEnum;
-use addons\TinyShop\common\models\order\Order;
-use common\helpers\EchantsHelper;
 use Yii;
 use yii\data\Pagination;
 use yii\db\ActiveQuery;
@@ -17,10 +14,13 @@ use common\enums\StatusEnum;
 use common\helpers\StringHelper;
 use common\helpers\BcHelper;
 use common\helpers\AddonHelper;
+use common\helpers\EchantsHelper;
 use addons\TinyShop\common\models\SettingForm;
 use addons\TinyShop\common\models\product\Product;
 use addons\TinyShop\common\models\forms\ProductSearch;
+use addons\TinyShop\common\enums\PointExchangeTypeEnum;
 use addons\TinyShop\common\models\base\Spec;
+use yii\web\UnprocessableEntityHttpException;
 
 /**
  * Class ProductService
@@ -43,7 +43,7 @@ class ProductService extends Service
             ->where(['status' => StatusEnum::ENABLED, 'product_status' => StatusEnum::ENABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->andFilterWhere(['in', 'cate_id', $cates]);
-        $pages = new Pagination(['totalCount' => $data->count(), 'pageSize' => 10, 'validatePage' => false]);
+        $pages = new Pagination(['totalCount' => $data->count(), 'pageSize' => 12, 'validatePage' => false]);
         $models = $data->offset($pages->offset)
             ->orderBy('rand()')
             ->select([
@@ -58,24 +58,27 @@ class ProductService extends Service
                 'market_price',
                 'cost_price',
                 'stock',
-                'real_sales',
-                'sales',
+                'total_sales',
                 'merchant_id',
+                'shipping_type',
                 'is_open_presell',
                 'is_open_commission',
+                'is_virtual',
                 'point_exchange_type',
                 'point_exchange',
                 'max_use_point',
                 'integral_give_type',
                 'give_point',
+                'unit',
             ])
             ->asArray()
             ->limit($pages->limit)
             ->all();
 
         foreach ($models as &$model) {
-            $model['sales'] = $model['sales'] + $model['real_sales'];
-            unset($model['real_sales']);
+            $model['price'] = floatval($model['price']);
+            $model['market_price'] = floatval($model['market_price']);
+            $model['cost_price'] = floatval($model['cost_price']);
         }
 
         return $models;
@@ -87,23 +90,45 @@ class ProductService extends Service
      */
     public function getListBySearch(ProductSearch $search)
     {
+        // 查询开启分销的产品
+        $setting = new SettingForm();
+        $setting->attributes = AddonHelper::getConfig();
+        // 分类查询方式
+        $cate_ids = $search->getCateIds();
+        $where = ['in', 'cate_id', $cate_ids];
+        if (
+            $setting->product_cate_type == 2 &&
+            !empty($cate_ids) &&
+            ($ids = Yii::$app->tinyShopService->productCateMap->findByCateIds($cate_ids))
+        ) {
+            $where = ['in', 'id', $ids];
+        }
+
+        // 记录搜索
+        !empty($search->keyword) && Yii::$app->tinyShopService->searchHistory->create($search->keyword);
         $order = ArrayHelper::merge($search->getOrderBy(), ['sort asc', 'id desc']);
 
-        // 所有下级分类
-        $cate_ids = [];
-        if ($cate_id = $search->cate_id) {
-            $cate_ids = Yii::$app->tinyShopService->productCate->findChildIdsById($cate_id);
+        // 是否积分产品
+        $point_exchange_type = [];
+        if ($search->is_integral) {
+            if ($search->is_integral == StatusEnum::ENABLED) {
+                $point_exchange_type = PointExchangeTypeEnum::isIntegral(true);
+            } else {
+                $point_exchange_type = PointExchangeTypeEnum::isIntegral(true);
+            }
         }
 
         $data = Product::find()
             ->where(['status' => StatusEnum::ENABLED, 'product_status' => StatusEnum::ENABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->andFilterWhere(['like', 'name', $search->keyword])
-            ->andFilterWhere(['is_hot' => $search->is_hot])
-            ->andFilterWhere(['is_new' => $search->is_new])
-            ->andFilterWhere(['is_recommend' => $search->is_recommend])
-            ->andFilterWhere(['brand_id' => $search->brand_id])
-            ->andFilterWhere(['in', 'cate_id', $cate_ids]);
+            ->andFilterWhere($where)
+            ->andFilterWhere(['between', 'price', $search->min_price, $search->max_price])
+            ->andFilterWhere(['is_open_presell' => $search->is_open_presell])
+            ->andFilterWhere(['in', 'brand_id', $search->getBrandIds()])
+            ->andFilterWhere($search->getOrCondition())
+            ->andFilterWhere(['in', 'point_exchange_type', $point_exchange_type])
+            ->andFilterWhere(['like', 'name', $search->keyword]);
+
         $pages = new Pagination([
             'totalCount' => $data->count(),
             'pageSize' => $search->page_size,
@@ -123,16 +148,18 @@ class ProductService extends Service
                 'market_price',
                 'cost_price',
                 'stock',
-                'real_sales',
-                'sales',
+                'total_sales',
                 'merchant_id',
+                'shipping_type',
                 'is_open_presell',
                 'is_open_commission',
+                'is_virtual',
                 'point_exchange_type',
                 'point_exchange',
                 'max_use_point',
                 'integral_give_type',
                 'give_point',
+                'unit',
             ])
             ->with('merchant')
             ->asArray()
@@ -141,8 +168,9 @@ class ProductService extends Service
 
         $product_ids = [];
         foreach ($models as &$model) {
-            $model['sales'] = $model['sales'] + $model['real_sales'];
-            unset($model['real_sales']);
+            $model['price'] = floatval($model['price']);
+            $model['market_price'] = floatval($model['market_price']);
+            $model['cost_price'] = floatval($model['cost_price']);
 
             // 开启分销
             if ($model['is_open_commission'] == true) {
@@ -152,9 +180,6 @@ class ProductService extends Service
             $model['commissionRate'] = 0.00;
         }
 
-        // 查询开启分销的产品
-        $setting = new SettingForm();
-        $setting->attributes = AddonHelper::getConfig();
         if (
             $setting->is_open_commission == StatusEnum::ENABLED &&
             !empty($product_ids) &&
@@ -222,7 +247,7 @@ class ProductService extends Service
         $models = $data->offset($pages->offset)
             ->orderBy('sort asc, id desc')
             ->with(['minPriceSku'])
-            ->select(['id', 'name', 'sketch', 'keywords', 'picture', 'view', 'star', 'real_sales', 'sales'])
+            ->select(['id', 'name', 'sketch', 'keywords', 'picture', 'view', 'star', 'total_sales'])
             ->asArray()
             ->limit($pages->limit)
             ->all();
@@ -258,7 +283,7 @@ class ProductService extends Service
             ->where(['id' => $id, 'product_status' => StatusEnum::ENABLED])
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->with(['sku', 'attributeValue', 'ladderPreferential', 'merchant'])
+            ->with(['sku', 'attributeValue', 'merchant'])
             ->with([
                 'myCollect' => function (ActiveQuery $query) use ($member_id) {
                     return $query->andWhere(['member_id' => $member_id]);
@@ -298,15 +323,17 @@ class ProductService extends Service
             return [$attributeValue, $specValue, $jsData];
         }
 
-        // 获取基础属性
-        $baseAttribute = Yii::$app->tinyShopService->baseAttribute->getDataById($model->base_attribute_id);
+        if ($model->base_attribute_id > 0) {
+            // 获取基础属性
+            $baseAttribute = Yii::$app->tinyShopService->baseAttribute->getDataById($model->base_attribute_id);
 
-        // 获取产品属性值
-        $attributeValue = $this->getAttributeValue($model, $baseAttribute);
-        // 获取规格(规格值)和js选中规格
-        list($specValue, $jsData) = $this->getSpecValue($model, $baseAttribute['spec_ids']);
+            // 获取产品属性值
+            $attributeValue = $this->getAttributeValue($model, $baseAttribute);
+            // 获取规格(规格值)和js选中规格
+            list($specValue, $jsData) = $this->getSpecValue($model, $baseAttribute['spec_ids']);
 
-        unset($baseAttribute, $model);
+            unset($baseAttribute, $model);
+        }
 
         return [$attributeValue, $specValue, $jsData];
     }

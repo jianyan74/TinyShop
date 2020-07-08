@@ -29,10 +29,10 @@ class FullMailService extends Service
     /**
      * @return FullMail
      */
-    public function one()
+    public function one($merchant_id)
     {
         /* @var $model FullMail */
-        if (empty(($model = FullMail::find()->where(['merchant_id' => Yii::$app->services->merchant->getId()])->one()))) {
+        if (empty(($model = FullMail::find()->where(['merchant_id' => $merchant_id])->one()))) {
             $model = new FullMail();
 
             return $model->loadDefaultValues();
@@ -54,7 +54,7 @@ class FullMailService extends Service
             return false;
         }
 
-        $fullMail = $this->one();
+        $fullMail = $this->one($address->merchant_id);
         if (
             $fullMail['is_open'] == StatusEnum::ENABLED &&
             $product_money >= $fullMail['full_mail_money'] &&

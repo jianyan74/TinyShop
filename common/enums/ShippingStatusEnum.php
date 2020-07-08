@@ -27,7 +27,6 @@ class ShippingStatusEnum extends BaseEnum
             self::UN_SHIPPED => '未发货',
             self::DELIVERED => '已发货',
             self::RECEIVED => '已收货',
-            self::STOCK_UP => '备货中',
         ];
     }
 }

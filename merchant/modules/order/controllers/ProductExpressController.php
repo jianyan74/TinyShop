@@ -5,9 +5,14 @@ namespace addons\TinyShop\merchant\modules\order\controllers;
 use Yii;
 use yii\web\NotFoundHttpException;
 use common\helpers\ArrayHelper;
+use common\helpers\ExcelHelper;
+use common\enums\StatusEnum;
 use addons\TinyShop\merchant\forms\DeliverProductForm;
 use addons\TinyShop\common\models\order\ProductExpress;
 use addons\TinyShop\merchant\controllers\BaseController;
+use addons\TinyShop\common\enums\OrderStatusEnum;
+use addons\TinyShop\common\models\order\Order;
+use addons\TinyShop\common\enums\RefundStatusEnum;
 
 /**
  * Class OrderProductExpressController
@@ -31,9 +36,10 @@ class ProductExpressController extends BaseController
 
         $this->activeFormValidate($model);
         if ($model->load(Yii::$app->request->post())) {
+            $model->operator_id = Yii::$app->user->identity->id;
+            $model->operator_username = Yii::$app->user->identity->username;
             $model->buyer_id = $order->buyer_id;
-            $model->member_id = Yii::$app->user->identity->id;
-            $model->member_username = $order->receiver_name;
+            $model->buyer_name = $order->receiver_name;
 
             // 事务
             $transaction = Yii::$app->db->beginTransaction();
@@ -97,4 +103,19 @@ class ProductExpressController extends BaseController
         ]);
     }
 
+    /**
+     * 物流状态
+     *
+     * @param $id
+     * @return string
+     */
+    public function actionCompany($id)
+    {
+        $model = ProductExpress::findOne($id);
+        $trace = Yii::$app->tinyShopService->expressCompany->getTrace($model->express_no, $model->express_company);
+
+        return $this->renderAjax($this->action->id, [
+            'trace' => $trace,
+        ]);
+    }
 }

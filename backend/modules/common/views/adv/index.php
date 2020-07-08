@@ -55,6 +55,10 @@ $this->params['breadcrumbs'][] = $this->title;
                             'format' => 'raw',
                         ],
                         [
+                            'attribute' => 'view',
+                            'headerOptions' => ['class' => 'col-md-1'],
+                        ],
+                        [
                             'attribute' => '有效时间',
                             'filter' => false, //不显示搜索框
                             'value' => function ($model) {

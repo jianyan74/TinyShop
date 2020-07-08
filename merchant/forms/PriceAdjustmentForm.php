@@ -4,6 +4,7 @@ namespace addons\TinyShop\merchant\forms;
 
 use addons\TinyShop\common\models\order\Order;
 use addons\TinyShop\common\models\order\OrderProduct;
+use common\helpers\StringHelper;
 use yii\base\Model;
 use yii\web\NotFoundHttpException;
 
@@ -70,6 +71,7 @@ class PriceAdjustmentForm extends Model
         }
 
         // 修改订单产品价格
+        $order->out_trade_no = date('YmdHis') . StringHelper::random(10, true);
         $order->shipping_money = $this->shipping_money;
         $order->product_money = $all_product_money;
         $order->save();

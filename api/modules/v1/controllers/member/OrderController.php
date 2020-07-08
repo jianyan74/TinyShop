@@ -2,17 +2,15 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
-use common\helpers\ArrayHelper;
 use Yii;
 use yii\data\ActiveDataProvider;
 use yii\web\NotFoundHttpException;
 use common\enums\StatusEnum;
-use common\helpers\AddonHelper;
 use common\enums\PayTypeEnum;
 use common\helpers\ResultHelper;
+use common\helpers\ArrayHelper;
 use api\controllers\UserAuthController;
 use addons\TinyShop\common\models\order\Order;
-use addons\TinyShop\common\models\SettingForm;
 use addons\TinyShop\common\enums\OrderStatusEnum;
 use addons\TinyShop\common\enums\ShippingTypeEnum;
 use addons\TinyShop\common\models\forms\OrderQueryForm;
@@ -54,7 +52,7 @@ class OrderController extends UserAuthController
      */
     public function actionView($id)
     {
-        $with = ['product', 'invoice', 'coupon', 'merchant'];
+        $with = ['product', 'invoice', 'coupon', 'merchant', 'marketingDetail'];
         // 简单的查询订单基本信息
         if ($simplify = Yii::$app->request->get('simplify')) {
             $with = [];
@@ -72,6 +70,12 @@ class OrderController extends UserAuthController
 
         if (!$model) {
             throw new NotFoundHttpException('找不到订单信息');
+        }
+
+        // 自提地点
+        $model['pickup'] = [];
+        if ($model['shipping_type'] == ShippingTypeEnum::PICKUP) {
+            $model['pickup'] = Yii::$app->tinyShopService->orderPickup->findById($id);
         }
 
         // 退款售后
@@ -101,10 +105,8 @@ class OrderController extends UserAuthController
             }
         }
 
-        // 倒计时
-        $setting = new SettingForm();
-        $setting->attributes = AddonHelper::getConfig();
-        $model['close_time'] = $model['created_at'] + $setting->order_buy_close_time * 60;
+        // 合并营销显示
+        $model['marketingDetail'] = Yii::$app->tinyShopService->marketing->mergeIdenticalMarketing($model['marketingDetail'] ?? []);
         // 支付类型、配送方式
         $model['payment_explain'] = PayTypeEnum::getValue($model['payment_type']);
         $model['shipping_explain'] = ShippingTypeEnum::getValue($model['shipping_type']);
@@ -153,7 +155,7 @@ class OrderController extends UserAuthController
             $member_id = Yii::$app->user->identity->member_id;
             $member = Yii::$app->services->member->get($member_id);
             // 记录操作
-            Yii::$app->tinyShopService->orderAction->create('删除订单', $id, OrderStatusEnum::NOT_PAY, $member_id, $member['nickname']);
+            Yii::$app->tinyShopService->orderAction->create('删除订单', $id, OrderStatusEnum::NOT_PAY, $member_id, $member['nickname'] ?? $member['mobile']);
 
             return true;
         }
@@ -192,9 +194,8 @@ class OrderController extends UserAuthController
         if (empty($id) || !($model = $this->modelClass::find()->where([
                 'id' => $id,
                 'status' => StatusEnum::ENABLED,
-                'buyer_id' => Yii::$app->user->identity->member_id,
-                'merchant_id' => $this->getMerchantId()
-            ])->one())) {
+                'buyer_id' => Yii::$app->user->identity->member_id
+            ])->andFilterWhere(['merchant_id' => $this->getMerchantId()])->one())) {
             throw new NotFoundHttpException('请求的数据不存在或您的权限不足.');
         }
 

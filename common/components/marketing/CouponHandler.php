@@ -11,7 +11,7 @@ use addons\TinyShop\common\models\marketing\Coupon;
 use addons\TinyShop\common\components\PreviewInterface;
 use addons\TinyShop\common\enums\RangeTypeEnum;
 use addons\TinyShop\common\enums\PreferentialTypeEnum;
-use addons\TinyShop\common\models\order\OrderProduct;
+use addons\TinyShop\common\traits\CalculatePriceTrait;
 use addons\TinyShop\common\enums\ProductMarketingEnum;
 
 /**
@@ -23,6 +23,8 @@ use addons\TinyShop\common\enums\ProductMarketingEnum;
  */
 class CouponHandler extends PreviewInterface
 {
+    use CalculatePriceTrait;
+
     /**
      * @param PreviewForm $form
      * @return PreviewForm
@@ -68,26 +70,27 @@ class CouponHandler extends PreviewInterface
                 }
             }
 
+            $form->coupon_money = $this->getCouponMoney($money, $coupon);
+
             // 记录营销
             $form->marketingDetails[] = [
                 'marketing_id' => $coupon['couponType']['id'],
                 'marketing_type' => ProductMarketingEnum::COUPON,
-                'marketing_condition' => '满' . $coupon['at_least'] . '元，减' . $coupon['money'],
-                'discount_money' => $coupon['money'],
+                'marketing_condition' => '满' . $coupon['at_least'] . '元，减' . $form->coupon_money,
+                'discount_money' => $form->coupon_money,
                 'product_id' => $product_id,
             ];
-
-            $form->coupon_money = $this->getCouponMoney($money, $coupon);
         } else {
+            $form = $this->calculatePrice($form);
+            $form->coupon_money = $this->getCouponMoney($form->product_money, $coupon);
+
             // 记录营销
             $form->marketingDetails[] = [
                 'marketing_id' => $coupon['couponType']['id'],
                 'marketing_type' => ProductMarketingEnum::COUPON,
-                'marketing_condition' => '满' . $coupon['at_least'] . '元，减' . $coupon['money'],
-                'discount_money' => $coupon['money'],
+                'marketing_condition' => '满' . $coupon['at_least'] . '元，折扣减' . $form->coupon_money,
+                'discount_money' => $form->coupon_money,
             ];
-
-            $form->coupon_money = $this->getCouponMoney($form->product_money, $coupon);
         }
 
         $form->coupon = $coupon;

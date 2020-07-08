@@ -27,8 +27,13 @@ class LogisticsDelivery extends PreviewInterface
             return $form;
         }
 
+        // 物流配送
+        if (empty($form->is_open_logistics)) {
+            throw new UnprocessableEntityHttpException('物流配送已关闭');
+        }
+
         if (empty($form->address)) {
-            throw new UnprocessableEntityHttpException('收货地址不存在');
+            throw new UnprocessableEntityHttpException('找不到收货地址');
         }
 
         // 自选物流

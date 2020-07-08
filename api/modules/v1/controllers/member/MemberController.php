@@ -36,7 +36,7 @@ class MemberController extends OnAuthController
 
         $member = $this->modelClass::find()
             ->where(['id' => $member_id])
-            ->with(['account'])
+            ->with(['account', 'memberLevel'])
             ->asArray()
             ->one();
 
@@ -68,13 +68,23 @@ class MemberController extends OnAuthController
      */
     public function actionUpdate($id)
     {
+        $data = Yii::$app->request->post();
+        unset(
+            $data['password_hash'],
+            $data['mobile'],
+            $data['username'],
+            $data['auth_key'],
+            $data['password_reset_token'],
+            $data['promo_code']
+        );
+
         $model = $this->findModel($id);
-        $model->attributes = Yii::$app->request->post();
+        $model->attributes = $data;
         if (!$model->save()) {
             return ResultHelper::json(422, $this->getError($model));
         }
-		//避免返回敏感信息
-        return ResultHelper::json(200, 'OK');
+
+        return 'ok';
     }
 
     /**

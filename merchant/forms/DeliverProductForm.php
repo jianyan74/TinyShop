@@ -20,6 +20,13 @@ class DeliverProductForm extends ProductExpress
     public $order;
 
     /**
+     * 批量发货
+     *
+     * @var bool
+     */
+    public $is_batch = false;
+
+    /**
      * @return array
      */
     public function rules()
@@ -36,7 +43,7 @@ class DeliverProductForm extends ProductExpress
      */
     public function verifyCompany($attribute)
     {
-        if ($this->shipping_type == ProductExpress::SHIPPING_TYPE_LOGISTICS) {
+        if ($this->is_batch == false && $this->shipping_type == ProductExpress::SHIPPING_TYPE_LOGISTICS) {
             if (!$this->express_company_id) {
                 return $this->addError($attribute, '请选择快递公司');
             }

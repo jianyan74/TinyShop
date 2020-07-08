@@ -2,6 +2,7 @@
 
 use yii\grid\GridView;
 use common\helpers\Html;
+use common\helpers\Url;
 use common\enums\InvoiceTypeEnum;
 use addons\TinyShop\common\enums\OrderStatusEnum;
 
@@ -24,13 +25,31 @@ $this->params['breadcrumbs'][] = $this->title;
                     'dataProvider' => $dataProvider,
                     'filterModel' => $searchModel,
                     //重新定义分页样式
-                    'tableOptions' => ['class' => 'table table-hover'],
+                    'tableOptions' => [
+                        'class' => 'table table-hover rf-table',
+                        'fixedNumber' => 3,
+                        'fixedRightNumber' => 1,
+                    ],
                     'columns' => [
                         [
                             'class' => 'yii\grid\SerialColumn',
                         ],
-                        'order_sn',
-                        'member.nickname',
+                        [
+                            'attribute' => 'order_sn',
+                            'format' => 'raw',
+                            'value' => function ($model) {
+                                return '<span class="order-view pointer" data-href="' . Url::to(['/order/order/detail', 'id' => $model->order_id]) . '">' . $model->order_sn . '</span>';
+                            },
+                            'headerOptions' => ['class' => 'col-md-1'],
+                        ],
+                        [
+                            'attribute' => 'member.nickname',
+                            'format' => 'raw',
+                            'value' => function ($model) {
+                                return '<span class="member-view pointer" data-href="' . Url::to(['/member/view', 'member_id' => $model->member->id]) . '">' . $model->member->nickname . '</span>';
+                            },
+                            'headerOptions' => ['class' => 'col-md-1'],
+                        ],
                         [
                             'attribute' => 'type',
                             'filter' => Html::activeDropDownList($searchModel, 'type', InvoiceTypeEnum::getMap(), [

@@ -34,6 +34,17 @@ class AttributeService extends Service
     }
 
     /**
+     * @param $id
+     * @return array|\yii\db\ActiveRecord|null
+     */
+    public function findById($id)
+    {
+        return Attribute::find()
+            ->where(['id' => $id, 'status' => StatusEnum::ENABLED])
+            ->one();
+    }
+
+    /**
      * @return array
      */
     public function getMapList()

@@ -2,6 +2,7 @@
 
 use yii\grid\GridView;
 use common\helpers\Html;
+use common\helpers\Url;
 use addons\TinyShop\common\enums\ExplainTypeEnum;
 use common\helpers\ImageHelper;
 
@@ -28,13 +29,24 @@ $this->params['breadcrumbs'][] = $this->title;
                     ],
                     'columns' => [
                         'id',
-                        'order_sn',
+                        [
+                            'attribute' => 'order_sn',
+                            'format' => 'raw',
+                            'value' => function ($model) {
+                                return '<span class="order-view pointer" data-href="' . Url::to(['/order/order/detail', 'id' => $model->order_id]) . '">' . $model->order_sn . '</span>';
+                            },
+                            'headerOptions' => ['class' => 'col-md-1'],
+                        ],
                         [
                             'attribute' => 'product_name',
                             'headerOptions' => ['class' => 'col-md-2'],
                         ],
                         [
                             'attribute' => 'member_nickname',
+                            'format' => 'raw',
+                            'value' => function ($model) {
+                                return '<span class="member-view pointer" data-href="' . Url::to(['/member/view', 'member_id' => $model->member_id]) . '">' . $model->member_nickname . '</span>';
+                            },
                             'headerOptions' => ['class' => 'col-md-1'],
                         ],
                         [

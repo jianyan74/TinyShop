@@ -3,11 +3,12 @@
 namespace addons\TinyShop\services\order;
 
 use Yii;
+use yii\helpers\Json;
 use common\components\Service;
 use common\enums\StatusEnum;
-use common\helpers\ArrayHelper;
+use common\helpers\AddonHelper;
 use addons\TinyShop\common\models\order\ProductExpress;
-use yii\helpers\Json;
+use addons\TinyShop\common\models\SettingForm;
 
 /**
  * Class ProductExpressService
@@ -26,6 +27,9 @@ class ProductExpressService extends Service
     {
         $data = $this->findByOrderIdAndMemberId($order_id, $member_id);
 
+        $setting = new SettingForm();
+        $setting->attributes = AddonHelper::getConfig();
+
         foreach ($data as &$record) {
             !is_array($record['order_product_ids']) && $record['order_product_ids'] = Json::decode($record['order_product_ids']);
             $record['order_product'] = Yii::$app->tinyShopService->orderProduct->findByIds($record['order_product_ids']);
@@ -33,15 +37,7 @@ class ProductExpressService extends Service
             $record['trace'] = [];
             // 需要物流
             if ($record['shipping_type'] == ProductExpress::SHIPPING_TYPE_LOGISTICS) {
-                try {
-                    if (!empty($record['express_no'])) {
-                        // aliyun(阿里云)、juhe(聚合)、kdniao(快递鸟)、kd100(快递100)
-                        $logistics = Yii::$app->logistics->aliyun($record['express_no'], null, true);
-                        $record['trace'] = $logistics->getList();
-                    }
-                } catch (\Exception $e) {
-                    Yii::debug($e->getMessage());
-                }
+                $record['trace'] = Yii::$app->tinyShopService->expressCompany->getTrace($record['express_no'], $record['express_company']);
             }
         }
 

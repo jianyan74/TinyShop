@@ -73,7 +73,7 @@ class AttributeController extends BaseController
             !empty($model->spec_ids) && $model->spec_ids = implode(',', $model->spec_ids);
 
             if ($model->save()) {
-                return $this->redirect(['index']);
+                return $this->referrer();
             }
         }
 

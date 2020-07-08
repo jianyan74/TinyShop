@@ -8,6 +8,7 @@ use common\components\Service;
 use addons\TinyShop\common\models\product\Sku;
 use addons\TinyShop\common\models\product\Product;
 use yii\db\ActiveQuery;
+use yii\web\UnprocessableEntityHttpException;
 
 /**
  * Class Sku
@@ -24,7 +25,7 @@ class SkuService extends Service
     {
         return Sku::find()
             ->where(['id' => $id])
-            ->with(['product.ladderPreferential', 'product.myGet' => function(ActiveQuery $query) use ($member_id) {
+            ->with(['product.myGet' => function(ActiveQuery $query) use ($member_id) {
                 return $query->andWhere(['member_id' => $member_id]);
             }])
             ->asArray()
@@ -35,26 +36,75 @@ class SkuService extends Service
      * 扣减库存
      *
      * @param $skuNums
+     * @throws UnprocessableEntityHttpException
      */
-    public function decrRepertory($skuNums)
+    public function decrRepertory($skuNums, $decr = true)
     {
         $ids = array_keys($skuNums);
         $models = Sku::find()
-            ->where(['in', 'id', $ids])
+            ->select(['id', 'product_id', 'stock', 'price', 'name'])
             ->with(['product'])
+            ->where(['in', 'id', $ids])
+            ->asArray()
             ->all();
 
+        // 判断是否下架
         foreach ($models as $model) {
-            $num = $skuNums[$model['id']];
-            $model->stock -= $num;
-            $model->save();
+            if ($model['product']['product_status'] != StatusEnum::ENABLED) {
+                throw new UnprocessableEntityHttpException($model['product']['name'] . '已下架');
+            }
 
-            /** @var Product $product */
-            $product = $model->product;
-            $product->stock -= $num;
-            $product->real_sales += $num;
-            $product->save();
+            if ($model['product']['status'] != StatusEnum::ENABLED) {
+                throw new UnprocessableEntityHttpException($model['product']['name'] . '不存在');
+            }
+
+            if ($model['stock'] < abs($skuNums[$model['id']])) {
+                throw new UnprocessableEntityHttpException($model['product']['name'] . '库存不足');
+            }
+
+            if ($model['product']['stock'] < abs($skuNums[$model['id']])) {
+                throw new UnprocessableEntityHttpException($model['product']['name'] . '库存不足');
+            }
         }
+
+        // 判断是否扣减库存
+        if ($decr == false) {
+            return false;
+        }
+
+        foreach ($models as $model) {
+            // 扣减数量
+            $num = abs($skuNums[$model['id']]);
+            if (!Sku::updateAllCounters(
+                [
+                    'stock' => - $num,
+                ],
+                [
+                    'and',
+                    ['id' => $model['id']],
+                    ['>=', 'stock', $num],
+                ]
+            )) {
+                throw new UnprocessableEntityHttpException($model['product']['name'] . '库存不足');
+            }
+
+            if (!Product::updateAllCounters(
+                [
+                    'stock' => - $num,
+                    'real_sales' => $num,
+                    'total_sales' => $num
+                ],
+                [
+                    'and',
+                    ['id' => $model['product_id']],
+                    ['>=', 'stock', $num],
+                ]
+            )) {
+                throw new UnprocessableEntityHttpException($model['product']['name'] . '库存不足');
+            }
+        }
+
+        return $models;
     }
 
     /**
@@ -130,6 +180,21 @@ class SkuService extends Service
     {
         return Sku::find()
             ->where(['status' => StatusEnum::ENABLED])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->andWhere(['product_id' => $product_id])
+            ->orderBy('id asc')
+            ->asArray()
+            ->all();
+    }
+
+    /**
+     * @param $product_id
+     * @return array|\yii\db\ActiveRecord[]
+     */
+    public function findEditByProductId($product_id)
+    {
+        return Sku::find()
+            ->where(['>=', 'status', StatusEnum::DISABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->andWhere(['product_id' => $product_id])
             ->orderBy('id asc')

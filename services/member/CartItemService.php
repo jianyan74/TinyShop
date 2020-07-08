@@ -69,7 +69,7 @@ class CartItemService extends Service implements CartItemInterface
     /**
      * @param $sku_id
      * @param $member_id
-     * @return array|\yii\db\ActiveRecord|null
+     * @return array|\yii\db\ActiveRecord|null|CartItem
      */
     public function findBySukId($sku_id, $member_id)
     {
@@ -85,12 +85,13 @@ class CartItemService extends Service implements CartItemInterface
      */
     public function all($member_id)
     {
+        $member = Yii::$app->services->member->get($member_id);
         $data = $this->modelClass::find()
             ->where(['member_id' => $member_id])
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->orderBy('status desc, updated_at desc')
-            ->with(['product', 'sku', 'ladderPreferential'])
+            ->orderBy('status desc, created_at asc')
+            ->with(['product', 'sku'])
             ->asArray()
             ->all();
 
@@ -315,7 +316,7 @@ class CartItemService extends Service implements CartItemInterface
             ->where(['in', 'id', $ids])
             ->andWhere(['status' => StatusEnum::ENABLED, 'member_id' => $member_id])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->with(['product.ladderPreferential', 'product.myGet' => function(ActiveQuery $query) use ($member_id) {
+            ->with(['product.myGet' => function(ActiveQuery $query) use ($member_id) {
                 return $query->andWhere(['member_id' => $member_id]);
             }, 'sku'])
             ->asArray()

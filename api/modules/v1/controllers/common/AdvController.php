@@ -3,7 +3,6 @@
 namespace addons\TinyShop\api\modules\v1\controllers\common;
 
 use Yii;
-use common\helpers\ArrayHelper;
 use api\controllers\OnAuthController;
 use addons\TinyShop\common\models\common\Adv;
 use addons\TinyShop\common\enums\AdvLocalEnum;
@@ -27,7 +26,7 @@ class AdvController extends OnAuthController
      *
      * @var array
      */
-    protected $authOptional = ['index'];
+    protected $authOptional = ['index', 'view'];
 
     /**
      * @return array|\yii\data\ActiveDataProvider
@@ -42,6 +41,17 @@ class AdvController extends OnAuthController
     }
 
     /**
+     * @param $id
+     * @return int|\yii\db\ActiveRecord
+     */
+    public function actionView($id)
+    {
+        return Adv::updateAllCounters(['view' => 1], ['id' => $id]);
+
+        // return parent::actionView($id);
+    }
+
+    /**
      * 权限验证
      *
      * @param string $action 当前的方法
@@ -52,7 +62,7 @@ class AdvController extends OnAuthController
     public function checkAccess($action, $model = null, $params = [])
     {
         // 方法名称
-        if (in_array($action, ['view', 'delete', 'create', 'update'])) {
+        if (in_array($action, ['delete', 'create', 'update'])) {
             throw new \yii\web\BadRequestHttpException('权限不足');
         }
     }

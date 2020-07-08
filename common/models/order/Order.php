@@ -3,7 +3,6 @@
 namespace addons\TinyShop\common\models\order;
 
 use addons\TinyShop\common\models\marketing\Coupon;
-use common\behaviors\MerchantBehavior;
 use common\helpers\AddonHelper;
 use common\helpers\BcHelper;
 use common\helpers\RegularHelper;
@@ -96,16 +95,16 @@ class Order extends \common\models\base\BaseModel
     public function rules()
     {
         return [
-            [['receiver_name', 'receiver_mobile', 'receiver_address', 'receiver_province', 'receiver_city', 'receiver_area'], 'required'],
+            [['receiver_name', 'receiver_mobile', 'receiver_address', 'receiver_province', 'receiver_city', 'receiver_area'], 'required', 'on' => 'address'],
             ['receiver_mobile', 'match', 'pattern' => RegularHelper::mobile(), 'message' => '不是一个有效的手机号码'],
-            [['wholesale_id', 'is_virtual', 'invoice_id', 'merchant_id', 'order_type', 'payment_type', 'shipping_type', 'buyer_id', 'receiver_province', 'receiver_city', 'receiver_area', 'seller_star', 'consign_time_adjust', 'point', 'coupon_id', 'give_point', 'order_status', 'pay_status', 'shipping_status', 'review_status', 'feedback_status', 'is_evaluate', 'company_id', 'give_point_type', 'pay_time', 'shipping_time', 'sign_time', 'consign_time', 'finish_time', 'operator_type', 'operator_id', 'status', 'created_at', 'updated_at'], 'integer'],
-            [['product_money', 'user_platform_money', 'order_money', 'point_money', 'coupon_money', 'user_money', 'marketing_money', 'shipping_money', 'pay_money', 'refund_money', 'coin_money', 'give_coin', 'tax_money', 'refund_balance_money', 'product_count'], 'number'],
+            [['close_time', 'marketing_id', 'wholesale_id', 'is_virtual', 'invoice_id', 'merchant_id', 'order_type', 'payment_type', 'shipping_type', 'buyer_id', 'receiver_province', 'receiver_city', 'receiver_area', 'seller_star', 'consign_time_adjust', 'point', 'coupon_id', 'give_point', 'order_status', 'pay_status', 'shipping_status', 'review_status', 'feedback_status', 'is_evaluate', 'company_id', 'give_point_type', 'pay_time', 'shipping_time', 'sign_time', 'consign_time', 'finish_time', 'operator_type', 'operator_id', 'status', 'created_at', 'updated_at'], 'integer'],
+            [['product_money', 'user_platform_money', 'product_original_money', 'order_money', 'point_money', 'coupon_money', 'user_money', 'marketing_money', 'shipping_money', 'pay_money', 'refund_money', 'coin_money', 'give_coin', 'tax_money', 'refund_balance_money', 'product_count'], 'number'],
             [['merchant_name', 'order_sn', 'out_trade_no', 'product_virtual_group'], 'string', 'max' => 100],
             [['order_from', 'buyer_message', 'buyer_invoice', 'receiver_address', 'receiver_region_name', 'company_name'], 'string', 'max' => 200],
-            [['user_name', 'receiver_name', 'fixed_telephone', 'distribution_time_out'], 'string', 'max' => 50],
+            [['user_name', 'receiver_name', 'fixed_telephone', 'distribution_time_out', 'promo_code', 'marketing_type'], 'string', 'max' => 50],
             [['buyer_ip'], 'string', 'max' => 20],
             [['receiver_mobile'], 'string', 'max' => 11],
-            [['receiver_zip'], 'integer', 'max' => 6],
+            [['receiver_zip'], 'string', 'max' => 10],
             [['seller_memo'], 'string', 'max' => 255],
         ];
     }
@@ -126,6 +125,8 @@ class Order extends \common\models\base\BaseModel
             'shipping_type' => 'Shipping Type',
             'order_from' => 'Order From',
             'buyer_id' => 'Buyer ID',
+            'marketing_id' => '营销ID',
+            'marketing_type' => '营销类型',
             'user_name' => 'User Name',
             'buyer_ip' => 'Buyer Ip',
             'buyer_message' => 'Buyer Message',
@@ -143,6 +144,7 @@ class Order extends \common\models\base\BaseModel
             'seller_memo' => '备注',
             'consign_time_adjust' => 'Consign Time Adjust',
             'product_money' => '产品金额',
+            'product_original_money' => 'product_original_money',
             'product_virtual_group' => '虚拟产品类别',
             'order_money' => '订单金额',
             'point' => '积分',
@@ -179,10 +181,21 @@ class Order extends \common\models\base\BaseModel
             'refund_balance_money' => 'Refund Balance Money',
             'fixed_telephone' => 'Fixed Telephone',
             'distribution_time_out' => 'Distribution Time Out',
+            'promo_code' => '推广码',
             'status' => '状态',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
         ];
+    }
+
+    /**
+     * @return array
+     */
+    public function scenarios()
+    {
+        $scenarios = parent::scenarios();
+        $scenarios['address'] = array_keys($this->attributeLabels());
+        return $scenarios;
     }
 
     /**
@@ -266,13 +279,13 @@ class Order extends \common\models\base\BaseModel
     }
 
     /**
-     * 订单虚拟产品
+     * 营销
      *
      * @return \yii\db\ActiveQuery
      */
-    public function getProductVirtual()
+    public function getMarketingDetail()
     {
-        return $this->hasMany(ProductVirtual::class, ['order_sn' => 'order_sn']);
+        return $this->hasMany(ProductMarketingDetail::class, ['order_id' => 'id']);
     }
 
     /**
@@ -309,6 +322,7 @@ class Order extends \common\models\base\BaseModel
             $this->pay_money += $this->shipping_money;
             // 订单总金额
             $this->order_money = $this->product_money + $this->shipping_money + $this->coupon_money + $this->point_money;
+            !$this->isNewRecord && Invoice::updateAll(['tax_money' => $this->tax_money], ['order_id' => $this->id]);
         }
 
         // 修改订单产品状态

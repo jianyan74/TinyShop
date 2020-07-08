@@ -52,6 +52,9 @@ class LocalDistributionConfigForm extends LocalDistributionConfig
         ]);
     }
 
+    /**
+     * @param $attribute
+     */
     public function compareHour($attribute)
     {
         if ($this->forenoon_start > $this->forenoon_end) {
@@ -63,14 +66,20 @@ class LocalDistributionConfigForm extends LocalDistributionConfig
         }
     }
 
+    /**
+     * @param bool $insert
+     * @param array $changedAttributes
+     */
     public function afterSave($insert, $changedAttributes)
     {
         LocalDistributionConfig::deleteAll(['merchant_id' => $this->merchant_id, 'is_start' => StatusEnum::DISABLED]);
-        foreach ($this->discounts as $discount) {
-            if (!empty($discount)) {
-                $model = new LocalDistributionConfig();
-                $model->attributes = $discount;
-                $model->save();
+        if (!empty($this->discounts)) {
+            foreach ($this->discounts as $discount) {
+                if (!empty($discount)) {
+                    $model = new LocalDistributionConfig();
+                    $model->attributes = $discount;
+                    $model->save();
+                }
             }
         }
 

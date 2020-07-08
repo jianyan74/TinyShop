@@ -45,7 +45,7 @@ class OrderInvoiceController extends UserAuthController
         // 创建发票记录
         $orderInvoice = Yii::$app->tinyShopService->orderInvoice->create($order, $model->invoice, $model->invoice_content);
         // 关联发票编号
-        Order::updateAll(['invoice_id' => $model->id], ['id' => $model->order_id]);
+        Order::updateAll(['invoice_id' => $model->invoice_id], ['id' => $model->order_id]);
 
         return $orderInvoice;
     }
@@ -61,7 +61,7 @@ class OrderInvoiceController extends UserAuthController
     public function checkAccess($action, $model = null, $params = [])
     {
         // 方法名称
-        if (in_array($action, ['delete', 'update', 'create'])) {
+        if (in_array($action, ['delete', 'update'])) {
             throw new \yii\web\BadRequestHttpException('权限不足');
         }
     }

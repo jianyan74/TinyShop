@@ -24,7 +24,8 @@ class CompanyAddressForm extends Model
     {
         return [
             [['merchant_name', 'merchant_address', 'merchant_mobile'], 'required'],
-            [['merchant_name', 'merchant_zip_code'], 'string', 'max' => 100],
+            [['merchant_name'], 'string', 'max' => 100],
+            [['merchant_zip_code'], 'string', 'max' => 20],
             [['merchant_address'], 'string', 'max' => 200],
             [['merchant_mobile'], 'string', 'max' => 50],
             [['merchant_longitude_latitude'], 'safe'],

@@ -38,7 +38,7 @@ class Invoice extends \common\models\base\BaseModel
         return [
             [['title', 'type'], 'required'],
             [['merchant_id', 'order_sn', 'order_id', 'member_id', 'type', 'status', 'created_at', 'updated_at'], 'integer'],
-            [['title', 'duty_paragraph', 'user_name'], 'string', 'max' => 200],
+            [['title', 'duty_paragraph', 'user_name', 'opening_bank', 'address'], 'string', 'max' => 200],
             [['content'], 'string', 'max' => 500],
             ['tax_money', 'number'],
         ];
@@ -59,6 +59,8 @@ class Invoice extends \common\models\base\BaseModel
             'user_name' => '用户昵称',
             'title' => '公司抬头',
             'duty_paragraph' => '纳税人识别号',
+            'opening_bank' => '开户行',
+            'address' => '地址及电话',
             'content' => '备注',
             'type' => '类型',
             'status' => '状态',

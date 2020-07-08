@@ -23,8 +23,10 @@ $form = ActiveForm::begin([
                 <label class="control-label">退款金额</label>
             </div>
             <div class="col-sm-8">
-                <?= $product['product_money'] ?>
-                <div class="help-block"></div>
+                <?= Html::textInput(Html::getInputName($product, 'refund_balance_money'), $product['product_money'], [
+                    'class' => 'form-control',
+                ]) ?>
+                <div class="help-block">最多可退款 <?= $maxRefundMoney ?> 元 (包含运费)</div>
             </div>
         </div>
         <div class="form-group">
@@ -39,7 +41,7 @@ $form = ActiveForm::begin([
             </div>
         </div>
         <?= $form->field($product, 'memo')->textarea(); ?>
-        <div class="form-group">
+        <div class="form-group hide">
             <div class="col-sm-4 text-right">
                 <label class="control-label">买家申请退款金额</label>
             </div>
@@ -54,15 +56,6 @@ $form = ActiveForm::begin([
             </div>
             <div class="col-sm-8">
                 <?= $product['product_money'] ?> 元
-                <div class="help-block"></div>
-            </div>
-        </div>
-        <div class="form-group">
-            <div class="col-sm-4 text-right">
-                <label class="control-label">自动退还余额</label>
-            </div>
-            <div class="col-sm-8">
-                <?= $product['refund_balance_money']?> 元
                 <div class="help-block"></div>
             </div>
         </div>

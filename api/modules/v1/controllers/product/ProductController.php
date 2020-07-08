@@ -63,13 +63,16 @@ class ProductController extends OnAuthController
             return ResultHelper::json(422, '商品找不到了');
         }
 
-        if ($model['product_status'] == StatusEnum::DISABLED) {
+        if (
+            $model['product_status'] == StatusEnum::DISABLED ||
+            $model['status'] == StatusEnum::DISABLED ||
+            $model['status'] == StatusEnum::DELETE
+        ) {
             return ResultHelper::json(422, '商品已下架');
         }
 
         // 销量
-        $model['sales'] = $model['sales'] + $model['real_sales'];
-        unset($model['real_sales']);
+        unset($model['real_sales'], $model['sales']);
         // 标签
         $model['tags'] = !empty($model['tags']) ? explode(',', $model['tags']) : [];
         // 浏览量 + 1
@@ -106,9 +109,7 @@ class ProductController extends OnAuthController
 
         // 营销
         $model['marketing'] = [];
-        if (!empty($model['marketing_id']) && !empty($model['marketing_type'])) {
-            $model['marketing'] = Yii::$app->tinyShopService->marketing->findByIdAndType($model);
-        }
+        empty($model['marketing']) && $model['marketing_type']  = '';
 
         // 可领优惠券
         $canReceiveCoupon = Yii::$app->tinyShopService->marketingCouponType->getCanReceiveCouponByProductId($id, $member_id, $model['merchant_id']);
@@ -119,7 +120,7 @@ class ProductController extends OnAuthController
         $model['canReceiveCoupon'] = $canReceiveCoupon;
 
         // 反转阶梯优惠，因为默认是递减
-        $model['ladderPreferential'] = array_reverse($model['ladderPreferential']);
+        $model['ladderPreferential'] = [];
 
         // 限购判断：是否可购买
         $model['is_buy'] = StatusEnum::ENABLED;
@@ -136,7 +137,13 @@ class ProductController extends OnAuthController
         $model['pointConfig'] = Yii::$app->tinyShopService->marketingPointConfig->findOne($model['merchant_id']);
         // 满包邮
         $model['fullMail'] = Yii::$app->tinyShopService->marketingFullMail->findOne($model['merchant_id']);
+        // 满减送
         $model['fullGive'] = [];
+        // 满减送规则
+        $model['fullGiveRule'] = [];
+        // 会员折扣
+        $model['memberDiscount'] = [];
+        // 组合套餐
         $model['combination'] = [];
 
         return $model;

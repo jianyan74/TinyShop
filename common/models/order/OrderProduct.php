@@ -23,7 +23,7 @@ use Yii;
  * @property string $sku_name sku名称
  * @property string $price 商品价格
  * @property string $cost_price 商品成本价
- * @property string $num 购买数量
+ * @property int $num 购买数量
  * @property string $adjust_money 调整金额
  * @property int $product_money 商品总价
  * @property int $product_picture 商品图片
@@ -69,8 +69,8 @@ class OrderProduct extends BaseModel
     {
         return [
             [['member_id', 'order_id', 'merchant_id', 'product_id', 'sku_id', 'is_virtual', 'num', 'buyer_id', 'point_exchange_type', 'marketing_id', 'marketing_type', 'order_type', 'order_status', 'give_point', 'shipping_status', 'refund_type', 'refund_status', 'is_evaluate', 'refund_time', 'tmp_express_company_id', 'gift_flag', 'status', 'created_at', 'updated_at'], 'integer'],
-            [['price', 'cost_price', 'adjust_money', 'product_money', 'refund_require_money', 'refund_real_money', 'refund_balance_money'], 'number'],
-            [['product_name', 'product_picture'], 'string', 'max' => 100],
+            [['price', 'cost_price', 'adjust_money', 'product_original_money', 'product_money', 'refund_require_money', 'refund_real_money', 'refund_balance_money'], 'number'],
+            [['product_name', 'product_picture'], 'string', 'max' => 200],
             [['sku_name', 'tmp_express_no'], 'string', 'max' => 50],
             [['product_virtual_group', 'refund_reason', 'refund_shipping_code', 'refund_shipping_company', 'memo', 'tmp_express_company'], 'string', 'max' => 200],
         ];
@@ -95,6 +95,7 @@ class OrderProduct extends BaseModel
             'num' => 'Num',
             'adjust_money' => 'Adjust Money',
             'product_money' => 'Product Money',
+            'product_original_money' => 'product_original_money',
             'product_picture' => '商品图片',
             'buyer_id' => 'Buyer ID',
             'point_exchange_type' => '积分变动类型',
@@ -108,6 +109,8 @@ class OrderProduct extends BaseModel
             'refund_type' => '退款方式',
             'refund_require_money' => '退款金额',
             'refund_reason' => '退款原因',
+            'refund_explain' => '退款说明',
+            'refund_evidence' => '退款凭证',
             'refund_shipping_code' => '物流单号',
             'refund_shipping_company' => '物流名称',
             'refund_real_money' => 'Refund Real Money',
@@ -151,16 +154,6 @@ class OrderProduct extends BaseModel
     public function getEvaluate()
     {
         return $this->hasOne(Evaluate::class, ['order_product_id' => 'id'])->select(['id', 'order_product_id']);
-    }
-
-    /**
-     * 关联虚拟商品类型
-     *
-     * @return \yii\db\ActiveQuery
-     */
-    public function getVirtualType()
-    {
-        return $this->hasOne(VirtualType::class, ['product_id' => 'product_id']);
     }
 
     /**

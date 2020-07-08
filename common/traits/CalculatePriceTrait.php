@@ -64,8 +64,8 @@ trait CalculatePriceTrait
             }
         }
 
-        ($allDiscount - $orderDiscount) > 0 && $this->calculateByOrderProductPrice($form->groupOrderProducts, $orderProductDiscount);
-        $orderDiscount > 0 && $this->calculateByOrderPrice($form->groupOrderProducts, $orderDiscount, $form->product_count);
+        ($allDiscount - $orderDiscount) > 0 && $this->setProductPrice($form->groupOrderProducts, $orderProductDiscount);
+        $orderDiscount > 0 && $this->allocationPrice($form->groupOrderProducts, $orderDiscount);
         $form->product_money = BcHelper::sub($form->product_money, $allDiscount);
         $form->product_money < 0 && $form->product_money = 0;
         $form->marketing_money += $this->marketing_money;
@@ -74,26 +74,27 @@ trait CalculatePriceTrait
     }
 
     /**
-     * 根据总订单产品优惠分配到产品
+     * 计算产品分配
      *
-     * @param $groupOrderProducts
-     * @param $orderDiscount
-     * @param $productCount
+     * @param array $groupOrderProducts 组别产品
+     * @param array $orderProductDiscount 优惠金额
+     * @return mixed
      */
-    public function calculateByOrderProductPrice($groupOrderProducts, $orderProductDiscount)
+    public function setProductPrice($groupOrderProducts, $orderProductDiscount)
     {
         /** @var OrderProduct $orderProduct */
         foreach ($groupOrderProducts as $product_id => &$groupOrderProduct) {
+            // 判断没有优惠的金额
             if (!isset($orderProductDiscount[$product_id]) || $orderProductDiscount[$product_id] == 0) {
                 continue;
             }
 
             // 产品总优惠
             $discount = $orderProductDiscount[$product_id];
+            // 产品当前金额
             $productMoney = $groupOrderProduct['product_money'];
-            $groupOrderProduct['product_money'] -= $discount;
             // 如果优惠价格过大
-            if ($groupOrderProduct['product_money'] <= 0) {
+            if ($productMoney <= $discount) {
                 // 记录营销金额
                 $this->marketing_money = $productMoney;
 
@@ -108,78 +109,77 @@ trait CalculatePriceTrait
             } else {
                 // 记录营销金额
                 $this->marketing_money = $discount;
+                $groupOrderProduct['product_money'] = BcHelper::sub($productMoney, $discount);
             }
 
+            // ----------- 开始计算优惠 优惠百分比 ------------ //
+
+            $percentage = BcHelper::div($discount, $productMoney);
             foreach ($groupOrderProduct['products'] as $orderProduct) {
-                if ($orderProduct->product_money == 0) {
+                if ($orderProduct->product_money <= 0) {
                     continue;
                 }
 
-                // 每个产品数量的优惠
-                $preferentialPrice = BcHelper::div($discount, $groupOrderProduct['count']);
-                // 临时的优惠价格
-                if ($preferentialPrice == 0) {
-                    $tmpPreferentialPrice = $preferentialPrice;
+                // 根据百分比扣减
+                $discountAmount = BcHelper::mul($orderProduct->product_money, $percentage);
+                if ($discountAmount > 0) {
+                    $orderProduct->product_money = BcHelper::sub($orderProduct->product_money, $discountAmount);
+                    $discount = BcHelper::sub($discount, $discountAmount);
+                }
+            }
+
+            // 计算剩余
+            foreach ($groupOrderProduct['products'] as $orderProduct) {
+                if ($orderProduct->product_money <= 0) {
+                    continue;
+                }
+
+                // 根据百分比扣减
+                if ($groupOrderProduct['product_money'] >= $discount) {
+                    $orderProduct->product_money = BcHelper::sub($orderProduct->product_money, $discount);
+                    break;
                 } else {
-                    $tmpPreferentialPrice = $preferentialPrice * $orderProduct->num;
+                    $orderProduct->product_money = 0;
+                    $discount = BcHelper::sub($discount, $orderProduct->product_money);
                 }
+            }
 
-                // 如果优惠价格大于产品价格，采用产品价格
-                if ($tmpPreferentialPrice > $orderProduct->product_money) {
-                    $tmpPreferentialPrice = $orderProduct->product_money;
-                }
-
-                // 分配到产品优惠
-                $orderProduct->product_money = $orderProduct->product_money - $tmpPreferentialPrice;
+            // 计算单价
+            foreach ($groupOrderProduct['products'] as $orderProduct) {
                 if ($orderProduct->product_money > 0) {
                     $orderProduct->price = BcHelper::div($orderProduct->product_money, $orderProduct->num);
                 }
-
-                $orderProductDiscount[$product_id] -= $tmpPreferentialPrice;
-                if ($orderProductDiscount[$product_id] <= 0) {
-                    continue;
-                }
             }
         }
 
-        $product_money = ArrayHelper::getColumn($groupOrderProducts, 'product_money');
-        if (array_sum($product_money) <= 0) {
-            return true;
-        }
-
-        // 如果优惠的价格还有继续循环
-        if (array_sum(array_values($orderProductDiscount)) > 0) {
-            return $this->calculateByOrderProductPrice($groupOrderProducts, $orderProductDiscount);
-        }
-
-        return true;
+        return $groupOrderProducts;
     }
 
     /**
-     * 根据总订单优惠分配到产品
+     * 分配金额
      *
      * @param $groupOrderProducts
      * @param $orderDiscount
-     * @param $productCount
+     * @return array|bool|mixed
      */
-    public function calculateByOrderPrice($groupOrderProducts, $orderDiscount, $productCount)
+    public function allocationPrice($groupOrderProducts, $orderDiscount)
     {
         /** @var OrderProduct $orderProduct */
-        if ($orderDiscount <= 0 || $productCount == 0) {
+        if ($orderDiscount <= 0) {
             return true;
         }
 
-        // 如果总优惠大于等于总金额 全部设置为0
+        // 如果产品金额为0 直接返回
         $productMoney = array_sum(ArrayHelper::getColumn($groupOrderProducts, 'product_money'));
         if ($productMoney <= 0) {
             return true;
         }
 
+        // 总优惠大于等于总金额 全部设置为0
         if ($orderDiscount >= $productMoney) {
             // 记录营销金额
             $this->marketing_money = $productMoney;
-
-            foreach ($groupOrderProducts as $product_id => &$groupOrderProduct) {
+            foreach ($groupOrderProducts as $product_id => $groupOrderProduct) {
                 foreach ($groupOrderProduct['products'] as $orderProduct) {
                     $orderProduct->price = 0;
                     $orderProduct->product_money = 0;
@@ -187,53 +187,54 @@ trait CalculatePriceTrait
             }
 
             return true;
-        } else {
-            // 记录营销金额
-            $this->marketing_money = $orderDiscount;
         }
 
-        // 每个产品的优惠价
-        $preferentialPrice = BcHelper::div($orderDiscount, $productCount);
-        $preferentialPrice == 0 && $preferentialPrice = $orderDiscount;
+        // ----------- 开始计算优惠 优惠百分比 ------------ //
+        // 优惠百分比
+        $percentage = BcHelper::div($orderDiscount, $productMoney);
+        // 产品优惠
+        $orderProductDiscount = [];
+        // 临时价格
+        $tmpData = [];
+        foreach ($groupOrderProducts as $key => $groupOrderProduct) {
+            $tmpData[$key] = $groupOrderProduct['product_money'];
+            $orderProductDiscount[$key] = 0;
+        }
 
-        // 总优惠小于总金额
-        foreach ($groupOrderProducts as $product_id => &$groupOrderProduct) {
-            if ($groupOrderProduct['product_money'] == 0) {
+        // 分配金额
+        foreach ($tmpData as $product_id => $product_money) {
+            // 优惠金额
+            $discountAmount = BcHelper::mul($product_money, $percentage);
+            if ($discountAmount > 0) {
+                $tmpData[$product_id] = BcHelper::sub($product_money, $discountAmount);
+                $orderProductDiscount[$product_id] = BcHelper::add($orderProductDiscount[$product_id], $discountAmount);
+                $orderDiscount = BcHelper::sub($orderDiscount, $discountAmount);
+            }
+        }
+
+        // 算一波剩余
+        foreach ($tmpData as $product_id => $product_money) {
+            if ($orderDiscount <= 0) {
                 continue;
             }
 
-            if ($preferentialPrice == 0) {
+            if ($product_money <= 0) {
+                continue;
+            }
+
+            if ($product_money >= $orderDiscount) {
+                $tmpData[$product_id] = BcHelper::sub($product_money, $orderDiscount);
+                $orderProductDiscount[$product_id] = BcHelper::add($orderProductDiscount[$product_id], $orderDiscount);
+                $orderDiscount = 0;
                 break;
-            }
-
-            foreach ($groupOrderProduct['products'] as $orderProduct) {
-                // 获取每个产品的优惠金额
-                $discount = $orderProduct->num * $preferentialPrice;
-                if ($discount >= $orderDiscount) {
-                    $discount = $orderDiscount;
-                }
-
-                // 产品金额大于优惠金额
-                if ($orderProduct->product_money > $discount) {
-                    $orderDiscount -= $discount;
-                    $orderProduct->product_money -= $discount;
-                    $orderProduct->price = BcHelper::div($orderProduct->product_money, $orderProduct->num);
-                    $groupOrderProduct['product_money'] -= $discount;
-                } else {
-                    $orderDiscount -= $orderProduct->product_money;
-                    $groupOrderProduct['product_money'] -= $orderProduct->product_money;
-                    $orderProduct->price = 0;
-                    $orderProduct->product_money = 0;
-                    $productCount -= $orderProduct->num;
-                }
+            } else {
+                $tmpData[$product_id] = 0;
+                $orderProductDiscount[$product_id] = BcHelper::add($orderProductDiscount[$product_id], $product_money);
+                $orderDiscount = BcHelper::sub($orderDiscount, $product_money);
             }
         }
 
-        // 如果优惠的价格还有继续循环
-        if ($orderDiscount > 0) {
-            return $this->calculateByOrderPrice($groupOrderProducts, $orderDiscount, $productCount);
-        }
-
-        return true;
+        // 分配到商品的继续计算
+        return $this->setProductPrice($groupOrderProducts, $orderProductDiscount);
     }
 }

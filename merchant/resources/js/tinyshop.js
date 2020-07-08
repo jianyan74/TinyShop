@@ -60,6 +60,24 @@ $('.orderProductDelivery').click(function () {
     });
 });
 
+// 备货完成
+$('.ordersStockUpAccomplish').click(function () {
+    var id = $(this).parent().parent().attr('id');
+    swal("确定备货完成吗？", {
+        buttons: {
+            cancel: "取消",
+            defeat: '确定',
+        },
+    }).then((value) => {
+        switch (value) {
+            case "defeat":
+                updateOrderStatus(id, '', orderStockUpAccomplishUrl);
+                break;
+            default:
+        }
+    });
+});
+
 // 修改产品退款申请状态
 function updateProductRefundStatus(id, url, always = '') {
     $.ajax({
@@ -137,3 +155,23 @@ function updateOrderStatus(id, status, url) {
         }
     });
 }
+
+// 预览用户
+$(document).on("click",".member-view",function(){
+    layer.open({
+        type: 2,
+        title: '用户详情',
+        area: ['90%', '80%'],
+        content: $(this).data('href')
+    });
+})
+
+// 预览订单
+$(document).on("click",".order-view",function(){
+    layer.open({
+        type: 2,
+        title: '订单详情',
+        area: ['90%', '80%'],
+        content: $(this).data('href')
+    });
+})

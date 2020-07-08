@@ -23,7 +23,7 @@ class AddonConfig extends BaseAddonConfig
         'brief_introduction' => '基础的多商户购物商城',
         'description' => '快速可以进行二次开发的商城，麻雀虽小五脏俱全',
         'author' => '简言',
-        'version' => '1.1.0',
+        'version' => '1.2.0',
     ];
 
     /**

@@ -26,7 +26,6 @@ $createName = $model->formName() . '[valueData][create]';
                     <?= $form->field($model, 'show_type')->radioList($showTypeExplain); ?>
                     <?= $form->field($model, 'sort')->textInput(); ?>
                     <?= $form->field($model, 'explain')->textarea(); ?>
-                    <?= $form->field($model, 'status')->radioList(StatusEnum::getMap()); ?>
                     <table class="table table-hover">
                         <thead>
                         <tr>

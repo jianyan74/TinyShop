@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\merchant\modules\order\controllers;
 
+use common\helpers\BcHelper;
 use Yii;
 use yii\web\NotFoundHttpException;
 use common\enums\StatusEnum;
@@ -76,6 +77,7 @@ class ProductController extends BaseController
     {
         return $this->render($this->action->id, [
             'model' => Yii::$app->tinyShopService->orderProduct->findById($id),
+            'orderRefund' => Yii::$app->tinyShopService->orderRefund->findByOrderProductId($id, StatusEnum::DISABLED),
         ]);
     }
 
@@ -147,14 +149,18 @@ class ProductController extends BaseController
         }
 
         // 申请默认退款金额
-        $model->refund_balance_money = Yii::$app->tinyShopService->orderProduct->getRefundBalanceMoney($order, $model);
+        $refundBalanceMoney = Yii::$app->tinyShopService->orderProduct->getRefundBalanceMoney($order, $model);
+        $model->refund_balance_money = $refundBalanceMoney;
+        // 退款上限
+        $maxRefundMoney = BcHelper::sub($order->pay_money, $order->refund_money);
 
         if ($model->load(Yii::$app->request->post())) {
             // 开启事务
             $transaction = Yii::$app->db->beginTransaction();
             try {
                 // 退款进订单
-                $orderProduct = Yii::$app->tinyShopService->orderProduct->refundReturnMoney($id);
+                $model->refund_balance_money > $maxRefundMoney && $model->refund_balance_money = $maxRefundMoney;
+                $orderProduct = Yii::$app->tinyShopService->orderProduct->refundReturnMoney($id, $model->refund_balance_money);
                 if ($model->refund_type == PayTypeEnum::USER_MONEY) {
                     // 退款进用户余额/原路退回
                     Yii::$app->services->memberCreditsLog->incrMoney(new CreditsLogForm([
@@ -162,7 +168,7 @@ class ProductController extends BaseController
                         'num' => $orderProduct->refund_balance_money,
                         'credit_group' => 'orderRefundBalanceMoney',
                         'map_id' => $orderProduct->id,
-                        'remark' => '【微商城】订单退款',
+                        'remark' => Yii::$app->params['tinyShopName']  . '订单退款',
                     ]));
                 } elseif (in_array($model->refund_type, array_keys($thirdParty))) {
                     Yii::$app->services->pay->refund($model->refund_type, $orderProduct->refund_balance_money, $order->order_sn);
@@ -182,6 +188,7 @@ class ProductController extends BaseController
             'product' => $model,
             'order' => $order,
             'refundTypes' => $refundTypes,
+            'maxRefundMoney' => $maxRefundMoney,
             'defaultRefundType' => $defaultRefundType,
         ]);
     }
@@ -215,7 +222,7 @@ class ProductController extends BaseController
         if (empty($id) || !($model = RefundForm::find()->where([
                 'id' => $id,
                 'status' => StatusEnum::ENABLED,
-            ])->andWhere(['merchant_id' => $this->getMerchantId()])->one())) {
+            ])->andFilterWhere(['merchant_id' => $this->getMerchantId()])->one())) {
             throw new NotFoundHttpException('请求的数据不存在');
         }
 

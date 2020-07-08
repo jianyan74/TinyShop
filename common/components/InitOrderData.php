@@ -8,12 +8,6 @@ use addons\TinyShop\common\models\forms\PreviewForm;
 use addons\TinyShop\common\components\purchase\CartPurchase;
 use addons\TinyShop\common\components\purchase\BuyNowPurchase;
 use addons\TinyShop\common\components\purchase\PointExchangePurchase;
-use addons\TinyShop\common\components\purchase\WholesalePurchase;
-use addons\TinyShop\common\components\purchase\GroupBuyPurchase;
-use addons\TinyShop\common\components\purchase\VirtualPurchase;
-use addons\TinyShop\common\components\purchase\PresellBuyPackage;
-use addons\TinyShop\common\components\purchase\CombinationPackage;
-use addons\TinyShop\common\components\purchase\DiscountPurchase;
 
 /**
  * 初始化订单数据
@@ -40,7 +34,6 @@ class InitOrderData
         PreviewTypeEnum::CART => CartPurchase::class, // 购物车
         PreviewTypeEnum::BUY_NOW => BuyNowPurchase::class, // 立即下单
         PreviewTypeEnum::POINT_EXCHANGE => PointExchangePurchase::class, // 积分
-        PreviewTypeEnum::VIRTUAL => VirtualPurchase::class, // 虚拟商品下单
     ];
 
     /**

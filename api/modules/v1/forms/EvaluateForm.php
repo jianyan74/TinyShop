@@ -3,7 +3,6 @@
 namespace addons\TinyShop\api\modules\v1\forms;
 
 use Yii;
-use common\helpers\AddonHelper;
 use common\helpers\ArrayHelper;
 use addons\TinyShop\common\models\product\Evaluate;
 use addons\TinyShop\common\enums\ExplainStatusEnum;
@@ -16,6 +15,11 @@ use addons\TinyShop\common\enums\ExplainTypeEnum;
  */
 class EvaluateForm extends Evaluate
 {
+    /**
+     * @var
+     */
+    protected $product;
+
     public function rules()
     {
         return ArrayHelper::merge(parent::rules(), [
@@ -29,7 +33,11 @@ class EvaluateForm extends Evaluate
      */
     public function verifyValid($attribute)
     {
-        $product = Yii::$app->tinyShopService->orderProduct->findById($this->order_product_id);
+        $product = $this->product;
+        if (!$product) {
+            $product = Yii::$app->tinyShopService->orderProduct->findById($this->order_product_id);
+        }
+
         if (!$product) {
             $this->addError($attribute, '找不到订单产品');
 
@@ -42,7 +50,8 @@ class EvaluateForm extends Evaluate
             return;
         }
 
-        $merchant = Yii::$app->services->merchant->findById($this->merchant_id);
+        $merchant = Yii::$app->services->merchant->findById($product['merchant_id']);
+        $this->merchant_id = $product['merchant_id'];
         $this->merchant_name = $merchant['title'] ?? '';
         $this->order_id = $product['order_id'];
         $this->order_sn = $product->order->order_sn;
@@ -58,6 +67,14 @@ class EvaluateForm extends Evaluate
 
         // 评价
         Yii::$app->tinyShopService->orderProduct->evaluate($product->id);
+    }
+
+    /**
+     * @param $product
+     */
+    public function setProduct($product)
+    {
+        $this->product = $product;
     }
 
     /**

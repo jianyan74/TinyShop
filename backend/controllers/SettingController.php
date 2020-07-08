@@ -2,7 +2,6 @@
 
 namespace addons\TinyShop\backend\controllers;
 
-use common\helpers\AddonHelper;
 use Yii;
 use common\helpers\ArrayHelper;
 use common\interfaces\AddonsSetting;

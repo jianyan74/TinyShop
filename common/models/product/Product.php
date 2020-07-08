@@ -2,11 +2,11 @@
 
 namespace addons\TinyShop\common\models\product;
 
-use common\helpers\StringHelper;
 use Yii;
 use yii\db\ActiveQuery;
 use common\behaviors\MerchantBehavior;
 use common\enums\StatusEnum;
+use common\helpers\StringHelper;
 use common\traits\HasOneMerchant;
 use addons\TinyShop\common\enums\CommonTypeEnum;
 use addons\TinyShop\common\enums\OrderStatusEnum;
@@ -133,11 +133,9 @@ class Product extends \common\models\base\BaseModel
                     'supplier_id',
                     'integral_give_type',
                     'base_attribute_id',
-                    'cate_id',
                     'merchant_id',
                     'type_id',
                     'brand_id',
-                    'sales',
                     'stock',
                     'warning_stock',
                     'state',
@@ -166,10 +164,11 @@ class Product extends \common\models\base\BaseModel
                     'is_new',
                     'is_bill',
                     'is_virtual',
-                    'real_sales',
                     'is_open_presell',
                     'presell_delivery_type',
                     'presell_day',
+                    'is_open_member_discount',
+                    'member_discount_type',
                     'status',
                     'created_at',
                     'updated_at',
@@ -196,11 +195,14 @@ class Product extends \common\models\base\BaseModel
             [
                 [
                     'shelf_life',
+                    'total_sales',
+                    'sales',
+                    'real_sales',
                 ],
                 'integer',
                 'min' => 0,
             ],
-            [['covers', 'presell_time', 'production_date'], 'safe'],
+            [['covers', 'presell_time', 'production_date', 'cate_id'], 'safe'],
             [['name'], 'string', 'max' => 255],
             [['sketch', 'keywords', 'address_name'], 'string', 'max' => 200],
             [['marque', 'barcode', 'picture', 'video_url', 'marketing_type'], 'string', 'max' => 100],
@@ -276,6 +278,8 @@ class Product extends \common\models\base\BaseModel
             'presell_day' => '预售发货天数',
             'presell_delivery_type' => '预售发货方式',
             'presell_price' => '预售金额',
+            'is_open_member_discount' => '会员等级折扣',
+            'member_discount_type' => '优惠设置',
             'unit' => '商品单位',
             'is_stock_visible' => '库存显示',
             'is_hot' => '热门',
@@ -348,7 +352,7 @@ class Product extends \common\models\base\BaseModel
     {
         return $this->hasMany(Sku::class, ['product_id' => 'id'])
             ->where(['status' => StatusEnum::ENABLED])
-            ->select(['id', 'product_id', 'picture', 'price', 'market_price', 'cost_price', 'stock', 'code', 'data']);
+            ->select(['id', 'product_id', 'picture', 'price', 'market_price', 'cost_price', 'wholesale_price', 'name', 'stock', 'code', 'status', 'data']);
     }
 
     /**
@@ -360,7 +364,7 @@ class Product extends \common\models\base\BaseModel
     {
         return $this->hasOne(Sku::class, ['product_id' => 'id'])
             ->where(['status' => StatusEnum::ENABLED])
-            ->select(['id', 'product_id', 'name', 'picture', 'price', 'market_price', 'cost_price', 'stock', 'code', 'data'])
+            ->select(['id', 'product_id', 'name', 'picture', 'price', 'market_price', 'cost_price', 'wholesale_price', 'stock', 'status', 'code', 'data'])
             ->orderBy('id asc');
     }
 
@@ -373,38 +377,8 @@ class Product extends \common\models\base\BaseModel
     {
         return $this->hasOne(Sku::class, ['product_id' => 'id'])
             ->where(['status' => StatusEnum::ENABLED])
-            ->select(['id', 'product_id', 'price', 'market_price', 'cost_price', 'stock', 'code'])
+            ->select(['id', 'product_id', 'price', 'market_price', 'cost_price', 'wholesale_price', 'stock', 'code'])
             ->orderBy('price');
-    }
-
-    /**
-     * 关联虚拟物品
-     *
-     * @return \yii\db\ActiveQuery
-     */
-    public function getVirtualType()
-    {
-        return $this->hasOne(VirtualType::class, ['product_id' => 'id']);
-    }
-
-    /**
-     * 关联拼团
-     *
-     * @return \yii\db\ActiveQuery
-     */
-    public function getWholesaleProduct()
-    {
-        return $this->hasOne(WholesaleProduct::class, ['product_id' => 'id']);
-    }
-
-    /**
-     * 分销配置
-     *
-     * @return \yii\db\ActiveQuery
-     */
-    public function getCommissionRate()
-    {
-        return $this->hasMany(CommissionRate::class, ['product_id' => 'id']);
     }
 
     /**
@@ -468,17 +442,6 @@ class Product extends \common\models\base\BaseModel
             ->limit(10)
             ->orderBy('id desc')
             ->asArray();
-    }
-
-    /**
-     * 阶梯优惠
-     *
-     * @return ActiveQuery
-     */
-    public function getLadderPreferential()
-    {
-        return $this->hasMany(LadderPreferential::class,
-            ['product_id' => 'id'])->orderBy('quantity desc, id asc')->asArray();
     }
 
     /**

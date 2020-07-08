@@ -2,17 +2,15 @@
 
 use yii\widgets\ActiveForm;
 use common\helpers\Url;
-use yii\helpers\Url as BaseUrl;
-use common\helpers\Html;
 use common\widgets\webuploader\Files;
 use kartik\select2\Select2;
-use common\enums\WhetherEnum;
 use common\helpers\AddonHelper;
 use common\enums\StatusEnum;
 
 $this->title = $model->isNewRecord ? '创建' : '编辑';
 $this->params['breadcrumbs'][] = ['label' => '商品管理', 'url' => ['index']];
 $this->params['breadcrumbs'][] = $this->title;
+
 ?>
 
 <div class="row">
@@ -26,30 +24,39 @@ $this->params['breadcrumbs'][] = $this->title;
                 <li class="active"><a href="#tab_1" data-toggle="tab">基本</a></li>
                 <li><a href="#tab_2" data-toggle="tab">库存规格</a></li>
                 <li><a href="#tab_3" data-toggle="tab">封面详情</a></li>
-                <li><a href="#tab_4" data-toggle="tab">预售设置</a></li>
                 <li><a href="#tab_5" data-toggle="tab">积分设置</a></li>
-                <li><a href="#tab_7" data-toggle="tab">阶梯优惠</a></li>
-                <li class="<?php if($setting->is_open_commission == StatusEnum::DISABLED) { ?>hide<?php } ?>"><a href="#tab_8" data-toggle="tab">分销设置</a></li>
             </ul>
             <div class="tab-content">
                 <div class="tab-pane active p-xs" id="tab_1">
                     <?= $form->field($model, 'name')->textInput(); ?>
                     <div class="row">
                         <div class="col-sm-4">
-                            <?= $form->field($model, 'cate_id')->dropDownList($cates, [
-                                'prompt' => '请选择',
-                            ]) ?>
+                            <?php  if ($setting->product_cate_type == 1) { ?>
+                                <?= $form->field($model, 'cate_id')->widget(\common\widgets\selectlinkage\Linkage::class, [
+                                    'url' => Url::to(['cate/select']),
+                                    'item' => $cate,
+                                    'allItem' => $cates,
+                                ]); ?>
+                            <?php } else { ?>
+                                <?= $form->field($model, 'cate_id')->widget(Select2::class, [
+                                    'data' => \common\helpers\ArrayHelper::map($cates, 'id', 'title'),
+                                    'options' => [
+                                        'placeholder' => '请选择分类',
+                                        'multiple' => true
+                                    ],
+                                    'maintainOrder' => true,
+                                    'pluginOptions' => [
+                                        'tags' => true,
+                                        'tokenSeparators' => [',', ' '],
+                                        'maximumInputLength' => 20
+                                    ],
+                                ])->hint('输入后请回车'); ?>
+                            <?php } ?>
                         </div>
                         <div class="col-sm-4"><?= $form->field($model, 'brand_id')->dropDownList($brands, ['prompt' => '请选择']) ?></div>
                         <div class="col-sm-4"><?= $form->field($model, 'supplier_id')->dropDownList($supplier, ['prompt' => '请选择']) ?></div>
                     </div>
                     <?= $form->field($model, 'sketch')->textInput(); ?>
-                    <?= $form->field($model, 'sort')->textInput()->hint('数字越小，排名越靠前'); ?>
-                    <?= $this->render('_virtual', [
-                        'model' => $model,
-                        'form' => $form,
-                        'virtualType' => $virtualType,
-                    ]) ?>
                     <?= $form->field($model, 'keywords')->textInput()->hint('商品关键字,能准确搜到商品的,比如 : 海尔电视,电视 之类的.用于 SEO 搜索'); ?>
                     <?= $form->field($model, 'tags')->widget(Select2::class, [
                         'data' => $tags,
@@ -153,12 +160,6 @@ $this->params['breadcrumbs'][] = $this->title;
                     ]); ?>
                     <?= $form->field($model, 'intro')->widget(\common\widgets\ueditor\UEditor::class) ?>
                 </div>
-                <div class="tab-pane p-xs" id="tab_4">
-                    <?= $this->render('_presell', [
-                        'model' => $model,
-                        'form' => $form,
-                    ]) ?>
-                </div>
                 <!-- /.tab-pane -->
                 <div class="tab-pane p-xs" id="tab_5">
                     <?= $form->field($model, 'point_exchange_type')->radioList(\addons\TinyShop\common\enums\PointExchangeTypeEnum::getMap()); ?>
@@ -171,23 +172,11 @@ $this->params['breadcrumbs'][] = $this->title;
                     <?= $form->field($model, 'integral_give_type')->radioList([0 => '赠送固定积分', 1 => '按照当前价格百分比赠送积分']); ?>
                     <?= $form->field($model, 'give_point')->textInput()->hint('最低为0，如果是百分比赠送积分上限为100 '); ?>
                 </div>
-                <div class="tab-pane p-xs" id="tab_7">
-                    <?= $this->render('_ladderPreferentialData', [
-                        'model' => $model,
-                        'form' => $form,
-                    ]) ?>
-                </div>
-                <div class="tab-pane p-xs" id="tab_8">
-                    <?= $this->render('_commission', [
-                        'commissionRate' => $commissionRate,
-                        'form' => $form,
-                    ]) ?>
-                </div>
                 <div class="box-footer text-center">
                     <?= $form->field($model, 'id')->hiddenInput()->label(false); ?>
                     <div class="hide" id="specValue"></div>
                     <button class="btn btn-primary" type="button" onclick="beforSubmit()">保存</button>
-                    <span class="btn btn-white" onclick="history.go(-1)">返回</span>
+                    <span class="btn btn-white" onclick="rfTwiceAffirmBack(this, '确定返回吗？', '未保存的内容可能丢失');return false;">返回</span>
                 </div>
             </div>
             <!-- /.tab-content -->
@@ -196,8 +185,6 @@ $this->params['breadcrumbs'][] = $this->title;
         <!-- nav-tabs-custom -->
     </div>
 </div>
-
-
 
 <script>
     // 默认sku
@@ -212,6 +199,7 @@ $this->params['breadcrumbs'][] = $this->title;
     // sku值存储的数据
     var skusDataArr = [];
     var defaultAddImg = "<?= AddonHelper::file('img/sku-add.png') ?>";
+    var referrer = "<?= $referrer ?>";
 
     // 图片预览放大
     $(function() {
@@ -296,6 +284,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 data['costPrice'] = defaultSku[i]['cost_price'];
                 data['stock'] = defaultSku[i]['stock'];
                 data['code'] = defaultSku[i]['code'];
+                data['status'] = defaultSku[i]['status'];
 
                 skusDataArr[skuId] = [];
                 skusDataArr[skuId] = data;
@@ -341,6 +330,7 @@ $this->params['breadcrumbs'][] = $this->title;
 
         // 设置规格属性
         var html = '';
+
         for (let i = 0; i < allData.length; i++) {
             var spec_id = allData[i]['id'];
 
@@ -363,15 +353,39 @@ $this->params['breadcrumbs'][] = $this->title;
         submitStatus = false;
         $.ajax({
             type : "post",
-            url : "<?= Url::to(['edit', 'id' => $model->id, 'virtual_group' => $virtual_group]); ?>",
+            url : "<?= Url::to(['edit', 'id' => $model->id]); ?>",
             dataType : "json",
             data : data,
             success: function(data) {
                 submitStatus = true;
                 if (parseInt(data.code) === 200) {
-                    swal("操作成功", "小手一抖就打开了一个框", "success").then((value) => {
-                        window.location = '<?= Url::to(['index']); ?>';
-                    });
+                    var editId = '<?= $model->id?>';
+                    if (editId) {
+                        swal("操作成功", "小手一抖就打开了一个框", "success").then((value) => {
+                            window.location = referrer;
+                        });
+                    } else {
+                        swal('小手一抖打开一个窗', {
+                            buttons: {
+                                defeat: '继续创建商品',
+                                catch: {
+                                    text: "完成",
+                                    value: "catch",
+                                },
+                            },
+                            title: '操作成功',
+                        }).then((value) => {
+                            switch (value) {
+                                case "defeat":
+                                    location.reload();
+                                    break;
+                                case "catch":
+                                    window.location = referrer;
+                                    break;
+                                default:
+                            }
+                        });
+                    }
                 } else {
                     rfWarning(data.message);
                 }
@@ -711,7 +725,7 @@ $this->params['breadcrumbs'][] = $this->title;
     // 创建表格底部
     function createTableFoot() {
         let data = [];
-        data['colspan']  = allData.length + 5;
+        data['colspan']  = allData.length + 6;
 
         let html = template('foot', data);
         $(".js-spec-table table tfoot").html(html);
@@ -729,6 +743,7 @@ $this->params['breadcrumbs'][] = $this->title;
             data['costPrice'] = $(this).find('.js-cost-price').val();
             data['stock'] = $(this).find('.js-stock-num').val();
             data['code'] = $(this).find('.js-code').val();
+            data['status'] = $(this).find('.js-status').val();
 
             skusDataArr[skuId] = [];
             skusDataArr[skuId] = data;
@@ -754,13 +769,13 @@ $this->params['breadcrumbs'][] = $this->title;
                 $(this).find('.js-cost-price').val(skusDataArr[skuId]['costPrice']);
                 $(this).find('.js-stock-num').val(skusDataArr[skuId]['stock']);
                 $(this).find('.js-code').val(skusDataArr[skuId]['code']);
+                $(this).find('.js-status').val(skusDataArr[skuId]['status']);
             } else {
                 $(this).find('.selectImage').attr('src', defaultAddImg);
             }
         });
     }
 </script>
-
 
 <script>
     var colorUrl = "<?= Url::to(['select-color', 'value' => ''])?>";

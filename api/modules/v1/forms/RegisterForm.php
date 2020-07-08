@@ -40,7 +40,7 @@ class RegisterForm extends Model
         return [
             [['mobile', 'group', 'code', 'password', 'password_repetition'], 'required'],
             [['realname', 'nickname', 'head_portrait', 'promo_code'], 'string'],
-            [['password'], 'string', 'min' => 6],
+            [['password'], 'string', 'min' => 6, 'max' => 15],
             [['mobile'], 'isRegister'],
             ['promo_code', 'promoCodeVerify'],
             ['code', SmsCodeValidator::class, 'usage' => SmsLog::USAGE_REGISTER],
