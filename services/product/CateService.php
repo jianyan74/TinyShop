@@ -55,6 +55,7 @@ class CateService extends Service
     public function getList()
     {
         return Cate::find()
+            ->select(['id', 'title', 'pid', 'cover', 'level'])
             ->where(['status' => StatusEnum::ENABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->orderBy('sort asc, id desc')
@@ -67,14 +68,13 @@ class CateService extends Service
      *
      * @return array|\yii\db\ActiveRecord[]
      */
-    public function findIndexBlock($limit = 10)
+    public function findIndexBlock()
     {
         return Cate::find()
             ->where(['status' => StatusEnum::ENABLED])
             ->andWhere(['index_block_status' => StatusEnum::ENABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->orderBy('sort asc, id desc')
-            ->limit($limit)
             ->cache(60)
             ->asArray()
             ->all();
@@ -126,5 +126,47 @@ class CateService extends Service
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->asArray()
             ->one();
+    }
+
+    /**
+     * @param $id
+     * @return array|\yii\db\ActiveRecord|null|Cate
+     */
+    public function findByIds($ids)
+    {
+        return Cate::find()
+            ->select(['id'])
+            ->where(['in', 'id', $ids])
+            ->andWhere(['>=', 'status', StatusEnum::DISABLED])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->asArray()
+            ->column();
+    }
+
+    /**
+     * @param $level
+     * @return array|\yii\db\ActiveRecord[]
+     */
+    public function findByPId($id)
+    {
+        return Cate::find()
+            ->where(['status' => StatusEnum::ENABLED, 'pid' => $id])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->asArray()
+            ->all();
+    }
+
+    /**
+     * @param $id
+     * @return array|\yii\db\ActiveRecord|null|Cate
+     */
+    public function findAll()
+    {
+        return Cate::find()
+            ->where(['status' => StatusEnum::ENABLED])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->asArray()
+            ->cache(30)
+            ->all();
     }
 }

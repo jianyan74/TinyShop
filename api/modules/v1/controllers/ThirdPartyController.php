@@ -3,12 +3,25 @@
 namespace addons\TinyShop\api\modules\v1\controllers;
 
 use Yii;
+use yii\helpers\Json;
+use yii\web\UnprocessableEntityHttpException;
 use api\controllers\OnAuthController;
 use api\modules\v1\forms\MiniProgramLoginForm;
 use common\helpers\ResultHelper;
 use common\models\member\Auth;
+use common\enums\WhetherEnum;
+use common\helpers\AddonHelper;
+use common\models\member\Member;
+use common\enums\GenderEnum;
+use common\helpers\StringHelper;
+use common\enums\StatusEnum;
+use common\helpers\FileHelper;
+use common\helpers\RegularHelper;
+use common\helpers\UploadHelper;
+use addons\TinyShop\api\modules\v1\forms\AppleLoginForm;
 use addons\TinyShop\common\enums\AccessTokenGroupEnum;
-use yii\helpers\Json;
+use addons\TinyShop\common\enums\ProductMarketingEnum;
+use addons\TinyShop\common\models\SettingForm;
 
 /**
  * 第三方授权登录
@@ -28,7 +41,7 @@ class ThirdPartyController extends OnAuthController
      *
      * @var array
      */
-    protected $authOptional = ['wechat', 'wechat-mp', 'wechat-js-sdk'];
+    protected $authOptional = ['wechat', 'wechat-mp', 'wechat-open-platform', 'apple', 'wechat-js-sdk', 'qr-code'];
 
     /**
      * 微信登录
@@ -43,17 +56,51 @@ class ThirdPartyController extends OnAuthController
         }
 
         $user = Yii::$app->wechat->app->oauth->user();
+        // 用户信息
+        $original = $user['original'];
+        $unionid = $original['unionid'] ?? '';
         $auth = Yii::$app->services->memberAuth->findOauthClient(Auth::CLIENT_WECHAT, $user['id']);
         if ($auth && $auth->member) {
             return [
                 'login' => true,
-                'user_info' => $this->getData($auth),
+                'user_info' => $this->getData($auth, AccessTokenGroupEnum::WECHAT),
             ];
         }
 
+        // 唯一id 关联
+        if ($unionid && ($auth = Yii::$app->services->memberAuth->findByUnionId($unionid)) && $auth->member) {
+            return [
+                'login' => true,
+                'user_info' => $this->getData($auth, AccessTokenGroupEnum::WECHAT),
+            ];
+        }
+
+        // 判断是否强制注册
+        if ($this->isConstraintRegister() === true) {
+            return [
+                'login' => false,
+                'user_info' => $user
+            ];
+        }
+
+        $member = $this->createMember($original['headimgurl'], $original['sex'], $original['nickname'], Yii::$app->request->get('promo_code'));
+        $auth = Yii::$app->services->memberAuth->create([
+            'oauth_client' => Auth::CLIENT_WECHAT,
+            'unionid' => $original['unionid'] ?? '',
+            'member_id' => $member['id'],
+            'oauth_client_user_id' => $original['openid'],
+            'gender' => $original['sex'],
+            'nickname' => $original['nickname'],
+            'head_portrait' => $member['head_portrait'],
+            'country' => $original['country'],
+            'province' => $original['province'],
+            'city' => $original['city'],
+            'language' => $original['language'],
+        ]);
+
         return [
-            'login' => false,
-            'user_info' => $user
+            'login' => true,
+            'user_info' => $this->getData($auth, AccessTokenGroupEnum::WECHAT)
         ];
     }
 
@@ -75,9 +122,10 @@ class ThirdPartyController extends OnAuthController
         }
 
         $user = $model->getUser();
+        $unionid = $user['unionId'] ?? '';
         $auth = Yii::$app->services->memberAuth->findOauthClient(Auth::CLIENT_WECHAT_MP, $user['openId']);
         if ($auth && $auth->member) {
-            $user_info = $this->getData($auth);
+            $user_info = $this->getData($auth, AccessTokenGroupEnum::WECHAT_MP);
             unset($user_info['watermark']);
 
             return [
@@ -86,10 +134,162 @@ class ThirdPartyController extends OnAuthController
             ];
         }
 
+        // 唯一id 关联
+        if ($unionid && ($auth = Yii::$app->services->memberAuth->findByUnionId($unionid)) && $auth->member) {
+            return [
+                'login' => true,
+                'user_info' => $this->getData($auth, AccessTokenGroupEnum::WECHAT_MP),
+            ];
+        }
+
+        // 判断是否强制注册
+        if ($this->isConstraintRegister() === true) {
+            return [
+                'login' => false,
+                'user_info' => $user
+            ];
+        }
+
+        $member = $this->createMember($user['avatarUrl'], $user['gender'], $user['nickName'], Yii::$app->request->post('promo_code'));
+        $auth = Yii::$app->services->memberAuth->create([
+            'unionid' => $unionid,
+            'member_id' => $member['id'],
+            'oauth_client' => Auth::CLIENT_WECHAT_MP,
+            'oauth_client_user_id' => $user['openId'],
+            'gender' => $user['gender'],
+            'nickname' => $user['nickName'],
+            'head_portrait' => $member['head_portrait'],
+            'country' => $user['country'],
+            'province' => $user['province'],
+            'city' => $user['city'],
+            'language' => $user['language'],
+        ]);
+
         return [
-            'login' => false,
-            'user_info' => $user
+            'login' => true,
+            'user_info' => $this->getData($auth, AccessTokenGroupEnum::WECHAT_MP)
         ];
+    }
+
+    /**
+     * 微信开放平台登录
+     *
+     * @return array|mixed
+     * @throws \yii\base\Exception
+     */
+    public function actionWechatOpenPlatform()
+    {
+        if (!($code = Yii::$app->request->get('code'))) {
+            return ResultHelper::json(422, '请传递 code');
+        }
+
+        if (!($group = Yii::$app->request->get('group')) && !in_array($group, AccessTokenGroupEnum::getMap())) {
+            return ResultHelper::json(422, '请传递有效的组别');
+        }
+
+        $original = Yii::$app->services->openPlatform->wechat($code);
+        $unionid = $original['unionid'] ?? '';
+        $auth = Yii::$app->services->memberAuth->findOauthClient(Auth::CLIENT_WECHAT_OP, $original['openid']);
+        if ($auth && $auth->member) {
+            return [
+                'login' => true,
+                'user_info' => $this->getData($auth, $group),
+            ];
+        }
+
+        // 唯一id 关联
+        if ($unionid && ($auth = Yii::$app->services->memberAuth->findByUnionId($unionid)) && $auth->member) {
+            return [
+                'login' => true,
+                'user_info' => $this->getData($auth, $group),
+            ];
+        }
+
+        // 判断是否强制注册
+        if ($this->isConstraintRegister() === true) {
+            return [
+                'login' => false,
+                'user_info' => $original
+            ];
+        }
+
+        $member = $this->createMember($original['headimgurl'], $original['sex'], $original['nickname'], Yii::$app->request->get('promo_code'));
+        $auth = Yii::$app->services->memberAuth->create([
+            'oauth_client' => Auth::CLIENT_WECHAT_OP,
+            'unionid' => $unionid,
+            'member_id' => $member['id'],
+            'oauth_client_user_id' => $original['openid'],
+            'gender' => $original['sex'],
+            'nickname' => $original['nickname'],
+            'head_portrait' => $member['head_portrait'],
+            'country' => $original['country'],
+            'province' => $original['province'],
+            'city' => $original['city'],
+            'language' => $original['language'],
+        ]);
+
+        return [
+            'login' => true,
+            'user_info' => $this->getData($auth, $group)
+        ];
+    }
+
+    /**
+     * apple 登录
+     *
+     * @return array|mixed
+     */
+    public function actionApple()
+    {
+        $model = new AppleLoginForm();
+        $model->attributes = Yii::$app->request->post();
+        if (!$model->validate()) {
+            return ResultHelper::json(422, $this->getError($model));
+        }
+
+        try {
+            // Yii::$app->services->openPlatform->apple($model->user, $model->identityToken);
+
+            $auth = Yii::$app->services->memberAuth->findOauthClient(Auth::CLIENT_APPLE, $model->user);
+            if ($auth && $auth->member) {
+                return [
+                    'login' => true,
+                    'user_info' => $this->getData($auth, AccessTokenGroupEnum::IOS),
+                ];
+            }
+
+            // 判断是否强制注册
+            if ($this->isConstraintRegister() === true) {
+                return [
+                    'login' => false,
+                    'user_info' => $model
+                ];
+            }
+
+            $nickname = StringHelper::random(5) . '_' . StringHelper::random(4, true);
+            $member = $this->createMember('', GenderEnum::UNKNOWN, $nickname, Yii::$app->request->post('promo_code'));
+
+            $familyName = $model->familyName['familyName'] ?? '';
+            $giveName = $model->familyName['giveName'] ?? '';
+            $auth = Yii::$app->services->memberAuth->create([
+                'oauth_client' => Auth::CLIENT_APPLE,
+                'member_id' => $member['id'],
+                'oauth_client_user_id' => $model->user,
+                'gender' => GenderEnum::UNKNOWN,
+                'nickname' => $familyName . $giveName,
+            ]);
+
+            return [
+                'login' => true,
+                'user_info' => $this->getData($auth, AccessTokenGroupEnum::IOS)
+            ];
+        } catch (\Exception $e) {
+            if (YII_DEBUG) {
+                return ResultHelper::json(422, $e->getMessage());
+            }
+
+            return ResultHelper::json(422, '用户验证失败请重新授权');
+        }
     }
 
     /**
@@ -98,32 +298,49 @@ class ThirdPartyController extends OnAuthController
      * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
      * @throws \EasyWeChat\Kernel\Exceptions\RuntimeException
      */
-    public function actionQrCode()
+    public function actionQrCode($id)
     {
-        // $response = $app->app_code->get('path/to/page');
-        // 指定颜色
-        $response = Yii::$app->wechat->miniProgram->app_code->get('path/to/page', [
-            'width' => 600,
-            'line_color' => [
-                'r' => 105,
-                'g' => 166,
-                'b' => 134,
-            ],
+        if (!Yii::$app->tinyShopService->product->findById($id)) {
+            return ResultHelper::json(422, '找不到商品');
+        }
+
+        $path = 'pages/product/product?id=' . $id;
+        $prefix = '/mini_program/product/default/';
+
+        $uploadDrive = Yii::$app->uploadDrive->local([
+            'superaddition' => true
         ]);
+        $filesystem = $uploadDrive->entity();
 
-        // $response 成功时为 EasyWeChat\Kernel\Http\StreamResponse 实例，失败时为数组或者你指定的 API 返回格式
+        $directory = Yii::getAlias('@attachment') . $prefix;
+        FileHelper::mkdirs($directory);
 
-        $directory = Yii::getAlias('@attachment');
+        if (!$filesystem->has($prefix . $id . '.png')) {
+            // 指定颜色
+            // $response 成功时为 EasyWeChat\Kernel\Http\StreamResponse 实例，失败时为数组或者你指定的 API 返回格式
+            $response = Yii::$app->wechat->miniProgram->app_code->get($path, [
+                'width' => 300,
+                // 'line_color' => [
+                //     'r' => 105,
+                //     'g' => 166,
+                //     'b' => 134,
+                // ],
+            ]);
 
-        // 保存小程序码到文件
-        if ($response instanceof \EasyWeChat\Kernel\Http\StreamResponse) {
-            $filename = $response->save($directory);
+            // 保存小程序码到文件
+            if ($response instanceof \EasyWeChat\Kernel\Http\StreamResponse) {
+                $filename = $response->saveAs($directory, $id . '.png');
+            }
         }
 
-        // 或
-        if ($response instanceof \EasyWeChat\Kernel\Http\StreamResponse) {
-            $filename = $response->saveAs($directory, 'appcode.png');
+        $url = Yii::getAlias('@attachurl') . $prefix . $id . '.png';
+        if (!RegularHelper::verify('url', $url)) {
+            $url = Yii::$app->request->hostInfo . $url;
         }
+
+        return [
+            'url' => $url
+        ];
     }
 
     /**
@@ -148,19 +365,98 @@ class ThirdPartyController extends OnAuthController
     }
 
     /**
+     * 创建用户
+     *
+     * @param $head_portrait
+     * @param $gender
+     * @param $nickname
+     * @param string $promoCode
+     * @return Member
+     * @throws UnprocessableEntityHttpException
+     * @throws \League\Flysystem\FileExistsException
+     * @throws \League\Flysystem\FileNotFoundException
+     * @throws \yii\web\NotFoundHttpException
+     */
+    protected function createMember($head_portrait, $gender, $nickname, $promoCode = '')
+    {
+        if ($head_portrait) {
+            // 下载图片
+            $upload = new UploadHelper(['writeTable' => StatusEnum::DISABLED], 'images');
+            $imgData = $upload->verifyUrl($head_portrait);
+            $upload->save($imgData);
+            $baseInfo = $upload->getBaseInfo();
+        }
+
+        // 注册新账号
+        $member = new Member();
+        $member = $member->loadDefaultValues();
+        $member->merchant_id = Yii::$app->services->merchant->getNotNullId();
+        $member->pid = 0;
+        $member->attributes = [
+            'gender' => $gender,
+            'nickname' => $nickname,
+            'head_portrait' => $baseInfo['url'] ?? '',
+        ];
+        // 推广员
+        if ($promoCode) {
+            $parent = $this->getParent($promoCode);
+            $member->pid = $parent->id;
+        }
+        $member->save();
+
+        return $member;
+    }
+
+    /**
      * @param $auth
      * @return array
      * @throws \yii\base\Exception
      */
-    protected function getData($auth)
+    protected function getData($auth, $group = AccessTokenGroupEnum::ANDROID)
     {
-        $data = Yii::$app->services->apiAccessToken->getAccessToken($auth->member, AccessTokenGroupEnum::WECHAT_MQ);
+        $data = Yii::$app->services->apiAccessToken->getAccessToken($auth->member, $group);
         // 优惠券数量
         $data['member']['coupon_num'] = Yii::$app->tinyShopService->marketingCoupon->findCountByMemberId($data['member']['id']);
         // 订单数量统计
         $data['member']['order_synthesize_num'] = Yii::$app->tinyShopService->order->getOrderCountGroupByMemberId($data['member']['id']);
 
         return $data;
+    }
+
+    /**
+     * @param $promoCode
+     * @return array|bool|\yii\db\ActiveRecord
+     * @throws UnprocessableEntityHttpException
+     */
+    protected function getParent($promoCode)
+    {
+        if (empty($promoCode)) {
+            return false;
+        }
+
+        $parent = Yii::$app->services->member->findByPromoCode($promoCode);
+        if (!$parent) {
+            throw new UnprocessableEntityHttpException('找不到推广员');
+        }
+
+        return $parent;
+    }
+
+    /**
+     * 强制注册
+     *
+     * @return bool
+     */
+    protected function isConstraintRegister()
+    {
+        // 判断非强制性登录
+        $setting = new SettingForm();
+        $setting->attributes = AddonHelper::getConfig();
+        if ($setting->third_party_register == WhetherEnum::ENABLED) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

@@ -23,11 +23,6 @@ class FullMailHandler extends PreviewInterface
      */
     public function execute(PreviewForm $form): PreviewForm
     {
-        // 虚拟订单直接跳过
-        if ($form->order_type == OrderTypeEnum::VIRTUAL) {
-            return $form;
-        }
-
         // 满减送包邮成功触发
         if ($form->is_full_mail == true) {
             return $this->success($form);
@@ -41,7 +36,7 @@ class FullMailHandler extends PreviewInterface
             $form->marketingDetails[] = [
                 'marketing_id' => $fullMail['id'],
                 'marketing_type' => ProductMarketingEnum::FULL_MAIL,
-                'marketing_condition' => '满' . $fullMail['full_mail_money'] . '元,包邮!',
+                'marketing_condition' => '满' . $fullMail['full_mail_money'] . '元包邮',
                 'free_shipping' => 1,
                 'discount_money' => $form->shipping_money,
             ];

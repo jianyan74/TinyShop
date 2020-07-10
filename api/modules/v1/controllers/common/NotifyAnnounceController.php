@@ -2,11 +2,11 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\common;
 
-use addons\TinyShop\common\models\common\Notify;
-use api\controllers\OnAuthController;
-use common\enums\StatusEnum;
 use yii\data\ActiveDataProvider;
 use yii\web\NotFoundHttpException;
+use api\controllers\OnAuthController;
+use common\enums\StatusEnum;
+use addons\TinyShop\common\models\common\Notify;
 
 /**
  * Class NotifyAnnounceController

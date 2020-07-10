@@ -6,6 +6,7 @@ use common\components\Service;
 use common\helpers\ArrayHelper;
 use addons\TinyShop\common\models\order\Invoice;
 use addons\TinyShop\common\models\order\Order;
+use yii\web\UnprocessableEntityHttpException;
 
 /**
  * Class InvoiceService
@@ -29,7 +30,9 @@ class InvoiceService extends Service
         $model->tax_money = $order->tax_money;
         $model->user_name = $order->user_name;
         $model->content = $content;
-        $model->save();
+        if (!$model->save()) {
+            throw new UnprocessableEntityHttpException($this->getError($model));
+        }
 
         return $model;
     }

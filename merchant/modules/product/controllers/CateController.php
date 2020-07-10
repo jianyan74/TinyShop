@@ -3,8 +3,8 @@
 namespace addons\TinyShop\merchant\modules\product\controllers;
 
 use Yii;
-use yii\data\ActiveDataProvider;
 use common\traits\MerchantCurd;
+use common\helpers\ResultHelper;
 use addons\TinyShop\common\models\product\Cate;
 use addons\TinyShop\merchant\controllers\BaseController;
 
@@ -30,40 +30,91 @@ class CateController extends BaseController
      */
     public function actionIndex()
     {
-        $query = Cate::find()
+        $models = Cate::find()
             ->orderBy('sort asc, created_at asc')
-            ->andWhere(['merchant_id' => $this->getMerchantId()]);
-        $dataProvider = new ActiveDataProvider([
-            'query' => $query,
-            'pagination' => false,
-        ]);
+            ->filterWhere(['merchant_id' => $this->getMerchantId()])
+            ->asArray()
+            ->all();
 
         return $this->render('index', [
-            'dataProvider' => $dataProvider,
+            'models' => $models,
         ]);
     }
 
     /**
-     * @return mixed|string|\yii\console\Response|\yii\web\Response
-     * @throws \yii\base\ExitException
+     * 编辑/创建
+     *
+     * @return mixed
      */
-    public function actionAjaxEdit()
+    public function actionEdit()
     {
-        $request = Yii::$app->request;
-        $id = $request->get('id');
+        $id = Yii::$app->request->get('id', null);
         $model = $this->findModel($id);
-        $model->pid = $request->get('pid', null) ?? $model->pid; // 父id
-
-        $this->activeFormValidate($model);
+        $model->pid = Yii::$app->request->get('pid', null) ?? $model->pid; // 父id
         if ($model->load(Yii::$app->request->post())) {
-            return $model->save()
-                ? $this->redirect(['index'])
-                : $this->message($this->getError($model), $this->redirect(['index']), 'error');
+           if (!$model->save()) {
+               return ResultHelper::json(422, $this->getError($model));
+           }
+
+            return ResultHelper::json(200, '修改成功', $model);
+        }
+
+        $map = ['0' => '顶级分类'];
+        if ($model->pid && $parent = Yii::$app->tinyShopService->productCate->findById($model->pid)) {
+            $map = [$parent['id'] => $parent['title']];
         }
 
         return $this->renderAjax($this->action->id, [
             'model' => $model,
-            'dropDown' => Yii::$app->tinyShopService->productCate->getDropDownForEdit($id),
+            'map' => $map,
         ]);
+    }
+
+    /**
+     * 移动
+     *
+     * @param $id
+     * @param int $pid
+     */
+    public function actionMove($id, $pid = 0)
+    {
+        $model = $this->findModel($id);
+        $model->pid = $pid;
+        $model->save();
+    }
+
+    /**
+     * 删除
+     *
+     * @param $id
+     * @return mixed
+     * @throws \Throwable
+     * @throws \yii\db\StaleObjectException
+     */
+    public function actionDelete($id)
+    {
+        if ($this->findModel($id)->delete()) {
+            return ResultHelper::json(200, '删除成功');
+        }
+
+        return ResultHelper::json(422, '删除失败');
+    }
+
+    /**
+     * @param $level
+     * @return array|mixed
+     */
+    public function actionSelect($pid)
+    {
+        $data = Yii::$app->tinyShopService->productCate->findByPId($pid);
+        $list = [];
+        foreach ($data as $item) {
+            $list[] = [
+                'id' => $item['id'],
+                'title' => $item['title'],
+            ];
+        }
+
+        return ResultHelper::json(200, '获取成功', $list);
     }
 }

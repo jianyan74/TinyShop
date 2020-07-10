@@ -23,6 +23,10 @@ class LocalDistributionDelivery extends PreviewInterface
      */
     public function execute(PreviewForm $form): PreviewForm
     {
+        if (empty($form->address)) {
+            throw new UnprocessableEntityHttpException('收货地址不存在');
+        }
+
         $cashAgainst = Yii::$app->tinyShopService->baseCashAgainstArea->findOne($form->merchant_id);
         if ($form->address && $this->isNewRecord && $cashAgainst && !in_array($form->address->area_id, explode(',', $cashAgainst['area_ids']))) {
             throw new UnprocessableEntityHttpException('暂不支持该地区的配送');

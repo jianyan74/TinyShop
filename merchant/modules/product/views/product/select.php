@@ -3,8 +3,7 @@
 use yii\grid\GridView;
 use common\helpers\Html;
 use common\helpers\ImageHelper;
-use common\helpers\Url;
-use addons\TinyShop\common\enums\VirtualProductGroupEnum;
+use addons\TinyShop\common\enums\ProductMarketingEnum;
 use addons\TinyShop\common\enums\PointExchangeTypeEnum;
 
 ?>
@@ -54,14 +53,15 @@ use addons\TinyShop\common\enums\PointExchangeTypeEnum;
                             [
                                 'attribute' => 'name',
                                 'format' => 'raw',
-                                'value' => function ($model) {
+                                'value' => function ($model) use ($marketing) {
                                     $html = $model->name . '<br>';
-                                    $group = isset($model->virtualType->group)
-                                        ? VirtualProductGroupEnum::getValue($model->virtualType->group)
-                                        : '普通商品';
+                                    if ($model->point_exchange_type > PointExchangeTypeEnum::NOT_EXCHANGE) {
+                                        $html .= Html::tag('span', PointExchangeTypeEnum::getValue($model->point_exchange_type), ['class' => 'label label-default m-r-xs']);
+                                    }
 
-                                    $html .= '<span class="label label-default is_hot m-r-xs">' . PointExchangeTypeEnum::getValue($model->point_exchange_type) .'</span>';
-                                    $html .= '<span class="label label-default is_hot m-r-xs">' . $group .'</span>';
+                                    if (isset($marketing[$model['id']])) {
+                                        $html .= Html::tag('span', ProductMarketingEnum::getValue($marketing[$model['id']]), ['class' => 'label label-default m-r-xs']);
+                                    }
 
                                     return $html;
                                 },

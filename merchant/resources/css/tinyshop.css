@@ -382,3 +382,51 @@ ul {
     padding: 6px;
     border: 1px solid #eceef1;
 }
+
+.exchange-grid {
+    float: left;
+    display: block;
+    width: 15px;
+    height: 15px;
+}
+
+/* 页面装修 */
+.exchange-type {
+    display: inline-block;
+    width: 121px;
+    height: 48px;
+    border: 1px solid #ededed;
+    border-radius: 4px;
+    margin-right: 10px;
+    line-height: 48px;
+    position: relative;
+    cursor: pointer;
+}
+
+.exchange-type:hover {
+    border: 1px solid #1890ff;
+}
+
+.exchange-selected {
+    border: 1px solid #1890ff;
+}
+
+.exchange-selected:after {
+    content: "";
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-image: url('../img/selected.png');
+    background-size: 20px;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+}
+
+.exchange-style {
+    display: flex;
+    -webkit-box-align: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    justify-content: center;
+}

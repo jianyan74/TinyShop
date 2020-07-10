@@ -41,37 +41,17 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
      * @var array
      */
     public $attributeValueData = [];
-
-    /**
-     * 阶梯优惠
-     *
-     * @var array
-     */
-    public $ladderPreferentialData = [];
-
-    /**
-     * 会员折扣
-     *
-     * @var array
-     */
-    public $memberDiscount = [];
-
-    /**
-     * @var array
-     */
-    public $defaultMemberDiscount = [];
-
-    /**
-     * @var int
-     */
-    public $member_level_decimal_reservation;
-
     /**
      * 规格值单独内容(颜色/图片)
      *
      * @var array
      */
     public $specValueFieldData = [];
+
+    /**
+     * @var array
+     */
+    private $cate = [];
 
     /**
      * @return array
@@ -81,7 +61,7 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
         $rule = parent::rules();
 
         return ArrayHelper::merge($rule, [
-            ['member_level_decimal_reservation', 'integer'],
+            [['is_open_presell'], 'verifyExclusion'],
             [['is_attribute'], 'verifySku'],
             [['covers'], 'isEmpty'],
         ]);
@@ -98,6 +78,16 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
     }
 
     /**
+     * @param $attribute
+     */
+    public function verifyExclusion($attribute)
+    {
+        if ($this->is_open_presell == StatusEnum::ENABLED && PointExchangeTypeEnum::isIntegralBuy($this->point_exchange_type)) {
+            $this->addError($attribute, '预售和积分兑换不能同时存在');
+        }
+    }
+
+    /**
      * 验证sku
      *
      * @param $attribute
@@ -108,6 +98,7 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
         if ($this->is_attribute == true) {
             $model = new Sku();
 
+            $statusForbidden = false;
             foreach ($this->skuData as $key => &$datum) {
                 $datum['data'] = (string)$key;
                 $datum['name'] = '';
@@ -118,7 +109,13 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
                 if (!$model->validate()) {
                     throw new NotFoundHttpException(Yii::$app->debris->analyErr($model->getFirstErrors()));
                 }
+
+                if ($model->status == StatusEnum::ENABLED) {
+                    $statusForbidden = true;
+                }
             }
+
+            $statusForbidden == false && $this->addError($attribute, '请至少启用一个商品规格');
         }
     }
 
@@ -145,6 +142,16 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
      */
     public function beforeSave($insert)
     {
+        if (is_array($this->cate_id)) {
+            $this->cate = Yii::$app->tinyShopService->productCate->findByIds($this->cate_id);
+            $this->cate_id = $this->cate[0];
+        } else {
+            $this->cate[] = $this->cate_id;
+        }
+
+        // 总销量
+        $this->total_sales = $this->sales + $this->real_sales;
+
         if (!$this->isNewRecord) {
             $oldAttributes = $this->oldAttributes;
 
@@ -168,6 +175,11 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
                 SpecValue::deleteAll(['product_id' => $this->id]);
                 // 删除属性
                 AttributeValue::deleteAll(['product_id' => $this->id]);
+            }
+
+            // 开启预售或者积分
+            if ($this->is_open_presell == StatusEnum::ENABLED || PointExchangeTypeEnum::isIntegralBuy($this->point_exchange_type)) {
+                Yii::$app->tinyShopService->memberCartItem->loseByProductIds([$this->id]);
             }
 
             // 商品规格不启用情况下到规格启用
@@ -221,15 +233,6 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
         $specModel = Yii::$app->tinyShopService->productSpec->getListWithValue($this->id);
         // 更新记录最小sku
         $minPriceSku = $this->minPriceSku;
-        // 更新阶梯优惠
-        Yii::$app->tinyShopService->productLadderPreferential->create(
-            $this->ladderPreferentialData,
-            $this->id,
-            $this->max_buy,
-            $this->is_open_presell,
-            $this->point_exchange_type,
-            $minPriceSku['price']
-        );
 
         self::updateAll(
             [
@@ -536,6 +539,7 @@ class ProductForm extends \addons\TinyShop\common\models\product\Product
             'cost_price',
             'stock',
             'code',
+            'status',
             'data',
             'name',
             'product_id',

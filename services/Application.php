@@ -13,6 +13,10 @@ use common\components\Service;
  * @property \addons\TinyShop\services\common\NiceService $nice 点赞
  * @property \addons\TinyShop\services\common\HelperService $helper 站点帮助
  * @property \addons\TinyShop\services\common\AdvService $adv 广告
+ * @property \addons\TinyShop\services\common\ConfigService $config 配置
+ * @property \addons\TinyShop\services\common\NotifyService $notify 通知
+ * @property \addons\TinyShop\services\common\NotifySubscriptionConfigService $notifySubscriptionConfig 通知配置
+ * @property \addons\TinyShop\services\common\SearchHistoryService $searchHistory 搜索
  * @property \addons\TinyShop\services\express\CompanyService $expressCompany 快递物流
  * @property \addons\TinyShop\services\express\FeeService $expressFee 物流模版
  * @property \addons\TinyShop\services\product\ProductService $product 产品
@@ -21,12 +25,10 @@ use common\components\Service;
  * @property \addons\TinyShop\services\product\TagService $productTag 产品标签
  * @property \addons\TinyShop\services\product\SpecService $productSpec 产品规格
  * @property \addons\TinyShop\services\product\SpecValueService $productSpecValue 产品规格值
+ * @property \addons\TinyShop\services\product\AttributeValueService $productAttributeValue 产品属性
  * @property \addons\TinyShop\services\product\SkuService $productSku 产品sku
  * @property \addons\TinyShop\services\product\EvaluateService $productEvaluate 产品评价
  * @property \addons\TinyShop\services\product\EvaluateStatService $productEvaluateStat 产品评价统计
- * @property \addons\TinyShop\services\product\LadderPreferentialService $productLadderPreferential 产品阶梯优惠
- * @property \addons\TinyShop\services\product\CommissionRateService $productCommissionRate 产品分销配置
- * @property \addons\TinyShop\services\product\VirtualTypeService $productVirtualType 产品虚拟商品关联
  * @property \addons\TinyShop\services\product\MemberDiscountService $productMemberDiscount 产品会员折扣
  * @property \addons\TinyShop\services\member\MemberService $member 用户
  * @property \addons\TinyShop\services\member\FootprintService $memberFootprint 足迹
@@ -43,14 +45,18 @@ use common\components\Service;
  * @property \addons\TinyShop\services\base\LocalDistributionConfigService $baseLocalDistributionConfig 本地配送配置
  * @property \addons\TinyShop\services\base\LocalDistributionMemberService $baseLocalDistributionMember 本地配送人员
  * @property \addons\TinyShop\services\order\OrderService $order 订单
+ * @property \addons\TinyShop\services\order\PresellService $orderPresell 订单预售
  * @property \addons\TinyShop\services\order\ActionService $orderAction 订单操作记录
  * @property \addons\TinyShop\services\order\InvoiceService $orderInvoice 订单发票记录
  * @property \addons\TinyShop\services\order\ProductService $orderProduct 订单产品
  * @property \addons\TinyShop\services\order\CustomerService $orderCustomer 订单产品售后
  * @property \addons\TinyShop\services\order\ProductVirtualService $orderProductVirtual 订单虚拟货品
- * @property \addons\TinyShop\services\order\ProductVirtualVerificationService $orderProductVerificationVirtual 订单虚拟货品验证
+ * @property \addons\TinyShop\services\order\ProductVirtualAuditorService $orderProductVirtualAuditor 订单虚拟货品核销员
+ * @property \addons\TinyShop\services\order\ProductVirtualVerificationService $orderProductVirtualVerification 订单虚拟货品验证
  * @property \addons\TinyShop\services\order\ProductExpressService $orderProductExpress 订单发货记录
  * @property \addons\TinyShop\services\order\PickupService $orderPickup 订单自提
+ * @property \addons\TinyShop\services\order\OrderRefundAccountRecordsService $orderRefundAccountRecords 退款账号
+ * @property \addons\TinyShop\services\order\OrderRefundService $orderRefund 订单退款记录
  * @property \addons\TinyShop\services\order\ProductMarketingDetailService $orderProductMarketingDetail 营销记录
  * @property \addons\TinyShop\services\marketing\MarketingService $marketing 营销
  * @property \addons\TinyShop\services\marketing\PointConfigService $marketingPointConfig 营销积分
@@ -58,6 +64,7 @@ use common\components\Service;
  * @property \addons\TinyShop\services\marketing\CouponService $marketingCoupon 优惠券
  * @property \addons\TinyShop\services\marketing\CouponTypeService $marketingCouponType 优惠券类型
  * @property \addons\TinyShop\services\marketing\CouponProductService $marketingCouponProduct 优惠券关联产品
+ * @property \addons\TinyShop\services\marketing\MiniProgramLiveService $marketingMiniProgramLive 微信小程序直播
  * @property \addons\TinyShop\services\pickup\PointService $pickupPoint 自提点
  * @property \addons\TinyShop\services\pickup\AuditorService $pickupAuditor 自提审核用户
  *
@@ -72,14 +79,15 @@ class Application extends Service
         // ------------------------ 产品 ------------------------ //
         'product' => 'addons\TinyShop\services\product\ProductService',
         'productCate' => 'addons\TinyShop\services\product\CateService',
+        'productCateMap' => 'addons\TinyShop\services\product\CateMapService',
         'productBrand' => 'addons\TinyShop\services\product\BrandService',
         'productTag' => 'addons\TinyShop\services\product\TagService',
         'productSku' => 'addons\TinyShop\services\product\SkuService',
         'productSpec' => 'addons\TinyShop\services\product\SpecService',
         'productSpecValue' => 'addons\TinyShop\services\product\SpecValueService',
+        'productAttributeValue' => 'addons\TinyShop\services\product\AttributeValueService',
         'productEvaluate' => 'addons\TinyShop\services\product\EvaluateService',
         'productEvaluateStat' => 'addons\TinyShop\services\product\EvaluateStatService',
-        'productLadderPreferential' => 'addons\TinyShop\services\product\LadderPreferentialService',
         'productCommissionRate' => 'addons\TinyShop\services\product\CommissionRateService',
         'productVirtualType' => 'addons\TinyShop\services\product\VirtualTypeService',
         'productMemberDiscount' => 'addons\TinyShop\services\product\MemberDiscountService',
@@ -89,11 +97,11 @@ class Application extends Service
         'orderInvoice' => 'addons\TinyShop\services\order\InvoiceService',
         'orderProduct' => 'addons\TinyShop\services\order\ProductService',
         'orderCustomer' => 'addons\TinyShop\services\order\CustomerService',
-        'orderProductVirtual' => 'addons\TinyShop\services\order\ProductVirtualService',
-        'orderProductVirtualVerification' => 'addons\TinyShop\services\order\ProductVirtualVerificationService',
         'orderProductExpress' => 'addons\TinyShop\services\order\ProductExpressService',
         'orderProductMarketingDetail' => 'addons\TinyShop\services\order\ProductMarketingDetailService',
         'orderPickup' => 'addons\TinyShop\services\order\PickupService',
+        'orderRefundAccountRecords' => 'addons\TinyShop\services\order\OrderRefundAccountRecordsService',
+        'orderRefund' => 'addons\TinyShop\services\order\OrderRefundService',
         // ------------------------ 基础 ------------------------ //
         'baseSpec' => 'addons\TinyShop\services\base\SpecService',
         'baseSpecValue' => 'addons\TinyShop\services\base\SpecValueService',
@@ -122,6 +130,8 @@ class Application extends Service
         'marketingCoupon' => 'addons\TinyShop\services\marketing\CouponService',
         'marketingCouponType' => 'addons\TinyShop\services\marketing\CouponTypeService',
         'marketingCouponProduct' => 'addons\TinyShop\services\marketing\CouponProductService',
+        'marketingMiniProgramLive' => 'addons\TinyShop\services\marketing\MiniProgramLiveService',
+        'marketingTimeManage' => 'addons\TinyShop\services\marketing\TimeManageService',
         'pickupPoint' => 'addons\TinyShop\services\pickup\PointService',
         'pickupAuditor' => 'addons\TinyShop\services\pickup\AuditorService',
         // ------------------------ 公用 ------------------------ //
@@ -130,5 +140,9 @@ class Application extends Service
         'nice' => 'addons\TinyShop\services\common\NiceService',
         'helper' => 'addons\TinyShop\services\common\HelperService',
         'adv' => 'addons\TinyShop\services\common\AdvService',
+        'config' => 'addons\TinyShop\services\common\ConfigService',
+        'notify' => 'addons\TinyShop\services\common\NotifyService',
+        'notifySubscriptionConfig' => 'addons\TinyShop\services\common\NotifySubscriptionConfigService',
+        'searchHistory' => 'addons\TinyShop\services\common\SearchHistoryService',
     ];
 }

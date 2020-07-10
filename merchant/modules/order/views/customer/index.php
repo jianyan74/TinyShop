@@ -58,7 +58,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <?= OrderHelper::refundOperation($model['id'], $model['refund_status'], '')?>
                             </td>
                             <td style="text-align: center">
-                                <span class="orange"><?= Yii::$app->formatter->asDecimal($model->product_money, 2); ?></span><br>
+                                <span class="orange"><?= $model->product_money; ?></span><br>
                                 <small><?= PayTypeEnum::getValue($model['payment_type']) ?></small>
                             </td>
                             <td>
@@ -67,16 +67,14 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <?= $model->receiver_region_name; ?> <?= $model->receiver_address; ?>
                             </td>
                             <td style="text-align: center">
-                                <?= $model->user_name; ?> <br>
+                                <span class="blue member-view pointer" data-href="<?= Url::to(['/member/view', 'member_id' => $model->member_id]); ?>"><?= Html::encode($model->user_name); ?></span><br>
                                 <span class="blue" style="font-size: 12px"><?= AccessTokenGroupEnum::getValue($model->order_from); ?></span>
                             </td>
                             <td>
                                 <?= RefundStatusEnum::getValue($model['refund_status'])?>
                             </td>
                             <td>
-                                <?= Html::linkButton(['order/detail', 'id' => $model->order_id], '订单详情', [
-                                    'class' => 'cyan',
-                                ]) ?>
+                                <span class="cyan order-view pointer" data-href="<?= Url::to(['order/detail', 'id' => $model->order_id]) ?>">订单详情</span>
                             </td>
                         </tr>
                         <?php if(!empty($model->seller_memo)) { ?>

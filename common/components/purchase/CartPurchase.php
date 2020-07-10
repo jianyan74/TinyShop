@@ -4,6 +4,7 @@ namespace addons\TinyShop\common\components\purchase;
 
 use Yii;
 use yii\web\UnprocessableEntityHttpException;
+use common\helpers\BcHelper;
 use addons\TinyShop\common\models\forms\PreviewForm;
 use addons\TinyShop\common\models\order\OrderProduct;
 use addons\TinyShop\common\components\InitOrderDataInterface;
@@ -43,10 +44,10 @@ class CartPurchase extends InitOrderDataInterface
             $orderProduct->num = $model['number'];
             $orderProduct->price = $model['sku']['price'];
             $orderProduct->product_money = $orderProduct->num * $orderProduct->price;
+            $orderProduct->product_original_money = $orderProduct->product_money;
             $orderProduct->product_picture = !empty($model['sku']['picture']) ? $model['sku']['picture'] : $model['product']['picture'];
             $orderProduct->buyer_id = $model['member_id'];
             $orderProduct->point_exchange_type = $model['product']['point_exchange_type'];
-            $orderProduct->is_virtual = $model['product']['is_virtual'];
             $orderProduct->is_open_commission = $model['product']['is_open_commission'];
 
             // 默认数据带购物车数量方便计算
@@ -56,7 +57,8 @@ class CartPurchase extends InitOrderDataInterface
             // 修改总订单
             $form->product_count += $model['number'];
             $form->merchant_id = $orderProduct->merchant_id;
-            $form->product_money += $orderProduct->product_money;
+            $form->product_money = BcHelper::add($form->product_money, $orderProduct->product_money);
+            $form->product_original_money = BcHelper::add($form->product_original_money, $orderProduct->product_money);
             $form->max_use_point += $model['product']['max_use_point'] * $orderProduct->num; // 最多抵现积分
             $form->defaultProducts[] = $product;
             $form->orderProducts[] = $orderProduct;

@@ -35,6 +35,9 @@ class ConfigController extends OnAuthController
         $field = Yii::$app->request->get('field');
         $field = explode(',', $field);
         $field = array_intersect($field, array_keys([
+            'is_open_site' => '开启站点',
+            'close_site_date' => '关闭站点时间',
+            'close_site_explain' => '关闭站点说明',
             'title' => '商城名称',
             'web_url' => '官方网址',
             'key_words' => '商城关键字',
@@ -57,6 +60,11 @@ class ConfigController extends OnAuthController
             'share_cover' => '分享封面',
             'share_desc' => '分享描述',
             'share_link' => '分享链接',
+            // 注册登录
+            'close_login' => '关闭登录入口',
+            'close_register' => '关闭注册入口',
+            'close_third_party_login' => '关闭第三方授权登录',
+            'close_register_promo_code' => '关闭注册激活码填写',
             // 协议使用
             'protocol_register' => '注册协议',
             'protocol_privacy' => '隐私协议',
@@ -77,6 +85,29 @@ class ConfigController extends OnAuthController
             // 发票
             'order_invoice_tax' => '开票税额',
             'order_invoice_content' => '开票内容',
+            // 页面
+            'app_name' => '应用名称',
+            'app_logo' => '应用logo',
+            'app_service_type' => '客服显示类型',
+            'app_service_qr' => '客服二维码',
+            'app_agreement_default_select' => '协议默认选中',
+            'is_open_live_streaming' => '开启直播入口',
+            'is_open_scan' => '开启扫一扫入口',
+            'is_open_recharge' => '开启首页顶部分类',
+            'is_open_index_cate' => '开启充值入口',
+            // 分销
+            'is_open_commission' => '分销',
+            // 装修
+            'style_loading_is_open' => '页面加载开启',
+            'style_loading_type' => '页面加载类型',
+            'style_user_is_open' => '用户可自定义风格',
+            'style_type' => '店铺风格',
+            'style_login_type' => '登录页面风格',
+            'style_cate_type' => '分类页面风格',
+            // 商品海报
+            'product_poster_title' => '推广语',
+            'product_poster_cover_type' => '头像显示类型',
+            'product_poster_qr_type' => '二维码显示类型',
         ]));
 
         $result = [];

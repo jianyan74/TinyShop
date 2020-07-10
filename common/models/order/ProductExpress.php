@@ -50,9 +50,9 @@ class ProductExpress extends \common\models\base\BaseModel
     public function rules()
     {
         return [
-            [['order_id', 'shipping_type', 'express_company_id', 'member_id', 'status', 'created_at', 'updated_at'], 'integer'],
+            [['order_id', 'shipping_type', 'express_company_id', 'buyer_id', 'status', 'created_at', 'updated_at'], 'integer'],
             [['order_product_ids'], 'safe'],
-            [['express_name', 'express_no', 'member_username'], 'string', 'max' => 50],
+            [['express_name', 'express_no', 'buyer_name'], 'string', 'max' => 50],
             [['express_company', 'memo'], 'string', 'max' => 255],
         ];
     }
@@ -71,8 +71,8 @@ class ProductExpress extends \common\models\base\BaseModel
             'express_company_id' => '快递公司',
             'express_company' => '快递公司名称',
             'express_no' => '快递单号',
-            'member_id' => '用户id',
-            'member_username' => '用户名称',
+            'buyer_id' => '用户id',
+            'buyer_name' => '用户名称',
             'memo' => '备注',
             'status' => '状态',
             'created_at' => 'Created At',

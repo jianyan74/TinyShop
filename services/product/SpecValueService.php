@@ -13,6 +13,7 @@ use addons\TinyShop\common\models\product\SpecValue;
  */
 class SpecValueService extends Service
 {
+
     /**
      * @param $product_id
      * @return array|\yii\db\ActiveRecord[]

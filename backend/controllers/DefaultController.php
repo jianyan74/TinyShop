@@ -3,7 +3,6 @@
 namespace addons\TinyShop\backend\controllers;
 
 use Yii;
-use common\controllers\AddonsController;
 
 /**
  * 默认控制器

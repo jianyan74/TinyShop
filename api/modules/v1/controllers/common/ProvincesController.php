@@ -21,6 +21,15 @@ class ProvincesController extends OnAuthController
     public $modelClass = Provinces::class;
 
     /**
+     * 不用进行登录验证的方法
+     * 例如： ['index', 'update', 'create', 'view', 'delete']
+     * 默认全部需要验证
+     *
+     * @var array
+     */
+    protected $authOptional = ['json'];
+
+    /**
      * 获取省市区
      *
      * @param int $pid
@@ -31,5 +40,13 @@ class ProvincesController extends OnAuthController
         $pid = Yii::$app->request->get('pid', 0);
 
         return Yii::$app->services->provinces->getCityByPid($pid);
+    }
+
+    /**
+     * @return array
+     */
+    protected function actionJson()
+    {
+        return Yii::$app->services->provinces->getJsonData();
     }
 }

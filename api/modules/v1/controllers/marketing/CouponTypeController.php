@@ -6,6 +6,7 @@ use Yii;
 use yii\data\ActiveDataProvider;
 use yii\db\ActiveQuery;
 use yii\rest\Serializer;
+use yii\web\NotFoundHttpException;
 use common\enums\StatusEnum;
 use common\enums\WhetherEnum;
 use common\helpers\ResultHelper;
@@ -13,7 +14,6 @@ use common\helpers\ArrayHelper;
 use addons\TinyShop\common\models\forms\CouponTypeForm;
 use addons\TinyShop\common\models\marketing\CouponType;
 use api\controllers\OnAuthController;
-use yii\web\NotFoundHttpException;
 
 /**
  * 优惠券领取列表

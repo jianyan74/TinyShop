@@ -62,7 +62,7 @@ class Brand extends \common\models\base\BaseModel
 
     public function uniqueTitle($attribute)
     {
-        if (Yii::$app->tinyShopService->productBrand->findByTitle($this->title)) {
+        if (($brand = Yii::$app->tinyShopService->productBrand->findByTitle($this->title)) && $brand['id'] != $this->id) {
             $this->addError($attribute, '品牌名称不能重复');
         }
     }

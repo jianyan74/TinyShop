@@ -3,17 +3,22 @@
 namespace addons\TinyShop\services\common;
 
 use Yii;
+use yii\data\ActiveDataProvider;
 use yii\helpers\Json;
 use yii\data\Pagination;
 use common\enums\StatusEnum;
 use common\components\Service;
 use addons\TinyShop\common\models\common\Notify;
 use addons\TinyShop\common\models\common\NotifyMember;
+use addons\TinyShop\common\enums\AccessTokenGroupEnum;
+use addons\TinyShop\common\enums\SubscriptionActionEnum;
 
 //use common\enums\SubscriptionAlertTypeEnum;
 //use common\models\backend\NotifySubscriptionConfig;
 
 /**
+ * 消息通知
+ *
  * Class NotifyService
  * @package addons\TinyShop\services\common
  * @author jianyan74 <751393839@qq.com>
@@ -45,17 +50,31 @@ class NotifyService extends Service
      * @param int $sender_id 发送者(用户)id
      * @param string $content 内容
      */
-    public function createRemind($target_id, $targetType, $action, $sender_id, $content)
+    public function createRemind($target_id, $targetType, $sender_id, $content)
     {
         $model = new Notify();
         $model->target_id = $target_id;
         $model->target_type = $targetType;
+        $model->action = $targetType;
         $model->content = $content;
         $model->sender_id = $sender_id;
-        $model->action = $action;
         $model->type = Notify::TYPE_REMIND;
 
         return $model->save();
+    }
+
+    /**
+     * 创建提醒
+     *
+     * @param $target_id
+     * @param $targetType
+     * @param $receiver_id
+     * @param string $content
+     * @return bool
+     */
+    public function createRemindByReceiver($target_id, $targetType, $receiver_id, $content = '', $params = [])
+    {
+
     }
 
     /**
@@ -81,6 +100,34 @@ class NotifyService extends Service
         }
 
         return false;
+    }
+
+    /**
+     * 小程序订阅消息提醒
+     *
+     * @param Notify $model
+     * @param $oauth_client_user_id
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    protected function miniProgramRemind(Notify $model, $oauth_client_user_id)
+    {
+
+    }
+
+    /**
+     * 微信消息模板提醒
+     *
+     * @param Notify $model
+     * @param $oauth_client_user_id
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function wechatRemind(Notify $model, $oauth_client_user_id)
+    {
+
     }
 
     /**
@@ -206,6 +253,65 @@ class NotifyService extends Service
     }
 
     /**
+     * 获取公告
+     *
+     * @return array|\yii\db\ActiveRecord[]
+     */
+    public function getAnnounce()
+    {
+        return Notify::find()
+            ->select(['id', 'title', 'cover', 'synopsis', 'view', 'created_at'])
+            ->where(['status' => StatusEnum::ENABLED])
+            ->andWhere(['type' => Notify::TYPE_ANNOUNCE])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->orderBy('id desc')
+            ->cache(30)
+            ->asArray()
+            ->all();
+    }
+
+    /**
+     * 未读数量(组别)
+     *
+     * @param $member_id
+     * @return array|\yii\db\ActiveRecord[]
+     */
+    public function unReadCount($member_id)
+    {
+        $data = [
+            'count' => 0,
+            'announce' => 0,
+            'remind' => 0,
+            'message' => 0,
+        ];
+
+        $groups = NotifyMember::find()
+            ->select(['type', 'count(id) as count'])
+            ->where(['member_id' => $member_id, 'is_read' => 0])
+            ->groupBy(['type'])
+            ->asArray()
+            ->all();
+
+        foreach ($groups as $group) {
+            $data['count'] += $group['count'];
+
+            switch ($group['type']) {
+                case Notify::TYPE_ANNOUNCE :
+                    $data['announce'] += $group['count'];
+                    break;
+                case Notify::TYPE_REMIND :
+                    $data['remind'] += $group['count'];
+                    break;
+                case Notify::TYPE_MESSAGE :
+                    $data['message'] += $group['count'];
+                    break;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
      * 更新指定的notify，把isRead属性设置为true
      *
      * @param $member_id
@@ -214,6 +320,44 @@ class NotifyService extends Service
     {
         NotifyMember::updateAll(['is_read' => true, 'updated_at' => time()],
             ['and', ['member_id' => $member_id], ['in', 'notify_id', $notifyIds]]);
+    }
+
+    /**
+     * 清空
+     *
+     * @param $member_id
+     * @param $type
+     */
+    public function clear($member_id, $notifyIds)
+    {
+        NotifyMember::updateAll([
+            'is_read' => true,
+            'status' => StatusEnum::DELETE,
+            'updated_at' => time()
+        ], [
+                'and',
+                ['member_id' => $member_id],
+                ['in', 'notify_id', $notifyIds]
+            ]
+        );
+    }
+
+    /**
+     * 清空
+     *
+     * @param $member_id
+     * @param $type
+     */
+    public function clearAll($member_id, $type)
+    {
+        NotifyMember::updateAll([
+            'is_read' => true,
+            'status' => StatusEnum::DELETE,
+            'updated_at' => time()
+        ], [
+            'member_id' => $member_id,
+            'type' => $type
+        ]);
     }
 
     /**

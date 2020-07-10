@@ -2,7 +2,7 @@
 
 namespace addons\TinyShop\common\models\member;
 
-use addons\TinyShop\common\models\product\LadderPreferential;
+use addons\TinyShop\common\models\product\MemberDiscount;
 use addons\TinyShop\common\models\product\Product;
 use addons\TinyShop\common\models\product\Sku;
 use common\behaviors\MerchantBehavior;
@@ -114,15 +114,12 @@ class CartItem extends \common\models\base\BaseModel
     }
 
     /**
-     * 阶梯优惠
+     * 会员折扣
      *
      * @return \yii\db\ActiveQuery
      */
-    public function getLadderPreferential()
+    public function getMemberDiscount()
     {
-        return $this->hasMany(LadderPreferential::class,
-            ['product_id' => 'product_id'])
-            ->orderBy('quantity desc, id asc')
-            ->asArray();
+        return $this->hasOne(MemberDiscount::class, ['product_id' => 'product_id']);
     }
 }

@@ -62,6 +62,7 @@ class IndexController extends OnAuthController
                 AdvLocalEnum::INDEX_RECOMMEND
             ]), // 广告
             'cate' => Yii::$app->tinyShopService->productCate->findIndexBlock(), // 首页推荐分类
+            'announce' => Yii::$app->tinyShopService->notify->getAnnounce(), // 公告
             'product_hot' => Yii::$app->tinyShopService->product->getListBySearch($product_hot), // 热门
             'product_recommend' => Yii::$app->tinyShopService->product->getListBySearch($product_recommend), // 推荐
             'product_new' => Yii::$app->tinyShopService->product->getListBySearch($product_new), // 新品
@@ -71,6 +72,12 @@ class IndexController extends OnAuthController
                 'copyright_companyname' => $config['copyright_companyname'] ?? '',
                 'copyright_url' => $config['copyright_url'] ?? '',
                 'copyright_desc' => $config['copyright_desc'] ?? '',
+            ],
+            'share' => [
+                'share_title' => $config['share_title'] ?? '',
+                'share_cover' => $config['share_cover'] ?? '',
+                'share_desc' => $config['share_desc'] ?? '',
+                'share_link' => $config['share_link'] ?? '',
             ]
         ];
     }

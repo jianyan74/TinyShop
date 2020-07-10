@@ -5,7 +5,11 @@ namespace addons\TinyShop\common\models\forms;
 use Yii;
 use yii\base\Model;
 use common\interfaces\PayHandler;
+use common\helpers\ArrayHelper;
+use common\helpers\BcHelper;
 use addons\TinyShop\common\enums\OrderStatusEnum;
+use addons\TinyShop\common\enums\OrderTypeEnum;
+use addons\TinyShop\common\models\order\OrderProduct;
 
 /**
  * Class OrderPayFrom
@@ -35,6 +39,7 @@ class OrderPayFrom extends Model implements PayHandler
 
     /**
      * @param $attribute
+     * @throws \yii\web\UnprocessableEntityHttpException
      */
     public function verifyPay($attribute)
     {
@@ -45,10 +50,18 @@ class OrderPayFrom extends Model implements PayHandler
             return;
         }
 
-        if ($this->order['order_status'] != OrderStatusEnum::NOT_PAY) {
-            $this->addError($attribute, '订单已完成');
+        if (!$this->isFinalPayment()) {
+            if ($this->order['order_status'] != OrderStatusEnum::NOT_PAY) {
+                $this->addError($attribute, '订单已完成');
 
-            return;
+                return;
+            }
+
+            // 支付前验证库存
+            /** @var OrderProduct|array $orderProduct */
+            $orderProduct = $this->order->product;
+            $skuNums = ArrayHelper::map($orderProduct, 'sku_id', 'num');
+            Yii::$app->tinyShopService->productSku->decrRepertory($skuNums, false);
         }
     }
 
@@ -59,6 +72,10 @@ class OrderPayFrom extends Model implements PayHandler
      */
     public function getBody(): string
     {
+        if ($this->isFinalPayment()) {
+            return '订单尾款支付';
+        }
+
         return '订单支付';
     }
 
@@ -79,6 +96,10 @@ class OrderPayFrom extends Model implements PayHandler
      */
     public function getTotalFee(): float
     {
+        if ($this->isFinalPayment()) {
+            return $this->order['final_payment_money'];
+        }
+
         return $this->order['pay_money'];
     }
 
@@ -99,6 +120,20 @@ class OrderPayFrom extends Model implements PayHandler
      */
     public function isQueryOrderSn(): bool
     {
+        if ($this->isFinalPayment()) {
+            return false;
+        }
+
         return true;
+    }
+
+    /**
+     * 预售尾款
+     *
+     * @return bool
+     */
+    public function isFinalPayment()
+    {
+        return false;
     }
 }

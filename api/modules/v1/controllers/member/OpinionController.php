@@ -2,7 +2,6 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
-use common\helpers\ResultHelper;
 use Yii;
 use yii\helpers\Json;
 use yii\web\NotFoundHttpException;
@@ -10,6 +9,7 @@ use yii\data\ActiveDataProvider;
 use api\controllers\UserAuthController;
 use addons\TinyShop\common\models\common\Opinion;
 use common\enums\StatusEnum;
+use common\helpers\ResultHelper;
 
 /**
  * 意见反馈

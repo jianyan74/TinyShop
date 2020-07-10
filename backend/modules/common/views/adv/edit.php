@@ -43,7 +43,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                 'multiple' => false,
                             ]
                         ]
-                    ])->hint("首页轮播建议大小： 高400xp x 宽450xp <br> 普通广告建议大小： 高100xp x 宽400xp"); ?>
+                    ])->hint("首页轮播建议大小： 高150xp x 宽350xp <br> 普通广告建议大小： 高100xp x 宽400xp"); ?>
                     <?= $form->field($model, 'silder_text')->textarea(); ?>
                     <?= $form->field($model, 'start_time')->widget(DateTimePicker::class, [
                         'language' => 'zh-CN',
@@ -69,7 +69,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             'todayBtn' => true,//今日按钮显示
                         ]
                     ]);?>
-                    <?= $form->field($model, 'jump_link')->textInput()->hint('请填写对应的id, 不填写则不进行跳转'); ?>
+                    <?= $form->field($model, 'jump_link')->textInput()->hint('跳转列表可以不填，跳转详情请填写对应的id, 不填写则不进行跳转'); ?>
                     <?= $form->field($model, 'jump_type')->dropDownList(ArrayHelper::merge(['' => '请选择'], AdvJumpTypeEnum::getMap())); ?>
                     <?= $form->field($model, 'status')->radioList(\common\enums\StatusEnum::getMap()); ?>
                 </div>

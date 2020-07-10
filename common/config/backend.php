@@ -107,7 +107,7 @@ return [
         [
             'title' => '营销管理',
             'route' => 'marketing',
-            'icon' => 'fa fa-ticket',
+            'icon' => 'fa fa-gift',
             'child' => [
                 [
                     'title' => '优惠券',
@@ -120,6 +120,10 @@ return [
                 [
                     'title' => '满额包邮',
                     'route' => 'marketing/full-mail/index',
+                ],
+                [
+                    'title' => '小程序直播',
+                    'route' => 'marketing/mini-program-live/index',
                 ],
             ]
         ],
@@ -167,6 +171,14 @@ return [
                 [
                     'title' => '站点帮助',
                     'route' => 'common/helper/index',
+                ],
+                [
+                    'title' => '站点维护',
+                    'route' => 'common/maintenance/index',
+                ],
+                [
+                    'title' => '版权信息',
+                    'route' => 'common/copyright/index',
                 ],
             ]
         ],

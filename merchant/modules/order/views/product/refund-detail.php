@@ -62,13 +62,33 @@ $this->params['breadcrumbs'][] = $this->title;
                         <td><span class="orange"><?= $model['refund_real_money'] ?></span>元</td>
                     </tr>
                     <tr>
-                        <th>退还余额：</th>
+                        <th>退还金额：</th>
                         <td><span class="orange"><?= $model['refund_balance_money'] ?></span>元</td>
                     </tr>
                     <tr>
                         <th>退款原因：</th>
-                        <td><?= $model['refund_reason'] ?? '买/卖双方协商一致' ?></td>
+                        <td><?= !empty($model['refund_reason']) ? $model['refund_reason'] : '无' ?></td>
                     </tr>
+                    <tr>
+                        <th>退款说明：</th>
+                        <td><?= !empty($model['refund_explain']) ? $model['refund_explain'] : '无' ?></td>
+                    </tr>
+                    <?php if (!empty($model['refund_shipping_code'])){ ?>
+                        <tr>
+                            <th>退款物流单号：</th>
+                            <td><?= $model['refund_shipping_code'] ?></td>
+                        </tr>
+                        <tr>
+                            <th>退款物流公司：</th>
+                            <td><?= $model['refund_shipping_company'] ?></td>
+                        </tr>
+                    <?php } ?>
+                    <?php if (!empty($model['refund_evidence'])){ ?>
+                        <tr>
+                            <th>退款凭证：</th>
+                            <td><?= ImageHelper::fancyBoxs($model['refund_evidence']) ?></td>
+                        </tr>
+                    <?php } ?>
                     </tbody>
                 </table>
             </div>
@@ -89,32 +109,32 @@ $this->params['breadcrumbs'][] = $this->title;
                 </div>
             </div>
         </div>
-        <div class="step-region safeguard-log">
-            <div class="info-div">协商记录</div>
-            <table class="hide">
-                <tbody>
-                <tr class="tr-title">
-                    <td>买家</td>
-                    <td class="td-time">2019-06-27 10:01:10</td>
-                </tr>
-                <tr>
-                    <td colspan="2">
-                        <span>【买家申请退款】</span>
-                    </td>
-                </tr>
-                </tbody>
-                <tbody>
-                <tr class="tr-title">
-                    <td>卖家</td>
-                    <td class="td-time">2019-06-27 10:01:35</td>
-                </tr>
-                <tr>
-                    <td colspan="2">
-                        <span>【退款申请不通过】</span>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="box">
+            <div class="box-body">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>协商日志</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($orderRefund as $action) { ?>
+                        <tr>
+                            <td>
+                                操作备注: <?= $action['action_member_name'] ?>
+                                于 <?= Yii::$app->formatter->asDatetime($action['created_at']) ?>
+                                【<?= $action['action'] ?>】
+                            </td>
+                        </tr>
+                    <?php } ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

@@ -50,6 +50,21 @@ class SpecService extends Service
     }
 
     /**
+     * @param $id
+     * @return array|\yii\db\ActiveRecord|null
+     */
+    public function findById($id)
+    {
+        return Spec::find()
+            ->where([
+                'id' => $id,
+                'status' => StatusEnum::ENABLED,
+            ])
+            ->asArray()
+            ->one();
+    }
+
+    /**
      * @return array
      */
     public function getMapList()

@@ -2,7 +2,6 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers;
 
-use common\helpers\HashidsHelper;
 use Yii;
 use yii\web\NotFoundHttpException;
 use common\helpers\ResultHelper;
@@ -37,7 +36,7 @@ class SiteController extends OnAuthController
      *
      * @var array
      */
-    protected $authOptional = ['login', 'refresh', 'mobile-login', 'sms-code', 'register', 'up-pwd'];
+    protected $authOptional = ['login', 'refresh', 'mobile-login', 'sms-code', 'register', 'up-pwd', 'verify-access-token'];
 
     /**
      * 登录根据用户信息返回accessToken
@@ -124,22 +123,25 @@ class SiteController extends OnAuthController
         }
 
         // 测试
-        $code = rand(1000, 9999);
-        $log = new SmsLog();
-        $log = $log->loadDefaultValues();
-        $log->attributes = [
-            'mobile' => $model->mobile,
-            'code' => $code,
-            'member_id' => 0,
-            'usage' => $model->usage,
-            'error_code' => 200,
-            'error_msg' => 'ok',
-            'error_data' => '',
-        ];
-        $log->save();
+        if (YII_DEBUG) {
+            $code = rand(1000, 9999);
+            $log = new SmsLog();
+            $log = $log->loadDefaultValues();
+            $log->attributes = [
+                'mobile' => $model->mobile,
+                'code' => $code,
+                'member_id' => 0,
+                'usage' => $model->usage,
+                'error_code' => 200,
+                'error_msg' => 'ok',
+                'error_data' => '',
+            ];
+            $log->save();
 
-        return $code;
-        // return $model->send();
+            return $code;
+        }
+
+        return $model->send();
     }
 
     /**
@@ -156,14 +158,11 @@ class SiteController extends OnAuthController
             return ResultHelper::json(422, $this->getError($model));
         }
 
-        $parent = $model->getParent();
-
         $member = new Member();
         $member->attributes = ArrayHelper::toArray($model);
         $member->promo_code = '';
         $member->merchant_id = !empty($this->getMerchantId()) ? $this->getMerchantId() : 0;
         $member->password_hash = Yii::$app->security->generatePasswordHash($model->password);
-        $member->pid = $parent ? $parent->id : 0;
         if (!$member->save()) {
             return ResultHelper::json(422, $this->getError($member));
         }
@@ -195,6 +194,25 @@ class SiteController extends OnAuthController
     }
 
     /**
+     * 校验token有效性
+     *
+     * @return bool[]
+     */
+    public function actionVerifyAccessToken()
+    {
+        $token = Yii::$app->request->post('token');
+        if (!$token || !($apiAccessToken = Yii::$app->services->apiAccessToken->findByAccessToken($token))) {
+            return [
+                'token' => false
+            ];
+        }
+
+        return [
+            'token' => true
+        ];
+    }
+
+    /**
      * 重组数据
      *
      * @param $data
@@ -208,14 +226,6 @@ class SiteController extends OnAuthController
         $data['member']['order_synthesize_num'] = Yii::$app->tinyShopService->order->getOrderCountGroupByMemberId($data['member']['id']);
         // 购物车数量
         $data['member']['cart_num'] = Yii::$app->tinyShopService->memberCartItem->count($data['member']['id']);
-        $data['promoter'] = '';
-        // 开启分销商
-        $setting = new SettingForm();
-        $setting->attributes = AddonHelper::getConfig();
-        $member['is_open_commission'] = $setting->is_open_commission;
-        if ($setting->is_open_commission == StatusEnum::ENABLED) {
-            $data['promoter'] = Yii::$app->tinyDistributionService->promoter->findByMemberId($data['member']['id']);
-        }
 
         return $data;
     }

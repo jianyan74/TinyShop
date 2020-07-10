@@ -2,14 +2,15 @@
 
 use common\helpers\Url;
 use yii\widgets\LinkPager;
-use yii\widgets\ActiveForm;
 use common\enums\PayTypeEnum;
 use common\helpers\ImageHelper;
+use common\helpers\Html;
 use addons\TinyShop\common\enums\ShippingTypeEnum;
 use addons\TinyShop\common\enums\OrderStatusEnum;
 use addons\TinyShop\common\helpers\OrderHelper;
 use addons\TinyShop\common\enums\OrderTypeEnum;
 use addons\TinyShop\common\enums\AccessTokenGroupEnum;
+use kartik\daterange\DateRangePicker;
 
 $addon = <<< HTML
 <span class="input-group-addon">
@@ -17,13 +18,16 @@ $addon = <<< HTML
 </span>
 HTML;
 
+$export = \common\helpers\ArrayHelper::toArray($search);
+$export[0] = 'export';
+
 $this->title = '订单管理';
 $this->params['breadcrumbs'][] = ['label' => $this->title];
 ?>
 
 <div class="tabs-container">
     <?= $this->render('_nav', [
-        'order_status' => $order_status,
+        'order_status' => $search->order_status,
         'total' => $total,
     ]) ?>
     <div class="tab-content">
@@ -31,18 +35,11 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
             <div class="panel-body">
                 <div class="row">
                     <div class="col-sm-12">
-                        <?php $form = ActiveForm::begin([
-                            'action' => Url::to(['index', 'order_status' => $order_status]),
-                            'method' => 'get',
-                        ]); ?>
-                        <div class="col-sm-9"></div>
-                        <div class="col-sm-3">
-                            <div class="input-group m-b">
-                                <input type="text" class="form-control" name="order_sn" placeholder="订单编号" value="<?= $order_sn ?>"/>
-                                <span class="input-group-btn"><button class="btn btn-white"><i class="fa fa-search"></i> 搜索</button></span>
-                            </div>
+                        <div class="input-group m-b pull-right">
+                            <span>
+                                <a href="#" data-toggle='modal' data-target="#query" class="btn btn-white"><i class="fa fa-search"></i> 筛选查询</a>
+                            </span>
                         </div>
-                        <?php ActiveForm::end(); ?>
                     </div>
                 </div>
                 <div class="col-sm-12">
@@ -79,21 +76,24 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                             </tr>
                             <tr id= <?= $model->id; ?>>
                                 <td>
-                                    <?= ImageHelper::fancyBox($model['product'][0]['product_picture'])?>
+                                    <?= ImageHelper::fancyBox($model['product'][0]['product_picture']) ?>
                                 </td>
-                                <td>
+                                <td style="max-width: 200px">
                                     <small><?= $model['product'][0]['product_name']; ?></small>
                                     <br>
                                     <small style="color: #999"><?= $model['product'][0]['sku_name']; ?></small>
                                 </td>
                                 <td>
-                                    <span class="pull-left"><?= $model['product'][0]['product_money']; ?>元 <?php if($model['product'][0]['adjust_money'] != 0) { ?>(调价：<?= $model['product'][0]['adjust_money']; ?>元)<?php } ?></span>
+                                    <span class="pull-left"><?= $model['product'][0]['product_money']; ?>元 <?php if ($model['product'][0]['adjust_money'] != 0) { ?>(调价：<?= $model['product'][0]['adjust_money']; ?>元)<?php } ?></span>
                                     <span class="pull-right"><?= $model['product'][0]['num']; ?>件</span><br>
-                                    <?= OrderHelper::refundOperation($model['product'][0]['id'], $model['product'][0]['refund_status'])?>
+                                    <?= OrderHelper::refundOperation($model['product'][0]['id'],
+                                        $model['product'][0]['refund_status']) ?>
                                 </td>
                                 <td style="text-align: center" <?= $rowspanStr; ?>>
-                                    订单金额：<span class="orange"><?= Yii::$app->formatter->asDecimal($model->pay_money, 2); ?></span><br>
-                                    <small>(含配送费:<?= Yii::$app->formatter->asDecimal($model['shipping_money'], 2) ?>元)</small><br>
+                                    订单金额：<span class="orange"><?= $model->pay_money; ?></span><br>
+                                    <?php if ($model->final_payment_money > 0) { ?><small>
+                                        待付尾款：<?= $model->final_payment_money ?></small><br><?php } ?>
+                                    <small>(含配送费:<?= $model['shipping_money'] ?>元)</small><br>
                                     <small><?= PayTypeEnum::getValue($model['payment_type']) ?></small>
                                 </td>
                                 <td <?= $rowspanStr; ?>>
@@ -102,8 +102,9 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                                     <?= $model->receiver_region_name; ?> <?= $model->receiver_address; ?>
                                 </td>
                                 <td <?= $rowspanStr; ?> style="text-align: center">
-                                    <?= $model->member->nickname; ?> <br>
-                                    <span class="blue" style="font-size: 12px"><?= AccessTokenGroupEnum::getValue($model->order_from); ?></span>
+                                    <span class="blue member-view pointer" data-href="<?= Url::to(['/member/view', 'member_id' => $model->buyer_id]); ?>"><?= $model->user_name; ?></span> <br>
+                                    <span
+                                          style="font-size: 12px"><?= AccessTokenGroupEnum::getValue($model->order_from); ?></span>
                                 </td>
                                 <td <?= $rowspanStr; ?> style="text-align: center">
                                     <span class="label label-primary"><?= OrderStatusEnum::getValue($model['order_status']) ?></span>
@@ -122,31 +123,32 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                                 <?php if ($i != 0) { ?>
                                     <tr>
                                         <td>
-                                            <?= ImageHelper::fancyBox($detail['product_picture'])?>
+                                            <?= ImageHelper::fancyBox($detail['product_picture']) ?>
                                         </td>
-                                        <td>
+                                        <td style="max-width: 200px">
                                             <small><?= $detail['product_name']; ?></small>
                                             <br>
                                             <small style="color: #999"><?= $detail['sku_name']; ?></small>
                                         </td>
                                         <td>
-                                            <span class="pull-left"><?= $detail['price']; ?>元 <?php if($detail['adjust_money'] != 0) { ?>(调价：<?= $detail['adjust_money']; ?>元)<?php } ?></span>
+                                            <span class="pull-left"><?= $detail['price']; ?>元 <?php if ($detail['adjust_money'] != 0) { ?>(调价：<?= $detail['adjust_money']; ?>元)<?php } ?></span>
                                             <span class="pull-right"><?= $detail['num']; ?>件</span><br>
-                                            <?= OrderHelper::refundOperation($detail['id'], $detail['refund_status'])?>
+                                            <?= OrderHelper::refundOperation($detail['id'], $detail['refund_status']) ?>
                                         </td>
                                     </tr>
                                 <?php } ?>
                                 <?php $i++; ?>
                             <?php } ?>
-
-                            <?php if(!empty($model->seller_memo)) { ?>
+                            <?php if (!empty($model->seller_memo)) { ?>
                                 <tr>
                                     <td colspan="9">
                                         卖家备注：<?= $model->seller_memo; ?>
                                     </td>
                                 </tr>
                             <?php } ?>
-                            <tr style="background-color: #ecf0f5;"><td colspan="9"></td></tr>
+                            <tr style="background-color: #ecf0f5;">
+                                <td colspan="9"></td>
+                            </tr>
                         <?php } ?>
                         </tbody>
                     </table>
@@ -164,10 +166,152 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
     </div>
 </div>
 
+<div class="modal fade" id="query" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <?= Html::beginForm('', 'get') ?>
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close"><span aria-hidden="true">×</span><span class="sr-only">关闭</span>
+                </button>
+                <h4 class="modal-title">筛选查询</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group field-cate-pid">
+                    <div class="col-sm-2 text-right">
+                        <label class="control-label" for="cate-pid">搜索方式</label>
+                    </div>
+                    <div class="col-sm-5">
+                        <?= Html::dropDownList('query_type', $search->query_type, [
+                            '1' => '订单编号',
+                            '2' => '订单交易号',
+                            '3' => '收货人姓名',
+                            '4' => '收货人手机',
+                        ], [
+                            'class' => 'form-control'
+                        ]) ?>
+                        <div class="help-block"></div>
+                    </div>
+                    <div class="col-sm-5">
+                        <?= Html::textInput('keyword', $search->keyword, [
+                            'class' => 'form-control'
+                        ]) ?>
+                        <div class="help-block"></div>
+                    </div>
+                </div>
+                <div class="form-group field-cate-sort">
+                    <div class="col-sm-2 text-right">
+                        <label class="control-label" for="cate-sort">下单时间</label>
+                    </div>
+                    <div class="col-sm-10">
+                        <div class="input-group drp-container">
+                            <?= DateRangePicker::widget([
+                                'name' => 'query_date',
+                                'value' => !empty($search->start_time) ? $search->start_time . ' - ' . $search->end_time : '',
+                                'useWithAddon' => true,
+                                'convertFormat' => true,
+                                'startAttribute' => 'start_time',
+                                'endAttribute' => 'end_time',
+                                'options' => [
+                                    'class' => 'form-control',
+                                    'placeholder' => '开始时间 - 结束时间'
+                                ],
+                                'pluginOptions' => [
+                                    'locale' => ['format' => 'Y-m-d H:i'],
+                                ],
+                                'startInputOptions' => ['value' => $search->start_time],
+                                'endInputOptions' => ['value' => $search->end_time],
+                            ]) . $addon; ?>
+                        </div>
+                        <div class="help-block"></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="form-group field-cate-sort">
+                        <div class="col-sm-4 text-right">
+                            <label class="control-label" for="cate-sort">订单类型</label>
+                        </div>
+                        <div class="col-sm-8">
+                            <?= Html::dropDownList('order_type', $search->order_type, OrderTypeEnum::getMap(), [
+                                'class' => 'form-control',
+                                'prompt' => '请选择',
+                            ]) ?>
+                            <div class="help-block"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="form-group field-cate-sort">
+                        <div class="col-sm-4 text-right">
+                            <label class="control-label" for="cate-sort">订单状态</label>
+                        </div>
+                        <div class="col-sm-8">
+                            <?= Html::dropDownList('order_status', $search->order_status,
+                                OrderStatusEnum::getBackendMap(), [
+                                    'class' => 'form-control',
+                                    'prompt' => '请选择',
+                                ]) ?>
+                            <div class="help-block"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="form-group field-cate-sort">
+                        <div class="col-sm-4 text-right">
+                            <label class="control-label" for="cate-sort">付款方式</label>
+                        </div>
+                        <div class="col-sm-8">
+                            <?= Html::dropDownList('payment_type', $search->payment_type, PayTypeEnum::getMap(), [
+                                'class' => 'form-control',
+                                'prompt' => '请选择',
+                            ]) ?>
+                            <div class="help-block"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="form-group field-cate-sort">
+                        <div class="col-sm-4 text-right">
+                            <label class="control-label" for="cate-sort">订单来源</label>
+                        </div>
+                        <div class="col-sm-8">
+                            <?= Html::dropDownList('order_from', $search->order_from, AccessTokenGroupEnum::getMap(), [
+                                'class' => 'form-control',
+                                'prompt' => '请选择',
+                            ]) ?>
+                            <div class="help-block"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="form-group field-cate-sort">
+                        <div class="col-sm-4 text-right">
+                            <label class="control-label" for="cate-sort">配送方式</label>
+                        </div>
+                        <div class="col-sm-8">
+                            <?= Html::dropDownList('shipping_type', $search->shipping_type, ShippingTypeEnum::getMap(), [
+                                'class' => 'form-control',
+                                'prompt' => '请选择',
+                            ]) ?>
+                            <div class="help-block"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-white" data-dismiss="modal">关闭</button>
+                <button type="reset" class="btn btn-white">重置</button>
+                <button class="btn btn-primary">确定</button>
+            </div>
+        </div>
+        <?= Html::endForm() ?>
+    </div>
+</div>
+
 <script>
     var orderProductAgreeUrl = "<?= Url::to(['product/refund-pass']); ?>";
     var orderProductRefuseUrl = "<?= Url::to(['product/refund-no-pass']); ?>";
     var orderProductDeliveryUrl = "<?= Url::to(['product/refund-delivery']); ?>";
+    var orderStockUpAccomplishUrl = "<?= Url::to(['stock-up-accomplish']); ?>";
     var orderDeliveryUrl = "<?= Url::to(['take-delivery']); ?>";
     var orderCloseUrl = "<?= Url::to(['close']); ?>";
 </script>

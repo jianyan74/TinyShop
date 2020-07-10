@@ -4,6 +4,7 @@ namespace addons\TinyShop\api\modules\v1\controllers\common;
 
 use Yii;
 use yii\base\Model;
+use yii\web\UnprocessableEntityHttpException;
 use addons\TinyShop\common\enums\CommonTypeEnum;
 use addons\TinyShop\common\models\common\Collect;
 use api\controllers\OnAuthController;
@@ -83,7 +84,7 @@ abstract class FollowController extends OnAuthController
         $transaction = Yii::$app->db->beginTransaction();
         try {
             if ($model->status == StatusEnum::DELETE) {
-                return ResultHelper::json(422, '请不要重复操作');
+                throw new UnprocessableEntityHttpException('请不要重复操作');
             }
 
             $model->status = StatusEnum::DELETE;

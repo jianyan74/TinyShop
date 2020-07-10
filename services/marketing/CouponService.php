@@ -12,6 +12,8 @@ use addons\TinyShop\common\enums\RangeTypeEnum;
 use addons\TinyShop\common\models\marketing\CouponType;
 use addons\TinyShop\common\models\marketing\Coupon;
 use addons\TinyShop\merchant\forms\CouponTypeForm;
+use addons\TinyShop\common\enums\PreferentialTypeEnum;
+use addons\TinyShop\common\enums\SubscriptionActionEnum;
 
 /**
  * Class CouponService
@@ -183,6 +185,25 @@ class CouponService extends Service
         $coupon->use_time = time();
         $coupon->state = Coupon::STATE_UNSED;
         $coupon->save();
+    }
+
+    /**
+     * 未付款关闭退回
+     *
+     * @param $id
+     * @param $member_id
+     */
+    public function back($id, $member_id)
+    {
+        Coupon::updateAll([
+            'use_order_id' => 0,
+            'use_time' => 0,
+            'state' => Coupon::STATE_GET,
+        ], [
+            'id' => $id,
+            'member_id' => $member_id,
+            'state' => Coupon::STATE_UNSED
+        ]);
     }
 
     /**

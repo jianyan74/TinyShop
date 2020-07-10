@@ -85,21 +85,4 @@ class Spec extends \common\models\base\BaseModel
     {
         return $this->hasMany(SpecValue::class, ['spec_id' => 'id'])->orderBy('sort asc');
     }
-
-    /**
-     * @param bool $insert
-     * @param array $changedAttributes
-     * @throws \yii\db\Exception
-     */
-    public function afterSave($insert, $changedAttributes)
-    {
-        SpecValue::updateData($this->valueData, $this->value, $this->id, $this->merchant_id);
-        parent::afterSave($insert, $changedAttributes);
-    }
-
-    public function afterDelete()
-    {
-        SpecValue::deleteAll(['merchant_id' => $this->merchant_id, 'spec_id' => $this->id]);
-        parent::afterDelete();
-    }
 }

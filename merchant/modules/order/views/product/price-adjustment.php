@@ -9,7 +9,7 @@ $count = count($product);
 $show = true;
 
 $form = ActiveForm::begin([
-    'id' => 'w0',
+    'id' => 'priceAdjustment',
     'enableAjaxValidation' => true,
     'validationUrl' => Url::to(['price-adjustment','id' => $order['id']]),
 ]);
@@ -83,7 +83,9 @@ $form = ActiveForm::begin([
         });
 
         if (submit === true) {
-            $('#w0').submit();
+            $('#priceAdjustment').submit();
         }
+
+        return false;
     }
 </script>

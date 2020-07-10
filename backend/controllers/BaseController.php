@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\backend\controllers;
 
+use common\helpers\AddonHelper;
 use Yii;
 use common\controllers\AddonsController;
 
@@ -17,4 +18,11 @@ class BaseController extends AddonsController
      * @var string
      */
     public $layout = "@backend/views/layouts/main";
+
+    public function init()
+    {
+        AddonHelper::filePath();
+
+        parent::init();
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\services\order;
 
+use Yii;
 use common\components\Service;
 use common\enums\StatusEnum;
 use addons\TinyShop\common\enums\OrderStatusEnum;

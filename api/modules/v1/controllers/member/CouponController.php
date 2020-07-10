@@ -7,6 +7,7 @@ use yii\data\ActiveDataProvider;
 use api\controllers\UserAuthController;
 use addons\TinyShop\common\models\marketing\Coupon;
 use common\enums\StatusEnum;
+use yii\web\NotFoundHttpException;
 
 /**
  * 我的优惠券
@@ -83,6 +84,30 @@ class CouponController extends UserAuthController
                 'validatePage' => false,// 超出分页不返回data
             ],
         ]);
+    }
+
+    /**
+     * @param $id
+     * @return \yii\db\ActiveRecord
+     * @throws NotFoundHttpException
+     */
+    public function actionView($id)
+    {
+        /* @var $model \yii\db\ActiveRecord */
+        if (empty($id) || !($model = $this->modelClass::find()
+                ->where([
+                    'id' => $id,
+                    'status' => StatusEnum::ENABLED,
+                ])
+                ->with(['usableProduct', 'couponType', 'merchant'])
+                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+                ->asArray()
+                ->one())
+        ) {
+            throw new NotFoundHttpException('请求的数据不存在');
+        }
+
+        return $model;
     }
 
     /**

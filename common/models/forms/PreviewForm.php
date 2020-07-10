@@ -2,7 +2,6 @@
 
 namespace addons\TinyShop\common\models\forms;
 
-use addons\TinyShop\common\models\order\ProductMarketingDetail;
 use Yii;
 use common\helpers\ArrayHelper;
 use common\models\member\Address;
@@ -13,9 +12,8 @@ use addons\TinyShop\common\models\order\Order;
 use addons\TinyShop\common\models\pickup\Point;
 use addons\TinyShop\common\enums\PreviewTypeEnum;
 use addons\TinyShop\common\enums\ShippingTypeEnum;
-use addons\TinyShop\common\models\marketing\WholesaleProduct;
 use addons\TinyShop\common\models\order\OrderProduct;
-use addons\TinyShop\common\models\marketing\GroupBuy;
+use addons\TinyShop\common\models\order\ProductMarketingDetail;
 
 /**
  * Class PreviewForm
@@ -128,6 +126,9 @@ class PreviewForm extends Order
      * @var
      */
     public $pickup_point_freight;
+
+    public $close_all_logistics;
+    public $is_open_logistics;
 
     /** ------------- 用户 ------------- */
 
@@ -255,6 +256,54 @@ class PreviewForm extends Order
      */
     public $combination_num = 1;
 
+    /** ------------- 预约购买 ------------- */
+
+    /**
+     * @var
+     */
+    public $subscribe_buy_id;
+
+    /**
+     * 推广码
+     *
+     * @var
+     */
+    public $promo_code;
+
+    /**
+     * 全款预订
+     *
+     * @var int
+     */
+    public $is_full_payment = 0;
+    public $final_payment_money;
+    /**
+     * 全款
+     *
+     * @var int
+     */
+    public $full_payment = 0;
+
+    /**
+     * @var int 关闭订单时间
+     */
+    public $close_time = 0;
+
+    /**
+     * 营销类型
+     *
+     * @var
+     */
+    public $marketing_type;
+    public $marketing_id;
+
+    /**
+     * 再次购买订单id
+     *
+     * @var int
+     */
+    public $buy_again_id;
+
     /**
      * @return array
      */
@@ -277,10 +326,15 @@ class PreviewForm extends Order
                     'wholesale_product_id',
                     'wholesale_id',
                     'group_buy_id',
+                    'marketing_id',
+                    'subscribe_buy_id',
+                    'is_full_payment',
+                    'marketing_id',
+                    'buy_again_id',
                 ],
                 'integer',
             ],
-            [['invoice_content', 'receiver_name', 'receiver_mobile'], 'string'],
+            [['invoice_content', 'receiver_name', 'receiver_mobile', 'promo_code', 'marketing_type'], 'string'],
             [['coupon_money', 'shipping_money'], 'number'],
             ['type', 'in', 'range' => PreviewTypeEnum::getKeys()],
             ['shipping_type', 'in', 'range' => ShippingTypeEnum::getKeys()],
@@ -288,6 +342,8 @@ class PreviewForm extends Order
             [['combination_num', 'combination_id'], 'integer', 'min' => 1],
             [['use_point'], 'usePointVerify', 'on' => ['create']],
             [['invoice_id'], 'invoiceVerify', 'on' => ['create']],
+            [['shipping_type'], 'required', 'on' => ['create']],
+            [['shipping_type'], 'shippingVerify', 'on' => ['create']],
         ];
     }
 
@@ -319,8 +375,15 @@ class PreviewForm extends Order
             'coupon' => '优惠券',
             'wholesale_product_id' => '拼团对应id',
             'wholesale_id' => '拼团',
+            'group_buy_id' => '团购',
             'combination_num' => '组合套餐数量',
-            'combination_id' => '组合套餐id',
+            'combination_id' => '组合套餐',
+            'subscribe_buy_id' => '预约购买',
+            'promo_code' => '推广码',
+            'is_full_payment' => '全款预订',
+            'marketing_id' => '营销ID',
+            'marketing_type' => '营销类型',
+            'buy_again_id' => '再次购买订单ID',
         ]);
     }
 
@@ -364,6 +427,16 @@ class PreviewForm extends Order
     {
         if ($this->use_point > $this->max_use_point) {
             $this->addError($attribute, '积分不可超出最大可用额度');
+        }
+    }
+
+    /**
+     * @param $attribute
+     */
+    public function shippingVerify($attribute)
+    {
+        if ($this->close_all_logistics == true) {
+            $this->addError($attribute, '配送方式已全部被关闭，请联系客服');
         }
     }
 }

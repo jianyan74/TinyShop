@@ -21,7 +21,9 @@ class CustomerRefundForm extends Customer
             [['refund_type', 'refund_reason'], 'required', 'on' => 'apply'],
             [['refund_shipping_code', 'refund_shipping_company'], 'required', 'on' => 'salesReturn'],
             [['refund_type'], 'integer'],
-            [['refund_reason', 'refund_shipping_code', 'refund_shipping_company'], 'string', 'max' => 200],
+            [['refund_evidence'], 'safe'],
+            ['refund_require_money', 'number', 'min' => 0],
+            [['refund_reason', 'refund_explain', 'refund_shipping_code', 'refund_shipping_company'], 'string', 'max' => 200],
         ];
     }
 

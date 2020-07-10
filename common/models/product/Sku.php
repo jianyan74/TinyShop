@@ -77,12 +77,12 @@ class Sku extends BaseModel
     }
 
     /**
-     * 阶梯优惠
+     * 关联产品
      *
      * @return \yii\db\ActiveQuery
      */
-    public function getLadderPreferential()
+    public function getBaseProduct()
     {
-        return $this->hasMany(LadderPreferential::class, ['product_id' => 'product_id'])->orderBy('quantity desc, id asc')->asArray();
+        return $this->hasOne(Product::class, ['id' => 'product_id'])->select(['id', 'name', 'picture']);
     }
 }

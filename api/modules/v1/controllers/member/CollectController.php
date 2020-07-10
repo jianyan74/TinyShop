@@ -5,6 +5,7 @@ namespace addons\TinyShop\api\modules\v1\controllers\member;
 use Yii;
 use yii\data\ActiveDataProvider;
 use common\enums\StatusEnum;
+use common\helpers\ArrayHelper;
 use addons\TinyShop\common\enums\CommonTypeEnum;
 use addons\TinyShop\common\models\common\Collect;
 use api\controllers\UserAuthController;
@@ -32,7 +33,7 @@ class CollectController extends UserAuthController
     {
         $topic_type = Yii::$app->request->get('topic_type', CommonTypeEnum::PRODUCT);
 
-        return new ActiveDataProvider([
+        $data = new ActiveDataProvider([
             'query' => $this->modelClass::find()
                 ->where(['status' => StatusEnum::ENABLED, 'member_id' => Yii::$app->user->identity->member_id])
                 ->andWhere(['topic_type' => $topic_type])
@@ -45,5 +46,7 @@ class CollectController extends UserAuthController
                 'validatePage' => false,// 超出分页不返回data
             ],
         ]);
+
+        return $data;
     }
 }

@@ -2,20 +2,25 @@
 
 namespace addons\TinyShop\merchant\modules\order\controllers;
 
+use addons\TinyShop\merchant\forms\OrderSearchForm;
 use Yii;
 use yii\data\Pagination;
 use yii\db\ActiveQuery;
 use yii\web\NotFoundHttpException;
+use yii\web\UnprocessableEntityHttpException;
 use common\enums\StatusEnum;
 use common\helpers\ArrayHelper;
 use common\helpers\ResultHelper;
 use common\enums\PayTypeEnum;
+use common\helpers\ExcelHelper;
 use addons\TinyShop\common\models\order\Order;
 use addons\TinyShop\common\enums\OrderStatusEnum;
 use addons\TinyShop\common\enums\RefundStatusEnum;
 use addons\TinyShop\merchant\forms\DeliverProductForm;
 use addons\TinyShop\merchant\forms\PickupForm;
 use addons\TinyShop\merchant\controllers\BaseController;
+use addons\TinyShop\common\models\order\OrderProduct;
+use addons\TinyShop\merchant\forms\OrderExportForm;
 
 /**
  * Class OrderController
@@ -36,17 +41,22 @@ class OrderController extends BaseController
      */
     public function actionIndex()
     {
-        $order_status = Yii::$app->request->get('order_status', '');
-        $order_sn = Yii::$app->request->get('order_sn');
+        $search = new OrderSearchForm();
+        $search->attributes = Yii::$app->request->get();
 
         $data = Order::find()
             ->alias('o')
             ->where(['>=', 'o.status', StatusEnum::DISABLED])
-            ->andFilterWhere(['like', 'order_sn', $order_sn])
-            ->andFilterWhere(['o.merchant_id' => $this->getMerchantId()]);
+            ->andFilterWhere(['o.payment_type' => $search->payment_type])
+            ->andFilterWhere(['o.order_from' => $search->order_from])
+            ->andFilterWhere(['o.order_type' => $search->order_type])
+            ->andFilterWhere(['o.shipping_type' => $search->shipping_type])
+            ->andFilterWhere(['o.merchant_id' => $this->getMerchantId()])
+            ->andFilterWhere($search->getBetweenTime())
+            ->andFilterWhere($search->getKeyword());
 
-        if ($order_status != RefundStatusEnum::CANCEL) {
-            $data = $data->with(['member', 'product'])->andFilterWhere(['o.order_status' => $order_status]);
+        if ($search->order_status != RefundStatusEnum::CANCEL) {
+            $data = $data->with(['member', 'product'])->andFilterWhere(['o.order_status' => $search->order_status]);
         } else {
             // 退款中
             $data = $data->with(['member'])->joinWith([
@@ -65,8 +75,7 @@ class OrderController extends BaseController
         return $this->render($this->action->id, [
             'models' => $models,
             'pages' => $pages,
-            'order_status' => $order_status,
-            'order_sn' => $order_sn,
+            'search' => $search,
             'total' => Yii::$app->tinyShopService->order->getCount(),
         ]);
     }
@@ -77,11 +86,12 @@ class OrderController extends BaseController
      */
     public function actionDetail($id)
     {
+        /** @var Order $model */
         $model = Order::find()
-            ->where(['>=', 'status', StatusEnum::DISABLED])
-            ->andWhere(['id' => $id])
+            ->where(['id' => $id])
+            ->andWhere(['>=', 'status', StatusEnum::DISABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->with(['member', 'product', 'company', 'invoice', 'pickup', 'productExpress'])
+            ->with(['member', 'product', 'company', 'invoice', 'pickup', 'productExpress', 'marketingDetail'])
             ->one();
 
         $product = ArrayHelper::toArray($model->product);
@@ -99,10 +109,14 @@ class OrderController extends BaseController
             }
         }
 
+        // 合并营销显示
+        $marketingDetails = Yii::$app->tinyShopService->marketing->mergeIdenticalMarketing($model['marketingDetail'] ?? []);
+
         return $this->render($this->action->id, [
             'model' => $model,
             'product' => $product,
             'productExpress' => $productExpress,
+            'marketingDetails' => $marketingDetails,
             'orderAction' => Yii::$app->tinyShopService->orderAction->findByOrderId($id),
         ]);
     }
@@ -121,9 +135,20 @@ class OrderController extends BaseController
 
         $this->activeFormValidate($model);
         if ($model->load(Yii::$app->request->post())) {
-            return $model->save()
-                ? $this->message('修改成功', $this->redirect(Yii::$app->request->referrer))
-                : $this->message($this->getError($model), $this->redirect(Yii::$app->request->referrer), 'error');
+            if ($model->save()) {
+                // 记录操作
+                Yii::$app->tinyShopService->orderAction->create(
+                    '修改备注',
+                    $model->id,
+                    $model->order_status,
+                    Yii::$app->user->id,
+                    Yii::$app->user->identity->username
+                );
+
+                return $this->message('修改成功', $this->redirect(Yii::$app->request->referrer));
+            }
+
+            return $this->message($this->getError($model), $this->redirect(Yii::$app->request->referrer), 'error');
         }
 
         return $this->renderAjax($this->action->id, [
@@ -151,9 +176,20 @@ class OrderController extends BaseController
                 $model->receiver_area,
             ]);
 
-            return $model->save()
-                ? $this->message('修改成功', $this->redirect(Yii::$app->request->referrer))
-                : $this->message($this->getError($model), $this->redirect(Yii::$app->request->referrer), 'error');
+            if ($model->save()) {
+                // 记录操作
+                Yii::$app->tinyShopService->orderAction->create(
+                    '修改收货地址',
+                    $model->id,
+                    $model->order_status,
+                    Yii::$app->user->id,
+                    Yii::$app->user->identity->username
+                );
+
+                return $this->message('修改成功', $this->redirect(Yii::$app->request->referrer));
+            }
+
+            return $this->message($this->getError($model), $this->redirect(Yii::$app->request->referrer), 'error');
         }
 
         return $this->renderAjax($this->action->id, [
@@ -175,7 +211,7 @@ class OrderController extends BaseController
 
             // 记录操作
             Yii::$app->tinyShopService->orderAction->create(
-                '订单支付',
+                '订单线下支付',
                 $order->id,
                 $order->order_status,
                 Yii::$app->user->identity->id,
@@ -240,7 +276,6 @@ class OrderController extends BaseController
         }
     }
 
-
     /**
      * 提货
      *
@@ -260,8 +295,8 @@ class OrderController extends BaseController
             // 进行无物流状态
             $deliverProduct = new DeliverProductForm();
             $deliverProduct->order = $order;
-            $deliverProduct->member_id = Yii::$app->user->identity->id;
-            $deliverProduct->member_username = Yii::$app->user->identity->username;
+            $deliverProduct->operator_id = Yii::$app->user->identity->id;
+            $deliverProduct->operator_username = Yii::$app->user->identity->username;
             $deliverProduct->shipping_type = DeliverProductForm::SHIPPING_TYPE_NOT_LOGISTICS;
             $deliverProduct->order_product_ids = ArrayHelper::getColumn($order->product, 'id');
 

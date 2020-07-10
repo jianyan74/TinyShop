@@ -45,8 +45,6 @@ use addons\TinyShop\common\models\order\OrderProduct;
  */
 class Evaluate extends \common\models\base\BaseModel
 {
-    use MerchantBehavior;
-
     /**
      * {@inheritdoc}
      */
@@ -88,7 +86,8 @@ class Evaluate extends \common\models\base\BaseModel
             [['covers', 'again_covers'], 'safe'],
             [['scores', 'order_product_id'], 'required'],
             [['member_head_portrait'], 'string', 'max' => 150],
-            [['merchant_name', 'product_name', 'member_nickname'], 'string', 'max' => 100],
+            [['product_name'], 'string', 'max' => 200],
+            [['merchant_name', 'member_nickname'], 'string', 'max' => 100],
             [
                 ['product_picture', 'sku_name', 'content', 'video', 'explain_first', 'again_content', 'again_explain'],
                 'string',

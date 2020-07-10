@@ -8,7 +8,7 @@ use addons\TinyShop\common\components\delivery\CashAgainstDelivery;
 use addons\TinyShop\common\components\delivery\LogisticsDelivery;
 use addons\TinyShop\common\components\delivery\PickupDelivery;
 use addons\TinyShop\common\components\delivery\LocalDistributionDelivery;
-use addons\TinyShop\common\components\delivery\VirtualDelivery;
+use yii\web\UnprocessableEntityHttpException;
 
 /**
  * Class PreviewHandler
@@ -37,7 +37,6 @@ class PreviewHandler
         ShippingTypeEnum::PICKUP => PickupDelivery::class, // 自提
         ShippingTypeEnum::CASH_AGAINST => CashAgainstDelivery::class, // 货到付款
         ShippingTypeEnum::LOCAL_DISTRIBUTION => LocalDistributionDelivery::class, // 本地配送
-        ShippingTypeEnum::VIRTUAL => VirtualDelivery::class, // 虚拟商品
     ];
 
     /**
@@ -58,8 +57,14 @@ class PreviewHandler
      */
     public function start(PreviewForm $form, $isNewRecord = false)
     {
+        // 判断配送方式
+        if ($isNewRecord == true && empty($form->shipping_type)) {
+            throw new UnprocessableEntityHttpException('请选择配送方式');
+        }
+
         /** @var PreviewInterface $delivery 配送类型 */
         $delivery = new $this->_delivery[$form->shipping_type];
+        $delivery->isNewRecord = $isNewRecord;
         $form = $delivery->execute($form);
         $this->_names[] = $delivery::getName();
 

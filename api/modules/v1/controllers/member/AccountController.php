@@ -2,10 +2,11 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
+use Yii;
+use yii\web\NotFoundHttpException;
 use api\controllers\UserAuthController;
 use common\enums\StatusEnum;
 use common\models\member\Account;
-use yii\web\NotFoundHttpException;
 
 /**
  * Class AccountController
@@ -28,7 +29,7 @@ class AccountController extends UserAuthController
     {
         /* @var $model \yii\db\ActiveRecord */
         if (empty($id) || !($model = $this->modelClass::find()->where([
-                'member_id' => $id,
+                'member_id' => Yii::$app->user->identity->member_id,
                 'status' => StatusEnum::ENABLED,
             ])->andFilterWhere(['merchant_id' => $this->getMerchantId()])->one())) {
             throw new NotFoundHttpException('请求的数据不存在');

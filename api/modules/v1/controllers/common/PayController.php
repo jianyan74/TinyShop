@@ -12,7 +12,9 @@ use common\helpers\AddonHelper;
 use common\models\forms\CreditsLogForm;
 use common\models\forms\PayForm;
 use api\controllers\OnAuthController;
+use addons\TinyShop\common\enums\OrderTypeEnum;
 use addons\TinyShop\common\models\forms\OrderPayFrom;
+use addons\TinyShop\common\enums\OrderStatusEnum;
 use addons\TinyShop\common\models\forms\RechargePayFrom;
 
 /**
@@ -58,9 +60,11 @@ class PayController extends OnAuthController
                 'recharge' => RechargePayFrom::class,
                 'order' => OrderPayFrom::class,
             ]);
+
             // 回调方法
             $payForm->notify_url = Url::removeMerchantIdUrl('toFront', ['notify/' . PayTypeEnum::action($payForm->pay_type)]);
             !$payForm->openid && $payForm->openid = Yii::$app->user->identity->openid;
+
             // 生成配置
             return ResultHelper::json(200, '待支付', [
                 'payStatus' => false,
@@ -85,26 +89,18 @@ class PayController extends OnAuthController
                 throw new UnprocessableEntityHttpException('订单不存在');
             }
 
+            $pay_money = $order->pay_money;
             // 扣除余额
             $member = Yii::$app->services->member->get($payForm->member_id);
             Yii::$app->services->memberCreditsLog->decrMoney(new CreditsLogForm([
                 'member' => $member,
-                'num' => $order->pay_money,
+                'num' => $pay_money,
                 'credit_group' => 'orderCreate',
                 'map_id' => $order_id,
-                'remark' => '【微商城】订单余额支付',
+                'remark' => Yii::$app->params['tinyShopName']  . '订单余额支付',
             ]));
 
             Yii::$app->tinyShopService->order->pay($order, PayTypeEnum::USER_MONEY);
-
-            // 记录操作
-            Yii::$app->tinyShopService->orderAction->create(
-                '订单支付',
-                $order->id,
-                $order->order_status,
-                $member->id,
-                $member->username
-            );
 
             $transaction->commit();
 

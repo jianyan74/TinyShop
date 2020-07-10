@@ -41,7 +41,7 @@ class Adv extends \common\models\base\BaseModel
     {
         return [
             [['title', 'cover', 'start_time', 'end_time'], 'required'],
-            [['merchant_id', 'is_title_show', 'sort', 'status', 'created_at', 'updated_at'], 'integer'],
+            [['merchant_id', 'view', 'is_title_show', 'sort', 'status', 'created_at', 'updated_at'], 'integer'],
             [['title', 'location', 'jump_type'], 'string', 'max' => 30],
             [['cover'], 'string', 'max' => 200],
             [['silder_text', 'jump_link'], 'string', 'max' => 150],
@@ -60,6 +60,7 @@ class Adv extends \common\models\base\BaseModel
             'cover' => '封面',
             'location' => '广告位',
             'silder_text' => '图片描述',
+            'view' => '浏览量',
             'start_time' => '开始时间',
             'end_time' => '结束时间',
             'jump_link' => '跳转链接',

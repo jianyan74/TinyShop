@@ -11,6 +11,7 @@ use common\enums\StatusEnum;
 use addons\TinyShop\api\modules\v1\forms\EvaluateForm;
 use addons\TinyShop\common\models\product\Evaluate;
 use addons\TinyShop\api\modules\v1\forms\EvaluateStatForm;
+use yii\web\UnprocessableEntityHttpException;
 
 /**
  * 评论
@@ -51,7 +52,7 @@ class EvaluateController extends UserAuthController
                 $model->attributes = $datum;
 
                 if (!$model->save()) {
-                    return ResultHelper::json(422, $this->getError($model));
+                    throw new UnprocessableEntityHttpException($this->getError($model));
                 }
             }
 

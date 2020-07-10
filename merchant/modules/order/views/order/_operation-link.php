@@ -14,7 +14,7 @@ $br = empty($class) ? '<br>' : '';
 <?php } ?>
 
     <!--未支付-->
-<?php if ($model->order_status == OrderStatusEnum::NOT_PAY) { ?>
+<?php if (in_array($model->order_status, [OrderStatusEnum::NOT_PAY])) { ?>
     <?= Html::linkButton(['pay', 'id' => $model->id], '线下支付', [
         'class' => !empty($class) ? $class : 'orange',
         'onclick' => "rfTwiceAffirm(this, '确定线下支付吗？', '请谨慎操作');return false;",
@@ -61,6 +61,7 @@ $br = empty($class) ? '<br>' : '';
         'class' => (!empty($class) ? $class : 'orange') . ' orderDelivery',
     ]) . $br ?>
 <?php } ?>
+
 
     <!--订单关闭-->
 <?php if ($model->order_status == OrderStatusEnum::REPEAL) { ?>

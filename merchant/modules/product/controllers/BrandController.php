@@ -68,7 +68,7 @@ class BrandController extends BaseController
         $this->activeFormValidate($model);
         if ($model->load($request->post())) {
             return $model->save()
-                ? $this->redirect(['index'])
+                ? $this->redirect(Yii::$app->request->referrer)
                 : $this->message($this->getError($model), $this->redirect(['index']), 'error');
         }
 

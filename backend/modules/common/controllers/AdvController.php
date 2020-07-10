@@ -47,7 +47,7 @@ class AdvController extends BaseController
         $dataProvider = $searchModel
             ->search(Yii::$app->request->queryParams);
         $dataProvider->query
-            ->andWhere(['status' => StatusEnum::ENABLED])
+            ->andWhere(['>=', 'status', StatusEnum::DISABLED])
             ->andWhere(['merchant_id' => $this->getMerchantId()]);
 
         return $this->render($this->action->id, [

@@ -7,7 +7,6 @@ use yii\data\ActiveDataProvider;
 use yii\helpers\Json;
 use yii\web\NotFoundHttpException;
 use common\helpers\ResultHelper;
-use common\enums\StatusEnum;
 use common\helpers\ArrayHelper;
 use addons\TinyShop\common\models\forms\CartItemForm;
 use addons\TinyShop\common\models\member\CartItem;
@@ -118,11 +117,10 @@ class CartItemController extends UserAuthController
 
         $data = Yii::$app->tinyShopService->memberCartItem->updateNum($model->getSku(), $model->num,
             $this->member_id);
-        // 阶梯优惠
-        $ladderPreferential = $data->ladderPreferential;
+
         $sku = $data->sku;
         $data = ArrayHelper::toArray($data);
-        $data['ladderPreferential'] = $ladderPreferential;
+        $data['ladderPreferential'] = [];
         $data['sku'] = $sku;
 
         return $data;
@@ -154,13 +152,13 @@ class CartItemController extends UserAuthController
             // 判断购物车是否已存在该sku
             $newCartItem = Yii::$app->tinyShopService->memberCartItem->findBySukId($new_sku_id, $this->member_id);
             if ($newCartItem) {
+                $sku = Yii::$app->tinyShopService->productSku->findById($newCartItem->sku_id);
+                Yii::$app->tinyShopService->memberCartItem->updateNum($sku, $cartItem->number + $newCartItem->number, $this->member_id);
                 $transaction->commit();
 
-                // 阶梯优惠
-                $ladderPreferential = $newCartItem->ladderPreferential;
                 $sku = $newCartItem->sku;
                 $newCartItem = ArrayHelper::toArray($newCartItem);
-                $newCartItem['ladderPreferential'] = $ladderPreferential;
+                $newCartItem['ladderPreferential'] = [];
                 $newCartItem['sku'] = $sku;
 
                 return $newCartItem;
@@ -175,11 +173,10 @@ class CartItemController extends UserAuthController
 
             $data = Yii::$app->tinyShopService->memberCartItem->create($model->getSku(), $model->num,
                 $this->member_id);
-            // 阶梯优惠
-            $ladderPreferential = $data->ladderPreferential;
+
             $sku = $data->sku;
             $data = ArrayHelper::toArray($data);
-            $data['ladderPreferential'] = $ladderPreferential;
+            $data['ladderPreferential'] = [];
             $data['sku'] = $sku;
 
             $transaction->commit();
@@ -202,7 +199,12 @@ class CartItemController extends UserAuthController
     public function actionDeleteIds()
     {
         $sku_ids = Yii::$app->request->post('sku_ids', '');
-        $sku_ids = Json::decode($sku_ids);
+
+        try {
+            $sku_ids = Json::decode($sku_ids);
+        } catch (\Exception $e) {
+            return ResultHelper::json(422, '请提交正确的 json 格式');
+        }
 
         if (empty($sku_ids)) {
             return ResultHelper::json(422, '请选择要删除的购物车产品');

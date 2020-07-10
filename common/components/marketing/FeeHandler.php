@@ -6,7 +6,6 @@ use Yii;
 use yii\web\UnprocessableEntityHttpException;
 use addons\TinyShop\common\components\delivery\PickupDelivery;
 use addons\TinyShop\common\components\delivery\LocalDistributionDelivery;
-use addons\TinyShop\common\components\delivery\VirtualDelivery;
 use addons\TinyShop\common\models\forms\PreviewForm;
 use addons\TinyShop\common\components\PreviewInterface;
 
@@ -54,10 +53,8 @@ class FeeHandler extends PreviewInterface
     public function rejectNames()
     {
         return [
-            VirtualDelivery::getName(), //虚拟物品
             PickupDelivery::getName(), // 自提
             LocalDistributionDelivery::getName(), // 本地配送
-            FullMailHandler::getName(), // 满包邮
         ];
     }
 

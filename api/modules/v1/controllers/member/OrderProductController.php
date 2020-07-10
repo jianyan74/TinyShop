@@ -2,13 +2,13 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
-use addons\TinyShop\common\enums\RefundStatusEnum;
 use Yii;
 use yii\web\NotFoundHttpException;
 use api\controllers\UserAuthController;
 use common\helpers\ResultHelper;
 use addons\TinyShop\common\models\order\OrderProduct;
 use addons\TinyShop\common\models\forms\RefundForm;
+use addons\TinyShop\common\enums\RefundStatusEnum;
 
 /**
  * Class OrderProductController
@@ -59,7 +59,15 @@ class OrderProductController extends UserAuthController
             return ResultHelper::json(422, $this->getError($model));
         }
 
-        return Yii::$app->tinyShopService->orderProduct->refundApply($model, Yii::$app->user->identity->member_id);
+        $product = Yii::$app->tinyShopService->orderProduct->findById($model->id);
+        empty($model->refund_require_money) && $model->refund_require_money = $product->product_money;
+        if ($model->refund_require_money > $product->product_money) {
+            $model->refund_require_money = $product->product_money;
+        }
+
+        $member = Yii::$app->services->member->get(Yii::$app->user->identity->member_id);
+
+        return Yii::$app->tinyShopService->orderProduct->refundApply($model, $member->id, $member->nickname);
     }
 
     /**
@@ -79,7 +87,9 @@ class OrderProductController extends UserAuthController
             return ResultHelper::json(422, $this->getError($model));
         }
 
-        return Yii::$app->tinyShopService->orderProduct->refundSalesReturn($model, Yii::$app->user->identity->member_id);
+        $member = Yii::$app->services->member->get(Yii::$app->user->identity->member_id);
+
+        return Yii::$app->tinyShopService->orderProduct->refundSalesReturn($model, $member->id, $member->nickname);
     }
 
     /**
@@ -97,7 +107,9 @@ class OrderProductController extends UserAuthController
             return ResultHelper::json(422, $this->getError($model));
         }
 
-        return Yii::$app->tinyShopService->orderProduct->refundClose($model->id, Yii::$app->user->identity->member_id);
+        $member = Yii::$app->services->member->get(Yii::$app->user->identity->member_id);
+
+        return Yii::$app->tinyShopService->orderProduct->refundClose($model->id, $member->id, $member->nickname);
     }
 
     /**
