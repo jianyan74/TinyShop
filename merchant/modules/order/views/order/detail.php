@@ -95,7 +95,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             <th>收货信息：</th>
                             <td>
                                 <?= $model->receiver_name; ?>，<?= $model->receiver_mobile; ?>
-                                ，<?= $model->receiver_region_name; ?> <?= $model->receiver_address; ?>
+                                ，<?= $model->receiver_region_name; ?> <?= Html::encode($model->receiver_address); ?>
                             </td>
                         </tr>
                     <?php } ?>
@@ -117,24 +117,24 @@ $this->params['breadcrumbs'][] = $this->title;
                     <?php if (!empty($model->invoice)) { ?>
                         <tr>
                             <th>发票抬头：</th>
-                            <td><span><?= $model->invoice->title; ?></span></td>
+                            <td><span><?= Html::encode($model->invoice->title); ?></span></td>
                         </tr>
                         <tr>
                             <th>发票税号：</th>
-                            <td><span><?= $model->invoice->duty_paragraph; ?></span></td>
+                            <td><span><?= Html::encode($model->invoice->duty_paragraph); ?></span></td>
                         </tr>
                         <tr>
                             <th>发票内容：</th>
-                            <td><span><?= $model->invoice->content; ?></span></td>
+                            <td><span><?= Html::encode($model->invoice->content); ?></span></td>
                         </tr>
                     <?php } ?>
                     <tr>
                         <th>买家留言：</th>
-                        <td><?= !empty($model->buyer_message) ? $model->buyer_message : '此订单没有留言'; ?></td>
+                        <td><?= !empty($model->buyer_message) ? Html::encode($model->buyer_message) : '此订单没有留言'; ?></td>
                     </tr>
                     <tr>
                         <th>卖家留言：</th>
-                        <td><?= !empty($model->seller_memo) ? $model->seller_memo : '此订单没有留言'; ?></td>
+                        <td><?= !empty($model->seller_memo) ? Html::encode($model->seller_memo) : '此订单没有留言'; ?></td>
                     </tr>
                     </tbody>
                 </table>

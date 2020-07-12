@@ -99,7 +99,7 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                                 <td <?= $rowspanStr; ?>>
                                     <?= $model->receiver_name; ?><br>
                                     <?= $model->receiver_mobile; ?><br>
-                                    <?= $model->receiver_region_name; ?> <?= $model->receiver_address; ?>
+                                    <?= $model->receiver_region_name; ?> <?= Html::encode($model->receiver_address); ?>
                                 </td>
                                 <td <?= $rowspanStr; ?> style="text-align: center">
                                     <span class="blue member-view pointer" data-href="<?= Url::to(['/member/view', 'member_id' => $model->buyer_id]); ?>"><?= $model->user_name; ?></span> <br>
@@ -142,7 +142,7 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                             <?php if (!empty($model->seller_memo)) { ?>
                                 <tr>
                                     <td colspan="9">
-                                        卖家备注：<?= $model->seller_memo; ?>
+                                        卖家备注：<?= Html::encode($model->seller_memo); ?>
                                     </td>
                                 </tr>
                             <?php } ?>
