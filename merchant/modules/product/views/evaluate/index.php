@@ -58,7 +58,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                 $str = [];
                                 $str[] = ImageHelper::fancyBoxs($model->covers);
                                 $str[] = Html::encode($model->content);
-                                !empty($model->explain_first) && $str[] = '回复：' . $model->explain_first;
+                                !empty($model->explain_first) && $str[] = '回复：' . Html::encode($model->explain_first);
                                 $str[] = Yii::$app->formatter->asDatetime($model->created_at);
                                 $str[] = Html::a('回复', ['ajax-edit', 'id' => $model['id']], [
                                     'data-toggle' => 'modal',
@@ -79,8 +79,8 @@ $this->params['breadcrumbs'][] = $this->title;
                                 $str = [];
                                 if ($model->again_content) {
                                     $str[] = ImageHelper::fancyBoxs($model->again_covers);
-                                    $str[] = $model->again_content;
-                                    !empty($model->again_explain) && $str[] = '回复：' . $model->again_explain;
+                                    $str[] = Html::encode($model->again_content);
+                                    !empty($model->again_explain) && $str[] = '回复：' . Html::encode($model->again_explain);
                                     $str[] = Yii::$app->formatter->asDatetime($model->again_addtime);
                                     $str[] = Html::a('回复', ['ajax-edit', 'id' => $model['id'], 'type' => 'again'], [
                                         'data-toggle' => 'modal',
