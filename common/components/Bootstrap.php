@@ -50,8 +50,6 @@ class Bootstrap implements AddonWidget
             Yii::$app->tinyShopService->order->closeAll($merchant_id); // 关闭订单
             // 关闭优惠券
             Yii::$app->tinyShopService->marketingCoupon->closeAll();
-            // 上架营销
-            Yii::$app->tinyShopService->marketingTimeManage->putaway();
             // 自动评价
             if (!empty($setting->evaluate_day)) {
                 Yii::$app->tinyShopService->productEvaluate->autoEvaluate($setting->evaluate_day, $setting->evaluate);
