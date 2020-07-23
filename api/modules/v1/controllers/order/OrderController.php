@@ -143,7 +143,7 @@ class OrderController extends OnAuthController
             $pickup_point = Yii::$app->tinyShopService->pickupPoint->getList();
         }
 
-        $coupons = [];
+        $coupons = Yii::$app->tinyShopService->marketingCoupon->getListByMemberId($identity->member_id, $model->orderProducts);
         return [
             'account' => $model->member->account,
             'address' => $model->address,
