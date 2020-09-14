@@ -51,22 +51,6 @@ use addons\TinyShop\common\enums\PointExchangeTypeEnum;
                                 'headerOptions' => ['class' => 'col-md-1'],
                             ],
                             [
-                                'attribute' => 'name',
-                                'format' => 'raw',
-                                'value' => function ($model) use ($marketing) {
-                                    $html = $model->name . '<br>';
-                                    if ($model->point_exchange_type > PointExchangeTypeEnum::NOT_EXCHANGE) {
-                                        $html .= Html::tag('span', PointExchangeTypeEnum::getValue($model->point_exchange_type), ['class' => 'label label-default m-r-xs']);
-                                    }
-
-                                    if (isset($marketing[$model['id']])) {
-                                        $html .= Html::tag('span', ProductMarketingEnum::getValue($marketing[$model['id']]), ['class' => 'label label-default m-r-xs']);
-                                    }
-
-                                    return $html;
-                                },
-                            ],
-                            [
                                 'attribute' => 'price',
                                 'headerOptions' => ['class' => 'col-md-1'],
                             ],
