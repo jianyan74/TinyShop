@@ -70,6 +70,24 @@ class RechargePayFrom extends Model implements PayHandler
     }
 
     /**
+     * 交易流水号
+     *
+     * @return string
+     */
+    public function getOutTradeNo()
+    {
+        return '';
+    }
+
+    /**
+     * @return int
+     */
+    public function getMerchantId(): int
+    {
+        return 0;
+    }
+
+    /**
      * 是否查询订单号(避免重复生成)
      *
      * @return bool
