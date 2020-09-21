@@ -59,7 +59,7 @@ trait CalculatePriceTrait
             foreach ($groupOrderProduct['products'] as $orderProduct) {
                 if ($orderProduct->product_money == 0) {
                     $orderProduct->price = 0;
-                    $groupOrderProduct['count'] -= $orderProduct->num;
+                    // $groupOrderProduct['count'] -= $orderProduct->num;
                 }
             }
         }
