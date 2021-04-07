@@ -123,7 +123,7 @@ class ThirdPartyController extends OnAuthController
 
         $user = $model->getUser();
         $unionid = $user['unionId'] ?? '';
-        $auth = Yii::$app->services->memberAuth->findOauthClient(Auth::CLIENT_WECHAT_MP, $user['openId']);
+        $auth = Yii::$app->services->memberAuth->findOauthClient(Auth::CLIENT_WECHAT_MP, $model->getOpenid());
         if ($auth && $auth->member) {
             $user_info = $this->getData($auth, AccessTokenGroupEnum::WECHAT_MP);
             unset($user_info['watermark']);
@@ -155,7 +155,7 @@ class ThirdPartyController extends OnAuthController
             'unionid' => $unionid,
             'member_id' => $member['id'],
             'oauth_client' => Auth::CLIENT_WECHAT_MP,
-            'oauth_client_user_id' => $user['openId'],
+            'oauth_client_user_id' => $model->getOpenid(),
             'gender' => $user['gender'],
             'nickname' => $user['nickName'],
             'head_portrait' => $member['head_portrait'],
