@@ -6,7 +6,8 @@
 
 ### 前端项目
 
-开源地址: https://github.com/jianyan74/TinyShop-UniApp
+GitHub 开源地址: https://github.com/jianyan74/TinyShop-UniApp  
+Gitee 开源地址: https://gitee.com/jianyan94/TinyShop-UniApp
 
 ### B2C-Demo
 
