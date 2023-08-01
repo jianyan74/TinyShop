@@ -4,19 +4,23 @@ use yii\widgets\ActiveForm;
 use common\helpers\Url;
 use common\enums\StatusEnum;
 use common\helpers\Html;
+use addons\TinyShop\common\models\order\Order;
 use addons\TinyShop\common\enums\RefundStatusEnum;
+use addons\TinyShop\common\enums\ProductExpressShippingTypeEnum;
+
+/** @var Order $order */
 
 $form = ActiveForm::begin([
     'id' => $model->formName(),
     'enableAjaxValidation' => true,
     'validationUrl' => Url::to(['create', 'id' => $order['id']]),
 ]);
+
 ?>
 
 <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">×</span><span
-                class="sr-only">关闭</span></button>
-    <h4 class="modal-title">基本信息</h4>
+    <h4 class="modal-title">发货</h4>
+    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
     <table class="table table-bordered table-hover">
@@ -48,14 +52,15 @@ $form = ActiveForm::begin([
         <?php } ?>
         </tbody>
     </table>
-    <?= $form->field($model, 'shipping_type')->radioList($shippingTypeExplain); ?>
+    <?= $form->field($model, 'shipping_type')->radioList(ProductExpressShippingTypeEnum::getMap()); ?>
     <div class="company">
         <?= $form->field($model, 'express_company_id')->dropDownList($company)->hint(empty($order->company_name) ? '' : "提醒：订单中用户选择了 $order->company_name"); ?>
         <?= $form->field($model, 'express_no')->textInput(); ?>
     </div>
     <div class="form-group">
         <label class="control-label">收货信息：</label>
-        <?= $order->receiver_region_name ?> <?= $order->receiver_address ?>
+        <?= $order->receiver_realname; ?>，<?= $order->receiver_mobile; ?>
+        ，<?= $order->receiver_name; ?> <?= Html::encode($order->receiver_details); ?>
         <div class="help-block"></div>
     </div>
 </div>
@@ -75,9 +80,9 @@ $form = ActiveForm::begin([
         }
     });
 
-    $("input[name='DeliverProductForm[shipping_type]']").click(function () {
+    $("input[name='ProductExpressForm[shipping_type]']").click(function () {
         var val = $(this).val();
-        if (val == 0) {
+        if (parseInt(val) === 0) {
             $('.company').addClass('hide');
         } else {
             $('.company').removeClass('hide');

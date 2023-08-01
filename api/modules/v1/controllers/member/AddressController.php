@@ -2,10 +2,10 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
-use common\helpers\ResultHelper;
 use Yii;
 use api\controllers\UserAuthController;
 use common\models\member\Address;
+use common\helpers\ResultHelper;
 
 /**
  * 地址
@@ -21,6 +21,9 @@ class AddressController extends UserAuthController
      */
     public $modelClass = Address::class;
 
+    /**
+     * @return array|Address|mixed|\yii\db\ActiveRecord
+     */
     public function actionCreate()
     {
         /* @var $model Address */
@@ -28,23 +31,33 @@ class AddressController extends UserAuthController
         $model->attributes = Yii::$app->request->post();
         $model->member_id = Yii::$app->user->identity->member_id;
         $model->merchant_id = Yii::$app->user->identity->merchant_id;
+        list($province_id, $city_id, $area_id) = Yii::$app->services->provinces->getParentIdsByAreaId($model->area_id);
+        $model->province_id = $province_id;
+        $model->city_id = $city_id;
+        $model->area_id = $area_id;
         if (!$model->save()) {
             return ResultHelper::json(422, $this->getError($model));
         }
 
-        if ($area = Yii::$app->services->provinces->findById($model->area_id)) {
-            $tree = explode(' ', $area['tree']);
-            foreach ($tree as $key => $item) {
-                if ($key == 1) {
-                    $data = explode('tr_', $item);
-                    $model->province_id = $data[1];
-                }
+        return $model;
+    }
 
-                if ($key == 2) {
-                    $data = explode('tr_', $item);
-                    $model->city_id = $data[1];
-                }
-            }
+    /**
+     * @param $id
+     * @return array|mixed|\yii\db\ActiveRecord
+     * @throws \yii\web\NotFoundHttpException
+     */
+    public function actionUpdate($id)
+    {
+        $model = $this->findModel($id);
+        $model->attributes = Yii::$app->request->post();
+        list($province_id, $city_id, $area_id) = Yii::$app->services->provinces->getParentIdsByAreaId($model->area_id);
+        $model->province_id = $province_id;
+        $model->city_id = $city_id;
+        $model->area_id = $area_id;
+
+        if (!$model->save()) {
+            return ResultHelper::json(422, $this->getError($model));
         }
 
         return $model;
@@ -55,6 +68,6 @@ class AddressController extends UserAuthController
      */
     public function actionDefault()
     {
-        return Yii::$app->tinyShopService->memberAddress->findDefaultByMemberId(Yii::$app->user->identity->member_id);
+        return Yii::$app->services->memberAddress->findDefaultByMemberId(Yii::$app->user->identity->member_id);
     }
 }

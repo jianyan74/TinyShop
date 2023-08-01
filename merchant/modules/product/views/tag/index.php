@@ -3,13 +3,13 @@
 use yii\grid\GridView;
 use common\helpers\Html;
 
-$this->title = '标签管理';
+$this->title = '商品标签';
 $this->params['breadcrumbs'][] = $this->title;
 
 ?>
 
 <div class="row">
-    <div class="col-xs-12">
+    <div class="col-12 col-xs-12">
         <div class="box">
             <div class="box-header">
                 <h3 class="box-title"><?= $this->title; ?></h3>

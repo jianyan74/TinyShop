@@ -21,6 +21,10 @@ class TagService extends Service
      */
     public function getMapByList($arr)
     {
+        if (empty($arr)) {
+            return $this->getMap();
+        }
+
         $tag = [];
         foreach ($arr as $item) {
             $tag[$item] = $item;

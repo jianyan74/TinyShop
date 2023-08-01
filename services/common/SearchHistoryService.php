@@ -2,9 +2,9 @@
 
 namespace addons\TinyShop\services\common;
 
-use common\helpers\EchantsHelper;
 use Yii;
 use common\components\Service;
+use common\helpers\EchantsHelper;
 use addons\TinyShop\common\models\common\SearchHistory;
 
 /**
@@ -17,10 +17,14 @@ class SearchHistoryService extends Service
     /**
      * @param $keyword
      */
-    public function create($keyword)
+    public function create($keyword, $member_id)
     {
         $model = SearchHistory::find()
-            ->where(['keyword' => $keyword, 'search_date' => date('Y-m-d')])
+            ->where([
+                'keyword' => $keyword,
+                'member_id' => $member_id,
+                'search_date' => date('Y-m-d')
+            ])
             ->one();
 
         if (!$model) {
@@ -28,6 +32,7 @@ class SearchHistoryService extends Service
             $model = $model->loadDefaultValues();
             $model->search_date = date('Y-m-d');
             $model->keyword = $keyword;
+            $model->member_id = $member_id;
             $model->ip = Yii::$app->request->userIP;
         }
 

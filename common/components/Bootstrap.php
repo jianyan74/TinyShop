@@ -2,12 +2,10 @@
 
 namespace addons\TinyShop\common\components;
 
+use Yii;
 use common\enums\AppEnum;
 use common\enums\StatusEnum;
-use Yii;
-use common\helpers\AddonHelper;
 use common\interfaces\AddonWidget;
-use addons\TinyShop\common\models\SettingForm;
 use yii\web\UnprocessableEntityHttpException;
 
 /**
@@ -21,40 +19,41 @@ class Bootstrap implements AddonWidget
     /**
      * @param $addon
      * @return mixed|void
-     * @throws \yii\base\InvalidConfigException
-     * @throws \yii\web\NotFoundHttpException
-     * @throws \yii\web\UnprocessableEntityHttpException
      */
     public function run($addon)
     {
-        // TODO 临时测试
-        $config = AddonHelper::getConfig();
-        $setting = new SettingForm();
-        $setting->attributes = $config;
-
         // 名称
-        Yii::$app->params['tinyShopName'] = !empty($setting->app_name) ? "【" . $setting->app_name . "】":  "【微商城】";
-
+        $setting = Yii::$app->tinyShopService->config->setting();
         if (
             in_array(Yii::$app->id, AppEnum::api()) &&
-            $setting->is_open_site == StatusEnum::DISABLED &&
-            (Yii::$app->request->isPost || Yii::$app->request->isPut)
+            $setting->site_status == StatusEnum::DISABLED &&
+            (Yii::$app->request->isPost || Yii::$app->request->isPut || Yii::$app->request->isDelete)
         ) {
-            throw new UnprocessableEntityHttpException($setting->close_site_explain);
+            throw new UnprocessableEntityHttpException($setting->site_close_explain);
+        }
+
+        Yii::$app->params['store_id'] = '';
+
+        if (!empty(Yii::$app->cache->get('tinyShopBootstrap')) && !YII_DEBUG) {
+            return false;
+        } else {
+            Yii::$app->cache->set('tinyShopBootstrap', 'tiny-shop', 5);
         }
 
         try {
-            $merchant_id = Yii::$app->services->merchant->getId();
-            Yii::$app->tinyShopService->order->signAll($config, $merchant_id); // 自动收货
-            Yii::$app->tinyShopService->order->finalizeAll($config, $merchant_id); // 完成订单
-            Yii::$app->tinyShopService->order->closeAll($merchant_id); // 关闭订单
+            // 自动收货
+            Yii::$app->tinyShopService->orderBatch->signAll();
+            // 完成订单
+            Yii::$app->tinyShopService->orderBatch->finalizeAll($setting);
+            // 关闭订单
+            Yii::$app->tinyShopService->orderBatch->closeAll();
             // 关闭优惠券
             Yii::$app->tinyShopService->marketingCoupon->closeAll();
             // 自动评价
-            if (!empty($setting->evaluate_day)) {
-                Yii::$app->tinyShopService->productEvaluate->autoEvaluate($setting->evaluate_day, $setting->evaluate);
-            }
+            Yii::$app->tinyShopService->productEvaluate->autoEvaluate();
         } catch (\Exception $e) {
+            // 记录行为日志
+            Yii::$app->services->log->push(500, 'autoDisposeOrder', Yii::$app->services->base->getErrorInfo($e));
             Yii::error($e->getMessage());
         }
     }

@@ -2,7 +2,7 @@
 
 namespace addons\TinyShop\common\components;
 
-use addons\TinyShop\common\models\forms\PreviewForm;
+use addons\TinyShop\common\forms\PreviewForm;
 
 /**
  * 营销基类

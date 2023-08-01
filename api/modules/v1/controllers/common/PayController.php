@@ -4,25 +4,24 @@ namespace addons\TinyShop\api\modules\v1\controllers\common;
 
 use Yii;
 use yii\web\UnprocessableEntityHttpException;
-use common\enums\PayTypeEnum;
+use common\forms\PayForm;
 use common\helpers\Url;
 use common\helpers\ResultHelper;
+use common\enums\PayTypeEnum;
 use common\enums\StatusEnum;
-use common\helpers\AddonHelper;
-use common\models\forms\CreditsLogForm;
-use common\models\forms\PayForm;
+use common\forms\CreditsLogForm;
 use api\controllers\OnAuthController;
-use addons\TinyShop\common\enums\OrderTypeEnum;
-use addons\TinyShop\common\models\forms\OrderPayFrom;
-use addons\TinyShop\common\enums\OrderStatusEnum;
-use addons\TinyShop\common\models\forms\RechargePayFrom;
+use addons\TinyShop\common\forms\OrderBatchPayFrom;
+use addons\TinyShop\common\forms\OrderPayFrom;
+use addons\TinyShop\common\forms\OrderUnitePayFrom;
+use addons\TinyShop\common\forms\OrderUniteBatchPayFrom;
+use addons\TinyShop\common\forms\RechargePayFrom;
+use addons\TinyShop\common\enums\PayGroupEnum;
+use addons\TinyShop\common\models\order\Order;
 
 /**
- * 公用支付
- *
  * Class PayController
- * @package addons\TinyShop\api\controllers
- * @author jianyan74 <751393839@qq.com>
+ * @package addons\TinyShop\api\modules\v1\controllers\common
  */
 class PayController extends OnAuthController
 {
@@ -33,14 +32,6 @@ class PayController extends OnAuthController
 
     /**
      * @return array|mixed|\yii\db\ActiveRecord
-     * @throws UnprocessableEntityHttpException
-     * @throws \EasyWeChat\Kernel\Exceptions\HttpException
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
-     * @throws \EasyWeChat\Kernel\Exceptions\RuntimeException
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     * @throws \Psr\SimpleCache\InvalidArgumentException
-     * @throws \yii\base\InvalidConfigException
      */
     public function actionCreate()
     {
@@ -57,13 +48,18 @@ class PayController extends OnAuthController
         if ($payForm->pay_type != PayTypeEnum::USER_MONEY) {
             // 执行方法
             $payForm->setHandlers([
-                'recharge' => RechargePayFrom::class,
-                'order' => OrderPayFrom::class,
+                // 订单
+                'order' => OrderPayFrom::class, // 订单
+                'orderUnite' => OrderUnitePayFrom::class, // 订单混合支付
+                'orderBatch' => OrderBatchPayFrom::class, // 订单批量支付
+                'orderUniteBatch' => OrderUniteBatchPayFrom::class, // 订单批量混合支付
+                // 其他
+                'recharge' => RechargePayFrom::class, // 充值
             ]);
 
             // 回调方法
-            $payForm->notify_url = Url::removeMerchantIdUrl('toFront', ['notify/' . PayTypeEnum::action($payForm->pay_type)]);
-            !$payForm->openid && $payForm->openid = Yii::$app->user->identity->openid;
+            $payForm->notify_url = Url::removeMerchantIdUrl('toApi', ['v1/notify/' . PayTypeEnum::action($payForm->pay_type)]);
+            // $payForm->return_url = '支付宝PC/H5跳转地址';
 
             // 生成配置
             return ResultHelper::json(200, '待支付', [
@@ -76,31 +72,43 @@ class PayController extends OnAuthController
         /********************************** 余额支付 *********************************/
         /*---------------------------------------------------------------------------*/
 
-        $config = AddonHelper::getConfig();
-        if (!isset($config['order_balance_pay']) || $config['order_balance_pay'] == StatusEnum::DISABLED) {
+        $config = Yii::$app->tinyShopService->config->setting();
+        if ($config->order_balance_pay == StatusEnum::DISABLED) {
             throw new UnprocessableEntityHttpException('不支持余额支付');
         }
 
         // 开启事务
         $transaction = Yii::$app->db->beginTransaction();
         try {
-            $order_id = $payForm->data['order_id'];
-            if (!($order = Yii::$app->tinyShopService->order->findById($order_id))) {
-                throw new UnprocessableEntityHttpException('订单不存在');
+            switch ($payForm->order_group) {
+                // 订单支付
+                case PayGroupEnum::ORDER ;
+                    /** @var Order $order */
+                    if (
+                        empty($payForm->data['order_id']) ||
+                        empty($order = Yii::$app->tinyShopService->order->findById($payForm->data['order_id']))
+                    ) {
+                        throw new UnprocessableEntityHttpException('找不到订单');
+                    }
+
+                    $this->balancePay($payForm, $order, $payForm->order_group);
+                    break;
+                // 订单批量支付
+                case PayGroupEnum::ORDER_BATCH ;
+                    if (empty($payForm->data['unite_no'])) {
+                        throw new UnprocessableEntityHttpException('找不到订单');
+                    }
+
+                    $orders = Yii::$app->tinyShopService->order->findByUniteNo($payForm->data['unite_no']);
+                    /** @var Order $order */
+                    foreach ($orders as $order) {
+                        Yii::$app->services->merchant->setId('');
+                        $this->balancePay($payForm, $order, $payForm->order_group);
+                    }
+                    break;
+                default :
+                    throw new UnprocessableEntityHttpException('订单类型错误');
             }
-
-            $pay_money = $order->pay_money;
-            // 扣除余额
-            $member = Yii::$app->services->member->get($payForm->member_id);
-            Yii::$app->services->memberCreditsLog->decrMoney(new CreditsLogForm([
-                'member' => $member,
-                'num' => $pay_money,
-                'credit_group' => 'orderCreate',
-                'map_id' => $order_id,
-                'remark' => Yii::$app->params['tinyShopName']  . '订单余额支付',
-            ]));
-
-            Yii::$app->tinyShopService->order->pay($order, PayTypeEnum::USER_MONEY);
 
             $transaction->commit();
 
@@ -110,7 +118,32 @@ class PayController extends OnAuthController
         } catch (\Exception $e) {
             $transaction->rollBack();
 
-            return ResultHelper::json(422, $e->getMessage());
+            return ResultHelper::json(422, YII_DEBUG ? Yii::$app->services->base->getErrorInfo($e) : $e->getMessage());
         }
+    }
+
+    /**
+     * @param PayForm $payForm
+     * @param Order $order
+     * @param $order_group
+     * @throws UnprocessableEntityHttpException
+     * @throws \yii\web\NotFoundHttpException
+     */
+    protected function balancePay(PayForm $payForm, Order $order, $order_group)
+    {
+        $pay_money = $order->pay_money;
+
+        // 扣除余额
+        $member = Yii::$app->services->member->findById($payForm->member_id);
+        Yii::$app->services->memberCreditsLog->decrMoney(new CreditsLogForm([
+            'member' => $member,
+            'num' => $pay_money,
+            'group' => 'orderCreate',
+            'map_id' => $order->id,
+            'remark' => '订单支付-' . $order->order_sn,
+            'is_consume' => true,
+        ]));
+
+        Yii::$app->tinyShopService->order->pay($order, PayTypeEnum::USER_MONEY);
     }
 }

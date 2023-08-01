@@ -2,12 +2,13 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
-use common\helpers\ArrayHelper;
 use Yii;
 use yii\data\ActiveDataProvider;
-use addons\TinyShop\common\models\member\Footprint;
-use api\controllers\UserAuthController;
 use common\enums\StatusEnum;
+use common\helpers\ArrayHelper;
+use api\controllers\UserAuthController;
+use addons\TinyShop\common\models\member\Footprint;
+use addons\TinyShop\common\forms\ProductSearchForm;
 
 /**
  * 足迹
@@ -24,9 +25,7 @@ class FootprintController extends UserAuthController
     public $modelClass = Footprint::class;
 
     /**
-     * 首页
-     *
-     * @return ActiveDataProvider
+     * @return array|ActiveDataProvider|\yii\db\ActiveRecord[]
      */
     public function actionIndex()
     {
@@ -35,11 +34,11 @@ class FootprintController extends UserAuthController
 
         $data = new ActiveDataProvider([
             'query' => $this->modelClass::find()
+                ->select(['id', 'product_id', 'updated_at'])
                 ->where(['status' => StatusEnum::ENABLED, 'member_id' => Yii::$app->user->identity->member_id])
                 ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
                 ->andFilterWhere(['>', 'updated_at', $start_time])
                 ->andFilterWhere(['<', 'updated_at', $end_time])
-                ->with('product')
                 ->orderBy('updated_at desc')
                 ->asArray(),
             'pagination' => [
@@ -48,6 +47,26 @@ class FootprintController extends UserAuthController
             ],
         ]);
 
-        return $data;
+        $models = $data->getModels();
+        $productIds = ArrayHelper::getColumn($models, 'product_id');
+        if (empty($productIds)) {
+            return [];
+        }
+
+        // 查询商品
+        $model = new ProductSearchForm();
+        $model->ids = $productIds;
+        $model->current_level = Yii::$app->tinyShopService->member->getCurrentLevel(Yii::$app->user->identity->member_id);
+        $products = Yii::$app->tinyShopService->product->getListBySearch($model);
+        $products = ArrayHelper::arrayKey($products, 'id');
+
+        // 重新排序
+        foreach ($models as &$model) {
+            unset($model['id']);
+            $model['created_at'] = $model['updated_at'];
+            isset($products[$model['product_id']]) && $model = ArrayHelper::merge($model, $products[$model['product_id']]);
+        }
+
+        return $models;
     }
 }

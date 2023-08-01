@@ -18,6 +18,13 @@ class SearchController extends BaseController
 {
     public function actionIndex()
     {
+        return $this->render($this->action->id, [
+
+        ]);
+    }
+
+    public function actionRecord()
+    {
         $searchModel = new SearchModel([
             'model' => SearchHistory::class,
             'scenario' => 'default',

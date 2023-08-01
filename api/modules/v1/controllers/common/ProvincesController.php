@@ -27,7 +27,7 @@ class ProvincesController extends OnAuthController
      *
      * @var array
      */
-    protected $authOptional = ['json'];
+    protected $authOptional = ['index'];
 
     /**
      * 获取省市区
@@ -43,10 +43,18 @@ class ProvincesController extends OnAuthController
     }
 
     /**
-     * @return array
+     * 权限验证
+     *
+     * @param string $action 当前的方法
+     * @param null $model 当前的模型类
+     * @param array $params $_GET变量
+     * @throws \yii\web\BadRequestHttpException
      */
-    protected function actionJson()
+    public function checkAccess($action, $model = null, $params = [])
     {
-        return Yii::$app->services->provinces->getJsonData();
+        // 方法名称
+        if (in_array($action, ['create', 'update', 'delete'])) {
+            throw new \yii\web\BadRequestHttpException('权限不足');
+        }
     }
 }

@@ -37,6 +37,7 @@ class BrandController extends BaseController
             'scenario' => 'default',
             'partialMatchAttributes' => ['title'], // 模糊查询
             'defaultOrder' => [
+                'merchant_id' => SORT_DESC,
                 'sort' => SORT_ASC,
                 'id' => SORT_DESC,
             ],
@@ -47,11 +48,12 @@ class BrandController extends BaseController
             ->search(Yii::$app->request->queryParams);
         $dataProvider->query
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()]);
+            ->andWhere(['in', 'merchant_id', [0, $this->getMerchantId()]]);
 
         return $this->render($this->action->id, [
             'dataProvider' => $dataProvider,
             'searchModel' => $searchModel,
+            'merchant_id' => Yii::$app->services->merchant->getNotNullId(),
         ]);
     }
 

@@ -2,58 +2,49 @@
 
 namespace addons\TinyShop\common\models\marketing;
 
-use addons\TinyShop\common\models\product\Product;
-use common\behaviors\MerchantBehavior;
-use common\models\member\Member;
+use yii\db\ActiveQuery;
+use yii\base\InvalidConfigException;
 use common\traits\HasOneMerchant;
+use common\traits\HasOneMember;
+use addons\TinyShop\common\enums\MarketingEnum;
+use addons\TinyShop\common\models\product\Product;
+use yii\db\ActiveRecord;
 
 /**
- * This is the model class for table "{{%addon_shop_marketing_coupon}}".
+ * This is the model class for table "{{%addon_tiny_shop_marketing_coupon}}".
  *
  * @property int $id 优惠券id
- * @property string $title 标题
- * @property string $coupon_type_id 优惠券类型id
- * @property string $merchant_id 店铺Id
- * @property string $code 优惠券编码
- * @property int $type 优惠券类型 1:满减;2:折扣
- * @property string $at_least 满多少元使用 0代表无限制
- * @property int $member_id 领用人
- * @property int $use_order_id 优惠券使用订单id
- * @property int $create_order_id 创建订单id(优惠券只有是完成订单发放的优惠券时才有值)
- * @property int $discount 折扣 1-100
- * @property string $money 面额
- * @property int $state 优惠券状态 0未领用 1已领用（未使用） 2已使用 3已过期
- * @property int $get_type 获取方式1订单2.首页领取
- * @property int $fetch_time 领取时间
- * @property int $use_time 使用时间
- * @property int $start_time 有效期开始时间
- * @property int $end_time 有效期结束时间
+ * @property int|null $member_id 领用人
+ * @property int|null $merchant_id 店铺Id
+ * @property int $coupon_type_id 优惠券类型id
+ * @property float|null $discount 活动金额
+ * @property int|null $discount_type 活动金额类型
+ * @property string $title 优惠券名称
+ * @property string|null $code 优惠券编码
+ * @property int|null $map_id 创建关联ID
+ * @property int|null $map_type 创建关联类型
+ * @property int|null $use_order_id 优惠券使用订单id
+ * @property float|null $at_least 满多少元使用 0代表无限制
+ * @property int|null $state 优惠券状态 0未领用 1已领用（未使用） 2已使用 3已过期
+ * @property int|null $get_type 获取方式
+ * @property int|null $single_type 单品卷
+ * @property int|null $is_read 浏览状态
+ * @property int|null $fetch_time 领取时间
+ * @property int|null $use_time 使用时间
+ * @property int|null $start_time 有效期开始时间
+ * @property int|null $end_time 有效期结束时间
+ * @property int|null $status 状态
  */
-class Coupon extends \yii\db\ActiveRecord
+class Coupon extends ActiveRecord
 {
-    use MerchantBehavior, HasOneMerchant;
-
-    const STATE_UNUNSED = 0;
-    const STATE_GET = 1;
-    const STATE_UNSED = 2;
-    const STATE_PAST_DUE = 3;
-
-    /**
-     * @var array
-     */
-    public static $stateExplain = [
-        self::STATE_UNUNSED => '未领取',
-        self::STATE_GET => '已领取',
-        self::STATE_UNSED => '已使用',
-        self::STATE_PAST_DUE => '已过期',
-    ];
+    use HasOneMerchant, HasOneMember;
 
     /**
      * {@inheritdoc}
      */
     public static function tableName()
     {
-        return '{{%addon_shop_marketing_coupon}}';
+        return '{{%addon_tiny_shop_marketing_coupon}}';
     }
 
     /**
@@ -64,15 +55,17 @@ class Coupon extends \yii\db\ActiveRecord
         return [
             [
                 [
-                    'type',
-                    'discount',
-                    'coupon_type_id',
-                    'merchant_id',
                     'member_id',
+                    'merchant_id',
+                    'coupon_type_id',
+                    'discount_type',
+                    'map_id',
+                    'map_type',
                     'use_order_id',
-                    'create_order_id',
                     'state',
                     'get_type',
+                    'single_type',
+                    'is_read',
                     'fetch_time',
                     'use_time',
                     'start_time',
@@ -81,9 +74,9 @@ class Coupon extends \yii\db\ActiveRecord
                 ],
                 'integer',
             ],
-            [['money', 'at_least'], 'number'],
-            [['code'], 'string', 'max' => 100],
+            [['discount', 'at_least'], 'number'],
             [['title'], 'string', 'max' => 50],
+            [['code'], 'string', 'max' => 100],
         ];
     }
 
@@ -93,37 +86,32 @@ class Coupon extends \yii\db\ActiveRecord
     public function attributeLabels()
     {
         return [
-            'id' => 'ID',
-            'title' => '标题',
-            'type' => '优惠券类型',
-            'coupon_type_id' => 'Coupon Type ID',
-            'merchant_id' => 'Merchant ID',
-            'code' => '优惠券编码',
+            'id' => '优惠券id',
             'member_id' => '领用人',
+            'merchant_id' => '店铺Id',
+            'coupon_type_id' => '优惠券类型id',
+            'discount' => '活动金额',
+            'discount_type' => '活动金额类型',
+            'title' => '优惠券名称',
+            'code' => '优惠券编码',
+            'map_id' => '创建关联ID',
+            'map_type' => '创建关联类型',
             'use_order_id' => '优惠券使用订单id',
-            'create_order_id' => '创建订单id',
-            'money' => '面额',
             'at_least' => '满多少元使用',
-            'discount' => '折扣率',
             'state' => '优惠券状态',
             'get_type' => '获取方式',
+            'single_type' => '单品卷',
+            'is_read' => '浏览状态',
             'fetch_time' => '领取时间',
             'use_time' => '使用时间',
             'start_time' => '有效期开始时间',
             'end_time' => '有效期结束时间',
+            'status' => '状态',
         ];
     }
 
     /**
-     * @return \yii\db\ActiveQuery
-     */
-    public function getMember()
-    {
-        return $this->hasOne(Member::class, ['id' => 'member_id']);
-    }
-
-    /**
-     * @return \yii\db\ActiveQuery
+     * @return ActiveQuery
      */
     public function getCouponType()
     {
@@ -131,24 +119,26 @@ class Coupon extends \yii\db\ActiveRecord
     }
 
     /**
-     * 可用商品
+     * 关联商品
      *
-     * @return \yii\db\ActiveQuery
-     * @throws \yii\base\InvalidConfigException
+     * @return ActiveQuery
      */
-    public function getUsableProduct()
+    public function getProduct()
     {
-        return $this->hasMany(Product::class, ['id' => 'product_id'])
-            ->viaTable(CouponProduct::tableName(), ['coupon_type_id' => 'coupon_type_id'])
-            ->select(['id', 'name'])
-            ->asArray();
+        return $this->hasMany(MarketingProduct::class, ['marketing_id' => 'coupon_type_id'])
+            ->select(['id', 'marketing_id', 'marketing_type', 'product_id'])
+            ->andWhere(['in', 'marketing_type', [MarketingEnum::COUPON_IN, MarketingEnum::COUPON_NOT_IN]]);
     }
 
     /**
-     * @return \yii\db\ActiveQuery
+     * 关联分类
+     *
+     * @return ActiveQuery
      */
-    public function getCouponProduct()
+    public function getCate()
     {
-        return $this->hasMany(CouponProduct::class, ['coupon_type_id' => 'coupon_type_id']);
+        return $this->hasMany(MarketingCate::class, ['marketing_id' => 'coupon_type_id'])
+            ->select(['id', 'marketing_id', 'marketing_type', 'cate_id'])
+            ->andWhere(['in', 'marketing_type', [MarketingEnum::COUPON_IN, MarketingEnum::COUPON_NOT_IN]]);
     }
 }

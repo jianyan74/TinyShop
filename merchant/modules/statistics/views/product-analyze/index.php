@@ -7,6 +7,7 @@ $this->params['breadcrumbs'][] = ['label' => '数据统计'];
 $this->params['breadcrumbs'][] = ['label' => $this->title];
 
 $rank = 0;
+
 ?>
 <div class="row">
     <div class="col-md-6 col-xs-12">
@@ -54,7 +55,7 @@ $rank = 0;
 </div>
 
 <div class="row">
-    <div class="col-xs-12">
+    <div class="col-12">
         <div class="box">
             <div class="box-header">
                 <h3 class="box-title"><?= $this->title; ?></h3>

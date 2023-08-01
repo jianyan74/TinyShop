@@ -4,6 +4,7 @@ namespace addons\TinyShop\services\common;
 
 use common\components\Service;
 use addons\TinyShop\common\models\common\Collect;
+use common\enums\StatusEnum;
 
 /**
  * Class CollectService
@@ -25,15 +26,11 @@ class CollectService extends Service
                 'topic_id' => $topic_id,
                 'topic_type' => $topic_type,
                 'member_id' => $member_id,
+                'status' => StatusEnum::ENABLED,
             ])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->one();
 
-        if (!$model) {
-            $model = new Collect();
-        }
-
-        return $model;
+        return empty($model) ? new Collect() : $model;
     }
 
     /**
@@ -44,7 +41,6 @@ class CollectService extends Service
     {
         return Collect::find()
             ->where(['id' => $id, 'member_id' => $member_id])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->one();
     }
 }

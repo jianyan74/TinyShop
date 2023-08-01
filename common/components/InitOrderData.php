@@ -3,11 +3,11 @@
 namespace addons\TinyShop\common\components;
 
 use yii\web\UnprocessableEntityHttpException;
-use addons\TinyShop\common\enums\PreviewTypeEnum;
-use addons\TinyShop\common\models\forms\PreviewForm;
+use addons\TinyShop\common\enums\MarketingEnum;
+use addons\TinyShop\common\forms\PreviewForm;
 use addons\TinyShop\common\components\purchase\CartPurchase;
 use addons\TinyShop\common\components\purchase\BuyNowPurchase;
-use addons\TinyShop\common\components\purchase\PointExchangePurchase;
+use addons\TinyShop\common\components\purchase\BuyAgainPurchase;
 
 /**
  * 初始化订单数据
@@ -31,13 +31,13 @@ class InitOrderData
      * @var array
      */
     protected $handlers = [
-        PreviewTypeEnum::CART => CartPurchase::class, // 购物车
-        PreviewTypeEnum::BUY_NOW => BuyNowPurchase::class, // 立即下单
-        PreviewTypeEnum::POINT_EXCHANGE => PointExchangePurchase::class, // 积分
+        MarketingEnum::CART => CartPurchase::class, // 购物车
+        MarketingEnum::BUY_NOW => BuyNowPurchase::class, // 立即下单
+        MarketingEnum::BUY_AGAIN => BuyAgainPurchase::class, // 再次下单
     ];
 
     /**
-     * 必须保证返回有产品信息不然报错
+     * 必须保证返回有商品信息不然报错
      *
      * @param PreviewForm $previewForm
      * @param $type
@@ -56,7 +56,7 @@ class InitOrderData
         $class->isNewRecord = $this->isNewRecord;
         $previewForm = $class->execute($previewForm);
         if (!$previewForm->orderProducts || !$previewForm->sku) {
-            throw new UnprocessableEntityHttpException('找不到可用的产品');
+            throw new UnprocessableEntityHttpException('找不到可用的商品');
         }
 
         $previewForm = $class->afterExecute($previewForm, $class::getType());

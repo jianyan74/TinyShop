@@ -9,7 +9,7 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
 
 
 <div class="row">
-    <div class="col-xs-12">
+    <div class="col-12">
         <div class="box">
             <div class="box-header">
                 <h3 class="box-title"><?= $this->title; ?></h3>

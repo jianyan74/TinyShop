@@ -32,7 +32,7 @@ class ProductAnalyzeController extends BaseController
      */
     public function actionProductType()
     {
-        $data = Yii::$app->tinyShopService->product->getGroupVirtual();
+        $data = Yii::$app->tinyShopService->product->getProductTypeStat();
 
         return ResultHelper::json(200, '获取成功', $data);
     }
@@ -43,13 +43,13 @@ class ProductAnalyzeController extends BaseController
     public function actionSusRes($type = '')
     {
         if (Yii::$app->request->isAjax) {
-            $data = Yii::$app->tinyShopService->order->getBetweenProductCountAndCountStatToEchant($type);
+            $data = Yii::$app->tinyShopService->orderStat->getBetweenProductCountAndCountStatToEchant($type);
 
             return ResultHelper::json(200, '获取成功', $data);
         }
 
         return $this->render($this->action->id, [
-            'total' => Yii::$app->tinyShopService->order->getStatByTime(0),
+            'total' => Yii::$app->tinyShopService->orderStat->getStatByTime(0),
         ]);
     }
 }

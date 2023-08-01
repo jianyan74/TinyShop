@@ -33,7 +33,7 @@ class EvaluateController extends OnAuthController
     protected $authOptional = ['index'];
 
     /**
-     * @return ActiveDataProvider
+     * @return array
      */
     public function actionIndex()
     {
@@ -76,9 +76,10 @@ class EvaluateController extends OnAuthController
             }
         }
 
-        $model->setModels($data);
-
-        return $model;
+        return [
+            'list' => $data,
+            'stat' => Yii::$app->tinyShopService->productEvaluateStat->findByProductId($product_id),
+        ];
     }
 
     /**

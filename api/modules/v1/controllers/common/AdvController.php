@@ -47,8 +47,6 @@ class AdvController extends OnAuthController
     public function actionView($id)
     {
         return Adv::updateAllCounters(['view' => 1], ['id' => $id]);
-
-        // return parent::actionView($id);
     }
 
     /**

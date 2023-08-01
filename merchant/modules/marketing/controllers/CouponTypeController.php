@@ -3,14 +3,19 @@
 namespace addons\TinyShop\merchant\modules\marketing\controllers;
 
 use Yii;
+use yii\helpers\Json;
+use yii\web\NotFoundHttpException;
 use common\traits\MerchantCurd;
 use common\enums\StatusEnum;
+use common\helpers\ResultHelper;
 use common\models\base\SearchModel;
-use addons\TinyShop\merchant\forms\CouponTypeForm;
 use addons\TinyShop\merchant\controllers\BaseController;
-use addons\TinyShop\merchant\forms\CouponTypeGiveForm;
+use addons\TinyShop\common\enums\MarketingEnum;
 use addons\TinyShop\common\models\marketing\CouponType;
-use yii\web\NotFoundHttpException;
+use addons\TinyShop\common\enums\CouponGetTypeEnum;
+use addons\TinyShop\common\enums\RangeTypeEnum;
+use addons\TinyShop\merchant\modules\marketing\forms\CouponTypeForm;
+use addons\TinyShop\merchant\modules\marketing\forms\CouponTypeGiveForm;
 
 /**
  * Class MarketingCouponTypeController
@@ -35,7 +40,7 @@ class CouponTypeController extends BaseController
     public function actionIndex()
     {
         $searchModel = new SearchModel([
-            'model' => $this->modelClass,
+            'model' => CouponType::class,
             'scenario' => 'default',
             'partialMatchAttributes' => ['title'], // 模糊查询
             'defaultOrder' => [
@@ -47,7 +52,7 @@ class CouponTypeController extends BaseController
         $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
         $dataProvider->query
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
-            ->andWhere(['merchant_id' => $this->getMerchantId()]);
+            ->andWhere(['merchant_id' => Yii::$app->services->merchant->getNotNullId()]);
 
         return $this->render($this->action->id, [
             'dataProvider' => $dataProvider,
@@ -56,31 +61,39 @@ class CouponTypeController extends BaseController
     }
 
     /**
-     * @return string
-     * @throws NotFoundHttpException
+     * 编辑/创建
+     *
+     * @return mixed
      */
-    public function actionSelect()
+    public function actionEdit()
     {
-        $this->layout = '@backend/views/layouts/default';
+        $id = Yii::$app->request->get('id', null);
+        $model = $this->findModel($id);
+        if ($model->load(Yii::$app->request->post())) {
+            // 事务
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                $model->products = Json::decode($model->products);
+                if (!$model->save()) {
+                    throw new NotFoundHttpException($this->getError($model));
+                }
 
-        $searchModel = new SearchModel([
-            'model' => $this->modelClass,
-            'scenario' => 'default',
-            'partialMatchAttributes' => ['name'], // 模糊查询
-            'defaultOrder' => [
-                'id' => SORT_DESC,
-            ],
-            'pageSize' => $this->pageSize,
-        ]);
+                $transaction->commit();
 
-        $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
-        $dataProvider->query
-            ->andWhere(['status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()]);
+                return ResultHelper::json(200, '保存成功');
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                return ResultHelper::json(422, $e->getMessage());
+            }
+        }
+
+        $model->products = Yii::$app->tinyShopService->marketingProduct->regroup($id, $model->range_type == RangeTypeEnum::ASSIGN_PRODUCT ? MarketingEnum::COUPON_IN : MarketingEnum::COUPON_NOT_IN);
+        $model->cateIds = Yii::$app->tinyShopService->marketingCate->getCateIdsByMarketing($id, $model->range_type == RangeTypeEnum::ASSIGN_CATE ? MarketingEnum::COUPON_IN : MarketingEnum::COUPON_NOT_IN);
 
         return $this->render($this->action->id, [
-            'dataProvider' => $dataProvider,
-            'searchModel' => $searchModel,
+            'model' => $model,
+            'cates' => Yii::$app->tinyShopService->productCate->getList(),
+            'referrer' => Yii::$app->request->referrer,
         ]);
     }
 
@@ -102,12 +115,11 @@ class CouponTypeController extends BaseController
         $model->title = $coupon->title;
         $model->coupon_type_id = $coupon_type_id;
 
-
         if ($model->load($request->post())) {
             if ($model->member_id > 0) {
                 try {
                     for ($i = 0;$i < $model->num; $i++) {
-                        Yii::$app->tinyShopService->marketingCoupon->give($coupon, $model->member_id);
+                        Yii::$app->tinyShopService->marketingCoupon->giveByNewRecord($coupon, $model->member_id, 0, CouponGetTypeEnum::MANAGER);
                     }
 
                     return $this->message('赠送成功', $this->redirect(Yii::$app->request->referrer));
@@ -123,6 +135,50 @@ class CouponTypeController extends BaseController
 
         return $this->renderAjax($this->action->id, [
             'model' => $model,
+        ]);
+    }
+
+    /**
+     * @return string
+     * @throws NotFoundHttpException
+     */
+    public function actionSelect()
+    {
+        $this->layout = '@backend/views/layouts/blank';
+        $multiple = Yii::$app->request->get('multiple');
+
+        $searchModel = new SearchModel([
+            'model' => CouponType::class,
+            'scenario' => 'default',
+            'partialMatchAttributes' => ['title'], // 模糊查询
+            'defaultOrder' => [
+                'id' => SORT_DESC,
+            ],
+            'pageSize' => $this->pageSize,
+        ]);
+
+        $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+        $dataProvider->query
+            ->andWhere(['status' => StatusEnum::ENABLED])
+            ->andWhere(['merchant_id' => $this->getMerchantId()]);
+
+        /** @var  $gridSelectType */
+        $gridSelectType = [
+            'class' => 'yii\grid\CheckboxColumn',
+            'property' => 'checkboxOptions',
+        ];
+
+        if ($multiple == false) {
+            $gridSelectType = [
+                'class' => 'yii\grid\RadioButtonColumn',
+                'property' => 'radioOptions',
+            ];
+        }
+
+        return $this->render($this->action->id, [
+            'dataProvider' => $dataProvider,
+            'searchModel' => $searchModel,
+            'gridSelectType' => $gridSelectType,
         ]);
     }
 }

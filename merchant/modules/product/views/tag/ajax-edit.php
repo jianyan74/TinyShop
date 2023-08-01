@@ -9,15 +9,14 @@ $form = ActiveForm::begin([
     'enableAjaxValidation' => true,
     'validationUrl' => Url::to(['ajax-edit', 'id' => $model['id']]),
     'fieldConfig' => [
-        'template' => "<div class='col-sm-3 text-right'>{label}</div><div class='col-sm-9'>{input}\n{hint}\n{error}</div>",
-    ],
+        'template' => "<div class='row'><div class='col-sm-3 text-right'>{label}</div><div class='col-sm-9'>{input}\n{hint}\n{error}</div></div>",
+    ]
 ]);
 ?>
 
     <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">×</span><span class="sr-only">关闭</span>
-        </button>
         <h4 class="modal-title">基本信息</h4>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
     </div>
     <div class="modal-body">
         <?= $form->field($model, 'title')->textInput(); ?>

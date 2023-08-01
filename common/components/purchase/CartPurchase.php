@@ -2,10 +2,11 @@
 
 namespace addons\TinyShop\common\components\purchase;
 
+use addons\TinyShop\common\enums\MarketingEnum;
 use Yii;
 use yii\web\UnprocessableEntityHttpException;
 use common\helpers\BcHelper;
-use addons\TinyShop\common\models\forms\PreviewForm;
+use addons\TinyShop\common\forms\PreviewForm;
 use addons\TinyShop\common\models\order\OrderProduct;
 use addons\TinyShop\common\components\InitOrderDataInterface;
 
@@ -26,13 +27,32 @@ class CartPurchase extends InitOrderDataInterface
      */
     public function execute(PreviewForm $form): PreviewForm
     {
-        $cartIds = explode(',', $form->data);
-        $carts = Yii::$app->tinyShopService->memberCartItem->findByIds($cartIds, $form->buyer_id);
-        if (empty($carts) || count($cartIds) != count($carts)) {
-            throw new UnprocessableEntityHttpException('找不到产品信息');
+        $carts = Yii::$app->tinyShopService->memberCartItem->findByIds($form->data, $form->buyer_id, true);
+        if (count($form->data) != count($carts)) {
+            throw new UnprocessableEntityHttpException('找不到商品信息');
         }
 
         foreach ($carts as $model) {
+            // 超值换购
+            $plusBuyId = $model['marketing_id'];
+            if ($plusBuyId > 0 && $model['marketing_type'] == MarketingEnum::PLUS_BUY) {
+                if (!isset($form->plus_buy[$plusBuyId])) {
+                    $form->plus_buy[$plusBuyId] = [
+                        'marketing_id' => $plusBuyId,
+                        'number' => 0,
+                        'price' => 0,
+                        'product_ids' => [],
+                        'carts' => [],
+                    ];
+                }
+
+                $form->plus_buy[$plusBuyId]['number'] += $model['number'];
+                $form->plus_buy[$plusBuyId]['price'] += $model['number'] * $model['sku']['price'];
+                $form->plus_buy[$plusBuyId]['product_ids'][] = $model['product_id'];
+                $form->plus_buy[$plusBuyId]['carts'][] = $model;
+                continue;
+            }
+
             $orderProduct = new OrderProduct();
             $orderProduct = $orderProduct->loadDefaultValues();
             $orderProduct->merchant_id = $model['product']['merchant_id'];
@@ -40,15 +60,18 @@ class CartPurchase extends InitOrderDataInterface
             $orderProduct->product_name = $model['product']['name'];
             $orderProduct->sku_id = $model['sku_id'];
             $orderProduct->sku_name = $model['sku']['name'];
-            $orderProduct->cost_price = $model['sku']['cost_price'];
             $orderProduct->num = $model['number'];
+            $orderProduct->cost_price = BcHelper::mul($orderProduct->num, $model['sku']['cost_price']);
             $orderProduct->price = $model['sku']['price'];
-            $orderProduct->product_money = $orderProduct->num * $orderProduct->price;
+            $orderProduct->product_money = BcHelper::mul($orderProduct->num, $orderProduct->price);
             $orderProduct->product_original_money = $orderProduct->product_money;
             $orderProduct->product_picture = !empty($model['sku']['picture']) ? $model['sku']['picture'] : $model['product']['picture'];
+            $orderProduct->product_type = $model['product']['type'];
+            $orderProduct->stock_deduction_type = $model['product']['stock_deduction_type'];
             $orderProduct->buyer_id = $model['member_id'];
             $orderProduct->point_exchange_type = $model['product']['point_exchange_type'];
-            $orderProduct->is_open_commission = $model['product']['is_open_commission'];
+            $orderProduct->supplier_id = $model['product']['supplier_id'];
+            $orderProduct->is_commission = $model['product']['is_commission'];
 
             // 默认数据带购物车数量方便计算
             $product = $model['product'];
@@ -59,10 +82,12 @@ class CartPurchase extends InitOrderDataInterface
             $form->merchant_id = $orderProduct->merchant_id;
             $form->product_money = BcHelper::add($form->product_money, $orderProduct->product_money);
             $form->product_original_money = BcHelper::add($form->product_original_money, $orderProduct->product_money);
+            $form->product_type = $orderProduct->product_type;
             $form->max_use_point += $model['product']['max_use_point'] * $orderProduct->num; // 最多抵现积分
             $form->defaultProducts[] = $product;
             $form->orderProducts[] = $orderProduct;
             $form->sku[] = $model['sku'];
+            empty($form->merchant) && $form->merchant = $model['merchant'];
 
             unset($product);
         }

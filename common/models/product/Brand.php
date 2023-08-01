@@ -6,16 +6,17 @@ use Yii;
 use common\behaviors\MerchantBehavior;
 
 /**
- * This is the model class for table "{{%addon_shop_product_brand}}".
+ * This is the model class for table "{{%addon_tiny_shop_product_brand}}".
  *
- * @property string $id
- * @property int $cate_id 商品类别编号
- * @property string $title 品牌名称
- * @property string $cover 图片url
- * @property int $sort 排列次序
- * @property int $status 状态
- * @property int $created_at 创建时间
- * @property int $updated_at 修改时间
+ * @property int $id
+ * @property int|null $merchant_id 商户id
+ * @property string|null $title 品牌名称
+ * @property int|null $cate_id 商品类别编号
+ * @property string|null $cover 图片url
+ * @property int|null $sort 排序
+ * @property int|null $status 状态
+ * @property int|null $created_at 创建时间
+ * @property int|null $updated_at 修改时间
  */
 class Brand extends \common\models\base\BaseModel
 {
@@ -26,7 +27,7 @@ class Brand extends \common\models\base\BaseModel
      */
     public static function tableName()
     {
-        return '{{%addon_shop_product_brand}}';
+        return '{{%addon_tiny_shop_product_brand}}';
     }
 
     /**
@@ -36,10 +37,10 @@ class Brand extends \common\models\base\BaseModel
     {
         return [
             [['merchant_id', 'cate_id', 'sort', 'status', 'created_at', 'updated_at'], 'integer'],
-            [['title'], 'string', 'max' => 25],
-            [['cover'], 'string', 'max' => 125],
-            [['title'], 'uniqueTitle'],
+            [['title'], 'string', 'max' => 50],
             [['title'], 'required'],
+            [['title'], 'uniqueTitle'],
+            [['cover'], 'string', 'max' => 200],
         ];
     }
 
@@ -50,13 +51,14 @@ class Brand extends \common\models\base\BaseModel
     {
         return [
             'id' => 'ID',
-            'cate_id' => '产品分类',
+            'merchant_id' => '商户id',
             'title' => '品牌名称',
-            'cover' => '封面',
-            'sort' => '排序',
+            'cate_id' => '商品类别编号',
+            'cover' => '图片',
+            'sort' => '排列',
             'status' => '状态',
             'created_at' => '创建时间',
-            'updated_at' => '更新时间',
+            'updated_at' => '修改时间',
         ];
     }
 

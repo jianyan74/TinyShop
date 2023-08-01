@@ -2,7 +2,7 @@
 
 namespace addons\TinyShop\services\common;
 
-use common\components\Service;
+use Yii;
 use common\enums\StatusEnum;
 use addons\TinyShop\common\enums\AdvLocalEnum;
 use addons\TinyShop\common\models\common\Adv;
@@ -10,9 +10,8 @@ use addons\TinyShop\common\models\common\Adv;
 /**
  * Class AdvService
  * @package addons\TinyShop\services\common
- * @author jianyan74 <751393839@qq.com>
  */
-class AdvService extends Service
+class AdvService
 {
     /**
      * 获取广告列表
@@ -31,7 +30,7 @@ class AdvService extends Service
             ->andWhere(['in', 'location', $locals])
             ->andWhere(['<', 'start_time', time()])
             ->andWhere(['>', 'end_time', time()])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->andWhere(['merchant_id' => Yii::$app->services->merchant->getNotNullId()])
             ->orderBy('sort asc, id desc')
             ->cache(60)
             ->asArray()

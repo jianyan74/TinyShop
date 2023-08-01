@@ -5,13 +5,13 @@ namespace addons\TinyShop\api\modules\v1\controllers\member;
 use Yii;
 use yii\helpers\Json;
 use yii\web\NotFoundHttpException;
+use yii\web\UnprocessableEntityHttpException;
 use api\controllers\UserAuthController;
 use common\helpers\ResultHelper;
 use common\enums\StatusEnum;
-use addons\TinyShop\api\modules\v1\forms\EvaluateForm;
 use addons\TinyShop\common\models\product\Evaluate;
-use addons\TinyShop\api\modules\v1\forms\EvaluateStatForm;
-use yii\web\UnprocessableEntityHttpException;
+use addons\TinyShop\common\forms\EvaluateForm;
+use addons\TinyShop\common\forms\EvaluateStatForm;
 
 /**
  * 评论

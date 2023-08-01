@@ -27,7 +27,7 @@ class GeneralController extends BaseController
      */
     public function actionIndex()
     {
-        $orderStat = Yii::$app->tinyShopService->order->getStatByTime(time() - 60 * 60 * 24 * 30, ['count(distinct buyer_id) as member_count']);
+        $orderStat = Yii::$app->tinyShopService->orderStat->getStatByTime(time() - 60 * 60 * 24 * 30, ['count(distinct buyer_id) as member_count']);
         // 客单价
         $orderStat['customer_money'] = $orderStat['pay_money'] > 0 ? round($orderStat['pay_money'] / $orderStat['member_count'], 2) : 0;
         // 平均价格
@@ -44,7 +44,7 @@ class GeneralController extends BaseController
     public function actionData()
     {
         $type = Yii::$app->request->get('type');
-        $data = Yii::$app->tinyShopService->order->getBetweenCountStatToEchant($type);
+        $data = Yii::$app->tinyShopService->orderStat->getBetweenCountStatToEchant($type);
 
         return ResultHelper::json(200, '获取成功', $data);
     }

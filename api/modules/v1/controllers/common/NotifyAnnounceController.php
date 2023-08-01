@@ -2,11 +2,12 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\common;
 
+use Yii;
 use yii\data\ActiveDataProvider;
 use yii\web\NotFoundHttpException;
 use api\controllers\OnAuthController;
 use common\enums\StatusEnum;
-use addons\TinyShop\common\models\common\Notify;
+use addons\TinyShop\common\models\common\NotifyAnnounce;
 
 /**
  * Class NotifyAnnounceController
@@ -16,9 +17,9 @@ use addons\TinyShop\common\models\common\Notify;
 class NotifyAnnounceController extends OnAuthController
 {
     /**
-     * @var Notify
+     * @var NotifyAnnounce
      */
-    public $modelClass = Notify::class;
+    public $modelClass = NotifyAnnounce::class;
 
     /**
      * 不用进行登录验证的方法
@@ -40,8 +41,7 @@ class NotifyAnnounceController extends OnAuthController
             'query' => $this->modelClass::find()
                 ->select(['id', 'title', 'cover', 'synopsis', 'view', 'created_at'])
                 ->where(['status' => StatusEnum::ENABLED])
-                ->andWhere(['type' => Notify::TYPE_ANNOUNCE])
-                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+                ->andWhere(['merchant_id' => Yii::$app->services->merchant->getNotNullId()])
                 ->orderBy('id desc')
                 ->asArray(),
             'pagination' => [
@@ -62,7 +62,6 @@ class NotifyAnnounceController extends OnAuthController
         if (empty($id) || !($model = $this->modelClass::find()->where([
                 'id' => $id,
                 'status' => StatusEnum::ENABLED,
-                'type' => Notify::TYPE_ANNOUNCE
             ])->andFilterWhere(['merchant_id' => $this->getMerchantId()])->one())) {
             throw new NotFoundHttpException('请求的数据不存在');
         }

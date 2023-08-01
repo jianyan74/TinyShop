@@ -16,7 +16,10 @@ class AdvLocalEnum extends BaseEnum
     const INDEX_NEW = 'index_new';
     const INDEX_RECOMMEND = 'index_recommend';
     const INDEX_HOT = 'index_hot';
-    const CATE_TOP = 'cate_top';
+    const DISCOUNT_TOP = 'discount_top';
+    const GROUP_BUY_TOP = 'group_buy_top';
+    const BARGAIN_TOP = 'bargain_top';
+    const INTEGRAL_TOP = 'integral_top';
 
     /**
      * @return array
@@ -28,7 +31,10 @@ class AdvLocalEnum extends BaseEnum
             self::INDEX_NEW => '首页新品广告图',
             self::INDEX_RECOMMEND => '首页推荐广告图',
             self::INDEX_HOT => '首页热门广告图',
-            self::CATE_TOP => '分类顶部广告图',
+            self::DISCOUNT_TOP => '限时折扣顶部广告图',
+            self::GROUP_BUY_TOP => '团购顶部广告图',
+            self::BARGAIN_TOP => '砍价顶部广告图',
+            self::INTEGRAL_TOP => '积分商城顶部广告图',
         ];
     }
 
@@ -40,23 +46,35 @@ class AdvLocalEnum extends BaseEnum
         return [
             self::INDEX_TOP => [
                 'name' => self::getValue(self::INDEX_TOP),
-                'multiple' => StatusEnum::ENABLED, // 轮播多图
+                'multiple' => 1,
             ],
             self::INDEX_NEW => [
                 'name' => self::getValue(self::INDEX_NEW),
-                'multiple' => StatusEnum::DISABLED, // 轮播多图
+                'multiple' => 0,
             ],
             self::INDEX_HOT => [
                 'name' => self::getValue(self::INDEX_HOT),
-                'multiple' => StatusEnum::DISABLED, // 轮播多图
+                'multiple' => 0,
             ],
             self::INDEX_RECOMMEND => [
                 'name' => self::getValue(self::INDEX_RECOMMEND),
-                'multiple' => StatusEnum::DISABLED, // 轮播多图
+                'multiple' => 0,
             ],
-            self::CATE_TOP => [
-                'name' => self::getValue(self::CATE_TOP),
-                'multiple' => StatusEnum::DISABLED, // 轮播多图
+            self::DISCOUNT_TOP => [
+                'name' => self::getValue(self::DISCOUNT_TOP),
+                'multiple' => 1,
+            ],
+            self::GROUP_BUY_TOP => [
+                'name' => self::getValue(self::GROUP_BUY_TOP),
+                'multiple' => 1,
+            ],
+            self::BARGAIN_TOP => [
+                'name' => self::getValue(self::BARGAIN_TOP),
+                'multiple' => 1,
+            ],
+            self::INTEGRAL_TOP => [
+                'name' => self::getValue(self::INTEGRAL_TOP),
+                'multiple' => 1,
             ],
         ];
     }

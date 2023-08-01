@@ -2,26 +2,27 @@
 
 namespace addons\TinyShop\common\models\common;
 
-use common\behaviors\MerchantBehavior;
+use Yii;
 
 /**
- * This is the model class for table "{{%backend_notify_pull_time}}".
+ * This is the model class for table "{{%addon_tiny_shop_common_notify_pull_time}}".
  *
- * @property int $member_id
- * @property int $type 消息类型[1:公告;2:提醒;3:信息(私信)
- * @property string $alert_type 提醒消息类型[backend:系统;wechat:微信]
- * @property int $last_time 最后拉取时间
+ * @property int $id
+ * @property int $member_id 管理员id
+ * @property int|null $merchant_id 商户id
+ * @property int|null $type 消息类型[1:公告;2:提醒;3:信息(私信)
+ * @property string|null $alert_type 提醒消息类型[sys:系统;wechat:微信]
+ * @property int|null $last_time 最后拉取时间
+ * @property int|null $last_id 最后拉取ID
  */
-class NotifyPullTime extends \yii\db\ActiveRecord
+class NotifyPullTime extends \common\models\base\BaseModel
 {
-    use MerchantBehavior;
-
     /**
      * {@inheritdoc}
      */
     public static function tableName()
     {
-        return '{{%addon_shop_base_notify_pull_time}}';
+        return '{{%addon_tiny_shop_common_notify_pull_time}}';
     }
 
     /**
@@ -31,7 +32,7 @@ class NotifyPullTime extends \yii\db\ActiveRecord
     {
         return [
             [['member_id'], 'required'],
-            [['member_id', 'merchant_id', 'type', 'last_time'], 'integer'],
+            [['member_id', 'merchant_id', 'type', 'last_time', 'last_id'], 'integer'],
             [['alert_type'], 'string', 'max' => 20],
         ];
     }
@@ -42,10 +43,13 @@ class NotifyPullTime extends \yii\db\ActiveRecord
     public function attributeLabels()
     {
         return [
-            'member_id' => 'member ID',
-            'type' => '消息类型',
-            'alert_type' => '提醒消息类型',
+            'id' => 'ID',
+            'member_id' => '管理员id',
+            'merchant_id' => '商户id',
+            'type' => '消息类型[1:公告;2:提醒;3:信息(私信)',
+            'alert_type' => '提醒消息类型[sys:系统;wechat:微信]',
             'last_time' => '最后拉取时间',
+            'last_id' => '最后拉取ID',
         ];
     }
 }

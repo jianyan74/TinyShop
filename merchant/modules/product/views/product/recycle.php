@@ -7,21 +7,24 @@ use common\helpers\Url;
 
 $this->title = '商品管理';
 $this->params['breadcrumbs'][] = ['label' => $this->title];
+
 ?>
 
 <div class="row">
-    <div class="col-sm-12">
+    <div class="col-12 col-sm-12">
         <div class="nav-tabs-custom">
             <ul class="nav nav-tabs">
-                <li><a href="<?= Url::to(['index', 'product_status' => 1]) ?>">出售中</a></li>
-                <li><a href="<?= Url::to(['index', 'product_status' => 0]) ?>">已下架</a></li>
+                <li><a href="<?= Url::to(['index', 'status' => 1]) ?>">出售中</a></li>
+                <li><a href="<?= Url::to(['index', 'status' => 0]) ?>">已下架</a></li>
+                <li class="<?= Yii::$app->services->devPattern->isB2B2C() ? '' : 'hide'; ?>"><a href="<?= Url::to(['index', 'audit_status' => 0]) ?>">审核中</a></li>
+                <li class="<?= Yii::$app->services->devPattern->isB2B2C() ? '' : 'hide'; ?>"><a href="<?= Url::to(['index', 'audit_status' => -1]) ?>">审核失败</a></li>
                 <li><a href="<?= Url::to(['index', 'stock_warning' => 1]) ?>">库存报警</a></li>
+                <li><a href="<?= Url::to(['index', 'sell_out' => 1]) ?>">已售罄</a></li>
                 <li class="active"><a href="<?= Url::to(['recycle']) ?>">回收站</a></li>
             </ul>
             <div class="tab-content">
-                <div class="col-sm-12 m-b-sm">
-                    <?= Html::a('批量删除</a>', "javascript:void(0);",
-                        ['class' => 'btn btn-white btn-sm m-l-n-md destroy-all']); ?>
+                <div class="col-sm-12 m-b-sm m-l">
+                    <?= Html::a('批量彻底删除</a>', "javascript:void(0);", ['class' => 'btn btn-white btn-sm m-l-n-md delete-all']); ?>
                     <?= Html::a('批量恢复</a>', "javascript:void(0);", ['class' => 'btn btn-white btn-sm restore-all']); ?>
                 </div>
                 <div class="active tab-pane">
@@ -45,13 +48,11 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                                 'visible' => true, // 不显示#
                             ],
                             [
-                                'attribute' => 'covers',
                                 'label' => '主图',
                                 'filter' => false, //不显示搜索框
                                 'value' => function ($model) {
-                                    $covers = unserialize($model->covers);
-                                    if (!empty($covers)) {
-                                        return ImageHelper::fancyBox($covers[0]);
+                                    if (!empty($model->picture)) {
+                                        return ImageHelper::fancyBox($model->picture);
                                     }
                                 },
                                 'format' => 'raw',
@@ -59,8 +60,21 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                             ],
                             'name',
                             [
+                                'label' => '销售价',
+                                'attribute' => 'price',
+                                'headerOptions' => ['class' => 'col-md-1'],
+                            ],
+                            [
+                                'attribute' => 'real_sales',
+                                'headerOptions' => ['class' => 'col-md-1'],
+                            ],
+                            [
+                                'attribute' => 'stock',
+                                'headerOptions' => ['class' => 'col-md-1'],
+                            ],
+                            [
                                 'attribute' => 'cate.title',
-                                'label' => '产品分类',
+                                'label' => '商品分类',
                                 'filter' => Html::activeDropDownList($searchModel, 'cate_id', $cates, [
                                         'prompt' => '全部',
                                         'class' => 'form-control',
@@ -81,13 +95,13 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
                             [
                                 'header' => "操作",
                                 'class' => 'yii\grid\ActionColumn',
-                                'template' => '{edit} {delete}',
+                                'template' => '{restore} {delete}',
                                 'buttons' => [
-                                    'edit' => function ($url, $model, $key) {
+                                    'restore' => function ($url, $model, $key) {
                                         return Html::edit(['restore', 'id' => $model['id']], '还原');
                                     },
                                     'delete' => function ($url, $model, $key) {
-                                        return Html::delete(['destroy', 'id' => $model->id]);
+                                        return Html::delete(['delete', 'id' => $model->id], '彻底删除');
                                     },
                                 ],
                             ],
@@ -104,8 +118,8 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
 <script>
     let url = '';
     // 删除全部
-    $(".destroy-all").on("click", function () {
-        url = "<?= Url::to(['destroy-all'])?>";
+    $(".delete-all").on("click", function () {
+        url = "<?= Url::to(['delete-all'])?>";
         sendData(url);
     });
 

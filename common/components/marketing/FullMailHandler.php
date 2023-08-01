@@ -3,9 +3,8 @@
 namespace addons\TinyShop\common\components\marketing;
 
 use Yii;
-use addons\TinyShop\common\enums\ProductMarketingEnum;
-use addons\TinyShop\common\enums\OrderTypeEnum;
-use addons\TinyShop\common\models\forms\PreviewForm;
+use addons\TinyShop\common\enums\MarketingEnum;
+use addons\TinyShop\common\forms\PreviewForm;
 use addons\TinyShop\common\components\PreviewInterface;
 
 /**
@@ -28,14 +27,14 @@ class FullMailHandler extends PreviewInterface
             return $this->success($form);
         }
 
-        $fullMail = Yii::$app->tinyShopService->marketingFullMail->postage($form->product_money, $form->address);
+        $fullMail = Yii::$app->tinyShopService->marketingFullMail->postage($form->product_money, $form->address, $form->merchant_id);
         // 满包邮成功触发
         if ($fullMail) {
             $form->is_full_mail = true;
             // 触发营销
             $form->marketingDetails[] = [
                 'marketing_id' => $fullMail['id'],
-                'marketing_type' => ProductMarketingEnum::FULL_MAIL,
+                'marketing_type' => MarketingEnum::FULL_MAIL,
                 'marketing_condition' => '满' . $fullMail['full_mail_money'] . '元包邮',
                 'free_shipping' => 1,
                 'discount_money' => $form->shipping_money,

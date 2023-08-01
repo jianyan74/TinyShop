@@ -5,7 +5,7 @@ namespace addons\TinyShop\api\modules\v1\controllers\member;
 use Yii;
 use common\enums\StatusEnum;
 use api\controllers\UserAuthController;
-use addons\TinyShop\common\models\base\NotifySubscriptionConfig;
+use addons\TinyShop\common\models\common\NotifySubscriptionConfig;
 
 /**
  * Class NotifySubscriptionConfigController
@@ -35,7 +35,7 @@ class NotifySubscriptionConfigController extends UserAuthController
     /**
      * @return NotifySubscriptionConfig|array|\yii\db\ActiveRecord|null
      */
-    public function actionUpConfig()
+    public function actionUpdateConfig()
     {
         $all = Yii::$app->request->post('all', StatusEnum::ENABLED);
         $merchant_id = Yii::$app->user->identity->merchant_id;

@@ -13,6 +13,7 @@ class ProductShippingTypeEnum extends BaseEnum
 {
     const FULL_MAIL = 1;
     const USER_PAY = 2;
+    const FIXATION = 3;
 
     /**
      * @return array
@@ -22,6 +23,7 @@ class ProductShippingTypeEnum extends BaseEnum
         return [
             self::FULL_MAIL => '包邮',
             self::USER_PAY => '买家承担运费',
+            self::FIXATION => '统一邮费',
         ];
     }
 }

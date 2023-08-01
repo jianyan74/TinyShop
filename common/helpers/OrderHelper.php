@@ -4,6 +4,7 @@ namespace addons\TinyShop\common\helpers;
 
 use common\helpers\Html;
 use addons\TinyShop\common\enums\RefundStatusEnum;
+use addons\TinyShop\common\enums\RefundTypeEnum;
 
 /**
  * Class OrderHelper
@@ -19,11 +20,11 @@ class OrderHelper
      * @param $status
      * @return string
      */
-    public static function refundOperation($id, $status, $urlPrefix = 'product/')
+    public static function refundOperation($id, $status, $refundType, $urlPrefix = 'after-sale/')
     {
         $data = [
             RefundStatusEnum::APPLY => [
-                'name' => RefundStatusEnum::getValue(RefundStatusEnum::APPLY),
+                'name' => '买家' . RefundTypeEnum::getValue($refundType) . '申请',
                 'desc' => '发起了退款申请,等待卖家处理',
                 'operation' => [
                     [
@@ -47,9 +48,29 @@ class OrderHelper
                 'operation' => [
                     [
                         'name' => '确认收货',
+                        'class' => 'green m-r orderProductTakeDelivery'
+                    ]
+                ]
+            ],
+            RefundStatusEnum::AFFIRM_SHIPMENTS => [
+                'name' => RefundStatusEnum::getValue(RefundStatusEnum::AFFIRM_SHIPMENTS),
+                'desc' => '等待卖家发货',
+                'operation' => [
+                    [
+                        'name' => '发货',
                         'class' => 'green m-r orderProductDelivery'
                     ]
                 ]
+            ],
+            RefundStatusEnum::SHIPMENTS => [
+                'name' => RefundStatusEnum::getValue(RefundStatusEnum::SHIPMENTS),
+                'desc' => '等待买家收到商品',
+                'operation' => []
+            ],
+            RefundStatusEnum::MEMBER_AFFIRM => [
+                'name' => RefundStatusEnum::getValue(RefundStatusEnum::MEMBER_AFFIRM),
+                'desc' => '换货完成',
+                'operation' => []
             ],
             RefundStatusEnum::AFFIRM_RETURN_MONEY => [
                 'name' => RefundStatusEnum::getValue(RefundStatusEnum::AFFIRM_RETURN_MONEY),
@@ -89,7 +110,7 @@ class OrderHelper
 
             $html .= '<div style="text-align: center" class="p-xxs">';
             $html .= "<small id='$id'>";
-            $html .= Html::a($input['name'], [$urlPrefix . 'refund-detail', 'id' => $id], [
+            $html .= Html::a($input['name'], [$urlPrefix . 'detail', 'id' => $id], [
                 'class' => 'cyan'
             ]);
             $html .= "</br>";
@@ -97,7 +118,13 @@ class OrderHelper
             foreach ($input['operation'] as $item) {
                 // 确认退款
                 if ($status == RefundStatusEnum::AFFIRM_RETURN_MONEY) {
-                    $html .= Html::linkButton([$urlPrefix . 'refund-return-money', 'id' => $id], $item['name'], [
+                    $html .= Html::linkButton([$urlPrefix . 'affirm-return', 'id' => $id], $item['name'], [
+                        'class' => $item['class'],
+                        'data-toggle' => 'modal',
+                        'data-target' => '#ajaxModal',
+                    ]);
+                } elseif ($status == RefundStatusEnum::AFFIRM_SHIPMENTS) {
+                    $html .= Html::linkButton([$urlPrefix . 'deliver', 'id' => $id], $item['name'], [
                         'class' => $item['class'],
                         'data-toggle' => 'modal',
                         'data-target' => '#ajaxModal',

@@ -2,8 +2,6 @@
 
 namespace addons\TinyShop\services\marketing;
 
-use Yii;
-use common\components\Service;
 use common\enums\StatusEnum;
 use common\helpers\StringHelper;
 use addons\TinyShop\common\models\marketing\FullMail;
@@ -11,9 +9,8 @@ use addons\TinyShop\common\models\marketing\FullMail;
 /**
  * Class FullMailService
  * @package addons\TinyShop\services\marketing
- * @author jianyan74 <751393839@qq.com>
  */
-class FullMailService extends Service
+class FullMailService
 {
     /**
      * @return array|\yii\db\ActiveRecord|null
@@ -32,7 +29,7 @@ class FullMailService extends Service
     public function one($merchant_id)
     {
         /* @var $model FullMail */
-        if (empty(($model = FullMail::find()->where(['merchant_id' => $merchant_id])->one()))) {
+        if (empty($model = FullMail::find()->where(['merchant_id' => $merchant_id])->one())) {
             $model = new FullMail();
 
             return $model->loadDefaultValues();
@@ -44,20 +41,21 @@ class FullMailService extends Service
     /**
      * 根据地址计算满额包邮
      *
-     * @param $product_money
+     * @param $money
      * @param $address
+     * @param $merchant_id
      * @return FullMail|bool
      */
-    public function postage($product_money, $address)
+    public function postage($money, $address, $merchant_id)
     {
-        if (empty($product_money) || empty($address)) {
+        if (empty($money) || empty($address)) {
             return false;
         }
 
-        $fullMail = $this->one($address->merchant_id);
+        $fullMail = $this->one($merchant_id);
         if (
-            $fullMail['is_open'] == StatusEnum::ENABLED &&
-            $product_money >= $fullMail['full_mail_money'] &&
+            $fullMail['status'] == StatusEnum::ENABLED &&
+            $money >= $fullMail['full_mail_money'] &&
             !in_array($address['city_id'], StringHelper::parseAttr($fullMail['no_mail_city_ids']))
         ) {
             return $fullMail;

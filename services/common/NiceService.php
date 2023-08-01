@@ -12,7 +12,6 @@ use addons\TinyShop\common\models\common\Nice;
  */
 class NiceService extends Service
 {
-
     /**
      * @param $topic_id
      * @param $topic_type

@@ -7,7 +7,8 @@ use yii\base\Model;
 use yii\web\UnprocessableEntityHttpException;
 use common\helpers\RegularHelper;
 use common\models\member\Member;
-use common\models\common\SmsLog;
+use common\enums\SmsUsageEnum;
+use common\enums\MemberTypeEnum;
 use common\models\validators\SmsCodeValidator;
 use addons\TinyShop\common\enums\AccessTokenGroupEnum;
 
@@ -20,13 +21,12 @@ class RegisterForm extends Model
 {
     public $mobile;
     public $password;
-    public $password_repetition;
     public $code;
     public $group;
     public $realname;
     public $nickname;
     public $head_portrait;
-    public $promo_code;
+    public $promoter_code;
     /**
      * @var Member
      */
@@ -38,14 +38,13 @@ class RegisterForm extends Model
     public function rules()
     {
         return [
-            [['mobile', 'group', 'code', 'password', 'password_repetition'], 'required'],
-            [['realname', 'nickname', 'head_portrait', 'promo_code'], 'string'],
+            [['mobile', 'group', 'code', 'password'], 'required'],
+            [['realname', 'nickname', 'head_portrait', 'promoter_code'], 'string'],
             [['password'], 'string', 'min' => 6, 'max' => 15],
             [['mobile'], 'isRegister'],
-            ['promo_code', 'promoCodeVerify'],
-            ['code', SmsCodeValidator::class, 'usage' => SmsLog::USAGE_REGISTER],
+            ['promoter_code', 'promoCodeVerify'],
+            ['code', SmsCodeValidator::class, 'usage' => SmsUsageEnum::REGISTER],
             ['mobile', 'match', 'pattern' => RegularHelper::mobile(), 'message' => '请输入正确的手机号码'],
-            [['password_repetition'], 'compare', 'compareAttribute' => 'password'],// 验证新密码和重复密码是否相等
             ['group', 'in', 'range' => AccessTokenGroupEnum::getKeys()],
         ];
     }
@@ -58,11 +57,10 @@ class RegisterForm extends Model
         return [
             'mobile' => '手机号码',
             'head_portrait' => '头像',
-            'promo_code' => '推广码',
+            'promoter_code' => '推广码',
             'realname' => '姓名',
             'nickname' => '昵称',
             'password' => '密码',
-            'password_repetition' => '重复密码',
             'group' => '类型',
             'code' => '验证码',
         ];
@@ -74,7 +72,10 @@ class RegisterForm extends Model
      */
     public function isRegister($attribute)
     {
-        if (Yii::$app->services->member->findByMobile($this->mobile)) {
+        if (Yii::$app->services->member->findByCondition([
+            'mobile' => $this->mobile,
+            'type' => MemberTypeEnum::MEMBER,
+        ])) {
             throw new UnprocessableEntityHttpException('该手机号码已注册');
         }
     }
@@ -85,8 +86,8 @@ class RegisterForm extends Model
      */
     public function promoCodeVerify($attribute)
     {
-        if ($this->promo_code) {
-            $this->_parent = Yii::$app->services->member->findByPromoCode($this->promo_code);
+        if ($this->promoter_code && $this->promoter_code != 'undefined') {
+            $this->_parent = Yii::$app->services->member->findByPromoterCode($this->promoter_code);
             if (!$this->_parent) {
                 throw new UnprocessableEntityHttpException('找不到推广员');
             }

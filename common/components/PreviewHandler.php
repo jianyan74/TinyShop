@@ -2,13 +2,14 @@
 
 namespace addons\TinyShop\common\components;
 
+use yii\web\UnprocessableEntityHttpException;
+use addons\TinyShop\common\forms\PreviewForm;
 use addons\TinyShop\common\enums\ShippingTypeEnum;
-use addons\TinyShop\common\models\forms\PreviewForm;
-use addons\TinyShop\common\components\delivery\CashAgainstDelivery;
 use addons\TinyShop\common\components\delivery\LogisticsDelivery;
 use addons\TinyShop\common\components\delivery\PickupDelivery;
-use addons\TinyShop\common\components\delivery\LocalDistributionDelivery;
-use yii\web\UnprocessableEntityHttpException;
+use addons\TinyShop\common\components\delivery\LocalDelivery;
+use addons\TinyShop\common\traits\AutoCalculatePriceTrait;
+use addons\TinyShop\common\components\delivery\ToStoreDelivery;
 
 /**
  * Class PreviewHandler
@@ -17,6 +18,8 @@ use yii\web\UnprocessableEntityHttpException;
  */
 class PreviewHandler
 {
+    use AutoCalculatePriceTrait;
+
     /**
      * @var PreviewHandler
      */
@@ -35,8 +38,8 @@ class PreviewHandler
     private $_delivery = [
         ShippingTypeEnum::LOGISTICS => LogisticsDelivery::class, // 物流配送
         ShippingTypeEnum::PICKUP => PickupDelivery::class, // 自提
-        ShippingTypeEnum::CASH_AGAINST => CashAgainstDelivery::class, // 货到付款
-        ShippingTypeEnum::LOCAL_DISTRIBUTION => LocalDistributionDelivery::class, // 本地配送
+        ShippingTypeEnum::LOCAL_DISTRIBUTION => LocalDelivery::class, // 同城配送
+        ShippingTypeEnum::TO_STORE => ToStoreDelivery::class, // 到店付款
     ];
 
     /**
@@ -73,7 +76,8 @@ class PreviewHandler
             $class = new $handler();
             $class->isNewRecord = $isNewRecord;
             if ($this->reject($class->rejectNames())) {
-                $form = $class->execute($form);
+                // 自动计算价格
+                $form = $class->execute($this->calculatePrice($form));
                 // 判断是否执行成功并加入已执行列表
                 if ($class->status == true) {
                     $this->_names[] = $class::getName();

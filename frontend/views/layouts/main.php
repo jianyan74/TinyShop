@@ -1,7 +1,7 @@
 <?php
 
-use addons\TinyShop\frontend\assets\AppAsset;
 use common\helpers\Html;
+use addons\TinyShop\frontend\assets\AppAsset;
 
 AppAsset::register($this);
 

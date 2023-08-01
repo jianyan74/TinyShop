@@ -3,7 +3,7 @@
 namespace addons\TinyShop\services\product;
 
 use common\components\Service;
-use addons\TinyShop\api\modules\v1\forms\EvaluateStatForm;
+use addons\TinyShop\common\forms\EvaluateStatForm;
 use addons\TinyShop\common\models\product\EvaluateStat;
 
 /**
@@ -21,14 +21,6 @@ class EvaluateStatService extends Service
      */
     public function updateNum(EvaluateStatForm $evaluateStatForm, $product_id)
     {
-        // TODO 测试用，等正式了移除
-        if (!EvaluateStat::findOne(['product_id' => $product_id])) {
-            $model = new EvaluateStat();
-            $model = $model->loadDefaultValues();
-            $model->product_id = $product_id;
-            $model->save();
-        }
-
         $updateData = [];
         if ($evaluateStatForm->has_cover == true) {
             $updateData['cover_num'] = 1;
@@ -58,5 +50,17 @@ class EvaluateStatService extends Service
         $updateData['total_num'] = 1;
 
         !empty($updateData) && EvaluateStat::updateAllCounters($updateData, ['product_id' => $product_id]);
+    }
+
+    /**
+     * @param $product_id
+     * @return array|\yii\db\ActiveRecord|null
+     */
+    public function findByProductId($product_id)
+    {
+        return EvaluateStat::find()
+            ->where(['product_id' => $product_id])
+            ->asArray()
+            ->one();
     }
 }

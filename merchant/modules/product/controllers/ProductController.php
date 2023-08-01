@@ -3,27 +3,34 @@
 namespace addons\TinyShop\merchant\modules\product\controllers;
 
 use Yii;
-use yii\web\NotFoundHttpException;
-use common\helpers\ArrayHelper;
+use yii\db\ActiveQuery;
 use common\enums\StatusEnum;
-use common\models\base\SearchModel;
+use common\enums\AppEnum;
+use common\helpers\ArrayHelper;
 use common\helpers\ResultHelper;
+use common\models\base\SearchModel;
 use addons\TinyShop\common\models\product\Product;
-use addons\TinyShop\merchant\forms\ProductForm;
-use addons\TinyShop\merchant\controllers\BaseController;
 use addons\TinyShop\common\models\product\Sku;
-use addons\TinyShop\merchant\forms\ProductInfoForm;
-use addons\TinyShop\merchant\forms\ProductSearchForm;
-use addons\TinyShop\common\models\SettingForm;
-use yii\web\UnprocessableEntityHttpException;
+use addons\TinyShop\merchant\controllers\BaseController;
+use addons\TinyShop\merchant\modules\product\forms\ProductSearchForm;
+use addons\TinyShop\merchant\modules\product\forms\ProductForm;
+use addons\TinyShop\merchant\modules\product\forms\MemberDiscountForm;
+use addons\TinyShop\merchant\modules\product\forms\StockForm;
+use addons\TinyShop\common\enums\MarketingEnum;
+use addons\TinyShop\common\traits\ProductSelectTrait;
+use addons\TinyShop\common\enums\ProductTypeEnum;
+use addons\TinyShop\common\enums\ShippingTypeEnum;
+use addons\TinyShop\common\enums\product\AuditStatusEnum;
 
 /**
  * Class ProductController
- * @package addons\TinyShop\merchant\controllers
+ * @package addons\TinyShop\merchant\modules\product\controllers
  * @author jianyan74 <751393839@qq.com>
  */
 class ProductController extends BaseController
 {
+    use ProductSelectTrait;
+
     /**
      * 首页
      *
@@ -32,14 +39,17 @@ class ProductController extends BaseController
      */
     public function actionIndex()
     {
-        $product_status = Yii::$app->request->get('product_status', 1);
-        $stock_warning = Yii::$app->request->get('stock_warning', '');
+        $merchant_id = Yii::$app->services->merchant->getNotNullId();
+        $status = Yii::$app->request->get('status', StatusEnum::ENABLED);
+        $auditStatus = Yii::$app->request->get('audit_status', AuditStatusEnum::ENABLED);
+        $stockWarning = Yii::$app->request->get('stock_warning', '');
+        $sellOut = Yii::$app->request->get('sell_out', '');
 
         $search = new ProductSearchForm();
         $search->attributes = Yii::$app->request->get();
 
         $searchModel = new SearchModel([
-            'model' => ProductForm::class,
+            'model' => Product::class,
             'scenario' => 'default',
             'partialMatchAttributes' => [], // 模糊查询
             'defaultOrder' => [
@@ -50,37 +60,54 @@ class ProductController extends BaseController
 
         $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
         $dataProvider->query
-            ->andWhere(['status' => StatusEnum::ENABLED])
-            ->andWhere(['product_status' => $product_status])
+            ->alias('p')
+            ->andWhere(['status' => $status])
+            ->andFilterWhere(['audit_status' => $status == StatusEnum::DISABLED ? '' : $auditStatus])
             ->andFilterWhere($search->marketing())
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->andFilterWhere(['is_virtual' => $search->is_virtual])
+            ->andFilterWhere(['p.merchant_id' => $this->getMerchantId()])
+            ->andFilterWhere(['type' => $search->type])
             ->andFilterWhere(['in', 'cate_id', $search->cateIds()])
             ->andFilterWhere(['supplier_id' => $search->supplier_id])
+            ->andFilterWhere(['stock_deduction_type' => $search->stock_deduction_type])
+            ->andFilterWhere(['brand_id' => $search->brand_id])
+            ->andFilterWhere(['p.merchant_id' => $search->merchant_id])
             ->andFilterWhere($search->recommend())
             ->andFilterWhere($search->betweenSales())
-            ->andFilterWhere($search->integral())
             ->andFilterWhere(['like', 'name', $search->name])
-            ->with(['cate']);
+            ->with(['cate', 'merchant']);
 
-        // 库存报警
-        $stock_warning && $dataProvider->query->andWhere("warning_stock > stock");
+        if (!empty($search->merchantCateIds())) {
+            $dataProvider->query->joinWith(['cateMap as c' => function (ActiveQuery $query) use ($search) {
+                return $query->andWhere(['in', 'c.cate_id', $search->merchantCateIds()]);
+            }]);
+        }
+
+        // 库存报警 or 售罄
+        $stockWarning && $dataProvider->query->andWhere("stock_warning_num > stock");
+        $sellOut && $dataProvider->query->andWhere(['stock' => 0]);
 
         // 获取正在参与的营销
         $models = $dataProvider->getModels();
+        $marketing = Yii::$app->tinyShopService->marketingProduct->getMarketingType(ArrayHelper::getColumn($models, 'id'));
 
         // 配置
-        $setting = new SettingForm();
-        $setting->attributes = $this->getConfig();
+        $setting = Yii::$app->tinyShopService->config->setting();
 
         return $this->render($this->action->id, [
             'dataProvider' => $dataProvider,
             'searchModel' => $searchModel,
-            'h5Url' => $setting->h5_url,
-            'cates' => Yii::$app->tinyShopService->productCate->getMapList(),
-            'product_status' => $product_status,
-            'stock_warning' => $stock_warning,
+            'h5Url' => $setting->app_h5_url,
+            'marketing' => $marketing,
+            'status' => $status,
+            'auditStatus' => $auditStatus,
+            'stockWarning' => $stockWarning,
+            'sellOut' => $sellOut,
             'search' => $search,
+            'cates' => Yii::$app->tinyShopService->productCate->getMapList(0),
+            'merchantCates' => Yii::$app->tinyShopService->productCate->getMapList($merchant_id),
+            'auditStatusCount' => Yii::$app->tinyShopService->product->getAuditStatusCount(), // 审核状态
+            'warningStockCount' => Yii::$app->tinyShopService->product->getWarningStockCount(),
+            'brands' => Yii::$app->tinyShopService->productBrand->getMapList(),
         ]);
     }
 
@@ -93,278 +120,99 @@ class ProductController extends BaseController
     {
         $id = Yii::$app->request->get('id', null);
         $model = $this->findFormModel($id);
-        $model->tags = !empty($model->tags) ? explode(',', $model->tags) : [];
-        $model->covers = unserialize($model->covers);
+        $model->isNewRecord && $model->type = Yii::$app->request->get('type', ProductTypeEnum::ENTITY);
+        $setting = Yii::$app->tinyShopService->config->setting();
 
-        if (Yii::$app->request->isAjax && $model->load(Yii::$app->request->post())) {
-            $data = Yii::$app->request->post();
+        if ($model->load(Yii::$app->request->post())) {
             // 开启事务
             $transaction = Yii::$app->db->beginTransaction();
             try {
-                // 载入数据并验证
-                $model->skuData = $data['skus'] ?? [];
-                $model->attributeValueData = $data['attributeValue'] ?? [];
-                $model->specValueData = $data['specValue'] ?? [];
-                $model->specValueFieldData = $data['specValueFieldData'] ?? [];
-                !empty($model->covers) && $model->covers = serialize($model->covers);
-                !empty($model->tags) && $model->tags = implode(',', $model->tags);
-                if (!$model->save()) {
-                    throw new NotFoundHttpException($this->getError($model));
-                }
+                // 商品编辑审核
+                $setting->product_audit_status == StatusEnum::ENABLED && $model->audit_status = StatusEnum::DISABLED;
+                empty($model->delivery_type) && $model->delivery_type = [];
+                !$model->save() && $this->error($model);
+
 
                 $transaction->commit();
-
                 return ResultHelper::json(200, '操作成功');
             } catch (\Exception $e) {
                 $transaction->rollBack();
 
-                return ResultHelper::json(422, $e->getMessage());
+                return ResultHelper::json(422, $e->getMessage(), Yii::$app->services->base->getErrorInfo($e));
             }
         }
 
-        // 获取参数、规格和规格值、已选规格值
-        list($attributeValue, $specValue, $specValuejsData) = Yii::$app->tinyShopService->product->getSpecValueAttribute($model);
-
-        // 配置
-        $setting = new SettingForm();
-        $setting->attributes = $this->getConfig();
-
+        list($spec, $pitchOn) = Yii::$app->tinyShopService->productSpec->getJsData($model->id);
+        // 默认选择配送方式
+        if (in_array($model->type, ProductTypeEnum::entity())) {
+            $model->setScenario('entity');
+            $model->isNewRecord && $model->delivery_type = [ShippingTypeEnum::LOGISTICS];
+        }
 
         return $this->render($this->action->id, [
             'model' => $model,
-            'cate' => Yii::$app->tinyShopService->productCate->findById($model->cate_id),
             'cates' => Yii::$app->tinyShopService->productCate->getList(),
+            'platformCates' => Yii::$app->tinyShopService->productCate->getList(0),
             'brands' => Yii::$app->tinyShopService->productBrand->getMapList(),
             'tags' => Yii::$app->tinyShopService->productTag->getMapByList($model->tags),
-            'supplier' => Yii::$app->tinyShopService->baseSupplier->getMapList(),
-            'companys' => Yii::$app->tinyShopService->expressCompany->getMapList(), // 快递物流
-            'skus' => Yii::$app->tinyShopService->productSku->findEditByProductId($id),
-            'baseAttribute' => Yii::$app->tinyShopService->baseAttribute->getMapList(), // 基础类型
-            'attributeValue' => $attributeValue,
-            'specValue' => $specValue,
-            'specValuejsData' => $specValuejsData,
-            'productStatusExplain' => Product::$productStatusExplain,
-            'setting' => $setting,
+            'supplier' => Yii::$app->tinyShopService->supplier->getMap(),
+            'sku' => Yii::$app->tinyShopService->productSku->getJsData($model->id, $pitchOn),
+            'spec' => $spec,
+            'pitchOn' => $pitchOn, // 选中的数据
+            'attribute' => Yii::$app->tinyShopService->attribute->getMap(),
+            'attributeValue' => Yii::$app->tinyShopService->productAttributeValue->findByProductId($model->id),
+            'specTemplate' => Yii::$app->tinyShopService->specTemplate->getMap(),
+            'company' => Yii::$app->tinyShopService->expressCompany->getMapList(), // 快递物流
             'referrer' => Yii::$app->request->referrer,
         ]);
     }
 
     /**
-     * 批量上下架
-     *
      * @param $id
      * @return mixed
      */
-    public function actionStateAll($state)
-    {
-        $ids = Yii::$app->request->post('ids', []);
-        if (empty($ids)) {
-            return ResultHelper::json(422, '请至少选择一个商品');
-        }
-
-        $product_status = $state == StatusEnum::ENABLED ? Product::PRODUCT_STATUS_PUTAWAY : Product::PRODUCT_STATUS_SOLD_OUT;
-        // 下架
-        if ($product_status == Product::PRODUCT_STATUS_SOLD_OUT) {
-            Yii::$app->tinyShopService->memberCartItem->loseByProductIds($ids);
-        }
-
-        Product::updateAll(['product_status' => $product_status], ['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]]);
-
-        return ResultHelper::json(200, '批量操作成功');
-    }
-
-    /**
-     * 删除 - 回收站
-     *
-     * @param $id
-     * @return mixed
-     * @throws \Throwable
-     * @throws yii\db\StaleObjectException
-     */
-    public function actionDelete($id)
+    public function actionRefuse($id)
     {
         $model = $this->findModel($id);
-        $model->status = StatusEnum::DISABLED;
-        if ($model->save()) {
-            return $this->message("删除成功", $this->redirect(Yii::$app->request->referrer));
-        }
-
-        return $this->message("删除失败", $this->redirect(Yii::$app->request->referrer), 'error');
-    }
-
-    /**
-     * 批量删除 - 回收站
-     *
-     * @param $id
-     * @return mixed
-     */
-    public function actionDeleteAll()
-    {
-        $ids = Yii::$app->request->post('ids', []);
-        if (empty($ids)) {
-            return ResultHelper::json(422, '请至少选择一个商品');
-        }
-
-        Product::updateAll(['status' => StatusEnum::DISABLED],
-            ['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]]);
-
-        return ResultHelper::json(200, '批量操作成功');
-    }
-
-    /**
-     * 伪删除 - 隐藏
-     *
-     * @param $id
-     * @return mixed
-     */
-    public function actionDestroy($id)
-    {
-        if (!($model = $this->findModel($id))) {
-            return $this->message("找不到数据", $this->redirect(Yii::$app->request->referrer), 'error');
-        }
-
-        $model->status = StatusEnum::DELETE;
-        if ($model->save()) {
-            return $this->message("删除成功", $this->redirect(Yii::$app->request->referrer));
-        }
-
-        return $this->message("删除失败", $this->redirect(Yii::$app->request->referrer), 'error');
-    }
-
-    /**
-     * 批量伪删除 - 隐藏
-     *
-     * @param $id
-     * @return mixed
-     */
-    public function actionDestroyAll()
-    {
-        $ids = Yii::$app->request->post('ids', []);
-        if (empty($ids)) {
-            return ResultHelper::json(422, '请至少选择一个商品');
-        }
-
-        Product::updateAll(['status' => StatusEnum::DELETE],
-            ['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]]);
-
-        return ResultHelper::json(200, '批量操作成功');
-    }
-
-    /**
-     * 获取规格属性
-     *
-     * @param $model_id
-     * @return array
-     */
-    public function actionBaseSpecAttribute($base_attribute_id)
-    {
-        // 属性值
-        $data = Yii::$app->tinyShopService->baseAttribute->getDataById($base_attribute_id);
-        $value = $data['value'] ?? [];
-        foreach ($value as &$item) {
-            $item['config'] = !empty($item['value']) ? explode(',', $item['value']) : [];
-            $item['value'] = '';
-        }
-
-        // 规格
-        $spec_ids = explode(',', $data['spec_ids']);
-        $spec_ids = $spec_ids ?? [];
-        $spec = Yii::$app->tinyShopService->baseSpec->getListWithValueByIds($spec_ids);
-
-        return ResultHelper::json(200, '获取成功', [
-            'attributeValue' => $value,
-            'spec' => $spec ?? [],
-        ]);
-    }
-
-    /**
-     * 批量上下架
-     *
-     * @param $id
-     * @return mixed
-     */
-    public function actionRecommend($is_hot, $is_recommend, $is_new)
-    {
-        $ids = Yii::$app->request->post('ids', []);
-        if (empty($ids)) {
-            return ResultHelper::json(422, '请至少选择一个商品');
-        }
-
-        Product::updateAll([
-            'is_hot' => $is_hot,
-            'is_recommend' => $is_recommend,
-            'is_new' => $is_new,
-        ], [
-            'and',
-            ['in', 'id', $ids],
-            ['merchant_id' => $this->getMerchantId()]
-        ]);
-
-        return ResultHelper::json(200, '批量操作成功');
-    }
-
-    /**
-     * 批量修改商品价格和库存
-     *
-     * @param $id
-     * @return mixed
-     */
-    public function actionUpdateInfo()
-    {
-        $ids = Yii::$app->request->post('ids');
-         if (empty($ids)) {
-            return ResultHelper::json(422, '请至少选择一个商品');
-        }
-
-        $ids = explode(',', $ids);
-
-        $form = new ProductInfoForm();
-        $form->attributes = Yii::$app->request->post();
-        if (!$form->validate()) {
-            return ResultHelper::json(422, $this->getError($form));
-        }
-
-        list($fields, $where) = $form->getFields();
-        if (empty($fields)) {
-            return ResultHelper::json(200, '更新成功');
-        }
-
-        // 更新数据
-        $transaction = Yii::$app->db->beginTransaction();
-        try {
-            foreach ($ids as $id) {
-                // 更新产品
-                if (!Product::updateAllCounters($fields, ArrayHelper::merge($where, [
-                    ['id' => $id],
-                    ['merchant_id' => $this->getMerchantId()]
-                ]))) {
-                    throw new UnprocessableEntityHttpException('修改减少商品的价格/库存过大');
-                }
-
-                // 更新sku
-                if (!Sku::updateAllCounters($fields, ArrayHelper::merge($where, [
-                    ['product_id' => $id],
-                    ['merchant_id' => $this->getMerchantId()]
-                ]))) {
-                    throw new UnprocessableEntityHttpException('修改减少商品的价格/库存过大');
-                }
-
-                // 更新总库存
-                Product::updateAll(['stock' => Yii::$app->tinyShopService->productSku->getStockByProductId($id)], [
-                        'id' => $id,
-                        'merchant_id' => $this->getMerchantId()
-                    ]
-                );
+        if ($model->load(Yii::$app->request->post())) {
+            if ($model->audit_status == AuditStatusEnum::DISABLED) {
+                Product::updateAll(['audit_status' => AuditStatusEnum::DELETE, 'refusal_cause' => $model->refusal_cause], ['id' => $id]);
+                return $this->message('拒绝成功', $this->redirect(Yii::$app->request->referrer));
             }
 
-            $transaction->commit();
-
-            return ResultHelper::json(200, '更新成功');
-        } catch (\Exception $e) {
-            $transaction->rollBack();
-
-            return ResultHelper::json(422, $e->getMessage());
+            return $this->message('拒绝失败', $this->redirect(Yii::$app->request->referrer));
         }
+
+        return $this->renderAjax($this->action->id, [
+            'model' => $model,
+        ]);
+    }
+
+    /**
+     * @param $id
+     * @return mixed
+     */
+    public function actionRefuseCause($id)
+    {
+        return $this->renderAjax($this->action->id, [
+            'model' => $this->findModel($id),
+        ]);
+    }
+
+    /**
+     * @param $id
+     * @return mixed|string
+     */
+    public function actionPass($id)
+    {
+        $model = $this->findModel($id);
+        if ($model->audit_status != AuditStatusEnum::DISABLED) {
+            return $this->message('申请已经被处理', $this->redirect(Yii::$app->request->referrer), 'error');
+        }
+
+        Product::updateAll(['audit_status' => AuditStatusEnum::ENABLED], ['id' => $id]);
+
+        return $this->message('申请通过', $this->redirect(Yii::$app->request->referrer));
     }
 
     /**
@@ -376,7 +224,7 @@ class ProductController extends BaseController
      */
     public function actionUpdateName($id, $name)
     {
-        if (!($model = $this->findModel($id))) {
+        if (!($model = $this->findFormModel($id))) {
             return ResultHelper::json(422, '找不到数据');
         }
 
@@ -386,39 +234,220 @@ class ProductController extends BaseController
     }
 
     /**
-     * 还原
+     * 会员价
      *
      * @param $id
-     * @return mixed
-     * @throws \Throwable
-     * @throws yii\db\StaleObjectException
+     * @return string
      */
-    public function actionRestore($id)
+    public function actionMemberDiscount($id)
     {
-        $model = $this->findModel($id);
-        $model->status = StatusEnum::ENABLED;
-        if ($model->save()) {
-            return $this->message("还原成功", $this->redirect(Yii::$app->request->referrer));
+        if ($data = Yii::$app->request->post('data')) {
+            try {
+                $form = new MemberDiscountForm();
+                $form->attributes = $data;
+                if ($form->save()) {
+                    return ResultHelper::json(200, 'ok');
+                }
+            } catch (\Exception $e) {
+                return ResultHelper::json(422, $e->getMessage());
+            }
         }
 
-        return $this->message("还原失败", $this->redirect(Yii::$app->request->referrer), 'error');
+        $model = $this->findModel($id);
+        $levels = Yii::$app->services->memberLevel->findAllByEdit();
+        $memberDiscount = Yii::$app->tinyShopService->productMemberDiscount->findByProductId($id);
+        $memberDiscountMap = [];
+        foreach ($memberDiscount as $value) {
+            foreach ($value['discount'] as $discount) {
+                $key = $discount['sku_id'] . '-' . $value['member_level'];
+                $memberDiscountMap[$key] = $discount['discount'];
+            }
+        }
+
+        $allData = [];
+        foreach ($model->sku as $sku) {
+            $data = [
+                'id' => $sku['id'],
+                'price' => $sku['price'],
+                'name' => !empty($sku['name']) ? $sku['name'] : $model['name'],
+                'discount' => 10,
+                'check' => true,
+                'level' => [],
+            ];
+
+            foreach ($levels as $level) {
+                $key = $sku['id'] . '-' . $level['level'];
+
+                $data['level'][] = [
+                    'level' => $level['level'],
+                    'default' => $level['discount'], // 默认折扣
+                    'discount' => isset($memberDiscountMap[$key]) ? $memberDiscountMap[$key] : $level['discount'],
+                ];
+            }
+
+            $allData[] = $data;
+        }
+
+        return $this->render($this->action->id, [
+            'model' => $model,
+            'levels' => ArrayHelper::toArray($levels),
+            'allData' => $allData,
+        ]);
     }
 
     /**
-     * 批量还原
+     * 库存
+     *
+     * @param $id
+     * @return string
+     */
+    public function actionStock($id)
+    {
+        if ($data = Yii::$app->request->post('data')) {
+            try {
+                $form = new StockForm();
+                $form->productId = $id;
+                $form->skus = $data;
+                if ($form->save()) {
+                    return ResultHelper::json(200, 'ok');
+                }
+
+                return ResultHelper::json(200, 'ok');
+            } catch (\Exception $e) {
+                return ResultHelper::json(422, $e->getMessage());
+            }
+        }
+
+        return $this->render($this->action->id, [
+            'model' => $this->findModel($id),
+        ]);
+    }
+
+    /**
+     * 修改推荐状态
      *
      * @param $id
      * @return mixed
      */
-    public function actionRestoreAll()
+    public function actionRecommend($is_hot, $is_recommend, $is_new)
     {
         $ids = Yii::$app->request->post('ids', []);
         if (empty($ids)) {
             return ResultHelper::json(422, '请至少选择一个商品');
         }
 
-        Product::updateAll(['status' => StatusEnum::ENABLED],
-            ['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]]);
+        if (Yii::$app->id == AppEnum::BACKEND) {
+            Product::updateAll([
+                'is_hot' => $is_hot,
+                'is_recommend' => $is_recommend,
+                'is_new' => $is_new,
+            ], ['in', 'id', $ids]);
+        } else {
+            Product::updateAll([
+                'is_hot' => $is_hot,
+                'is_recommend' => $is_recommend,
+                'is_new' => $is_new,
+            ], [
+                'and',
+                ['in', 'id', $ids],
+                ['merchant_id' => $this->getMerchantId()]
+            ]);
+        }
+
+        return ResultHelper::json(200, '批量操作成功');
+    }
+
+    /**
+     * 复制
+     *
+     * @param $id
+     * @return mixed|string
+     */
+    public function actionCopy($id)
+    {
+        if (!($oldModel = $this->findFormModel($id))) {
+            return $this->message('找不到数据', $this->redirect(Yii::$app->request->referrer), 'error');
+        }
+
+        if ($oldModel->audit_status == AuditStatusEnum::GET_OUT_OF_LINE) {
+            return $this->message('违规下架商品无法复制', $this->redirect(Yii::$app->request->referrer), 'error');
+        }
+
+        // 事务
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            Yii::$app->tinyShopService->product->copy($oldModel);
+
+            $transaction->commit();
+
+            return $this->message('复制商品成功，请到已下架查看', $this->redirect(Yii::$app->request->referrer));
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+
+            return $this->message($e->getMessage(), $this->redirect(Yii::$app->request->referrer), 'error');
+        }
+    }
+
+    /**
+     * 批量上下架
+     *
+     * @param $id
+     * @return mixed
+     */
+    public function actionStateAll($status)
+    {
+        $ids = Yii::$app->request->post('ids', []);
+        if (empty($ids)) {
+            return ResultHelper::json(422, '请至少选择一个商品');
+        }
+
+        // 下架
+        if ($status == StatusEnum::DISABLED) {
+            // 购物车失效
+            Yii::$app->tinyShopService->memberCartItem->loseByProductIds($ids, true);
+            // 营销失效
+            Yii::$app->tinyShopService->marketingProduct->loseByProductId($ids, true);
+        }
+
+        // 总后台判断
+        if (Yii::$app->id == AppEnum::BACKEND) {
+            Product::updateAll(['status' => $status], ['in', 'id', $ids]);
+            Sku::updateAll(['status' => $status], ['in', 'product_id', $ids]);
+        } else {
+            Product::updateAll(['status' => $status], ['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]]);
+            Sku::updateAll(['status' => $status], ['and', ['in', 'product_id', $ids], ['merchant_id' => $this->getMerchantId()]]);
+        }
+
+        return ResultHelper::json(200, '批量操作成功');
+    }
+
+    /**
+     * 违规批量上下架
+     *
+     * @param $id
+     * @return mixed
+     */
+    public function actionPlatformStateAll($status = AuditStatusEnum::GET_OUT_OF_LINE)
+    {
+        $ids = Yii::$app->request->post('ids', []);
+        if (empty($ids)) {
+            return ResultHelper::json(422, '请至少选择一个商品');
+        }
+
+        // 下架
+        if ($status == AuditStatusEnum::GET_OUT_OF_LINE) {
+            // 购物车失效
+            Yii::$app->tinyShopService->memberCartItem->loseByProductIds($ids, true);
+            // 营销失效
+            Yii::$app->tinyShopService->marketingProduct->loseByProductId($ids, true);
+        }
+
+        // 总后台判断
+        if (Yii::$app->id == AppEnum::BACKEND) {
+            Product::updateAll(['audit_status' => $status], ['in', 'id', $ids]);
+        } else {
+            Product::updateAll(['audit_status' => $status], ['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]]);
+        }
 
         return ResultHelper::json(200, '批量操作成功');
     }
@@ -445,7 +474,7 @@ class ProductController extends BaseController
         $dataProvider = $searchModel
             ->search(Yii::$app->request->queryParams);
         $dataProvider->query
-            ->andWhere(['status' => StatusEnum::DISABLED])
+            ->andWhere(['status' => StatusEnum::DELETE])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->with(['cate']);
 
@@ -457,105 +486,145 @@ class ProductController extends BaseController
     }
 
     /**
-     * 更新排序/状态字段
+     * 还原
      *
      * @param $id
-     * @return array
+     * @return mixed
+     * @throws \Throwable
+     * @throws yii\db\StaleObjectException
      */
-    public function actionAjaxUpdate($id)
+    public function actionRestore($id)
     {
-        if (!($model = Product::findOne($id))) {
-            return ResultHelper::json(404, '找不到数据');
+        if (empty($id)) {
+            return ResultHelper::json(422, '请至少选择一个商品');
         }
 
-        $model->attributes = ArrayHelper::filter(Yii::$app->request->get(), ['sort']);
-
-        if (!$model->save()) {
-            return ResultHelper::json(422, $this->getError($model));
+        $model = $this->findModel($id);
+        $model->status = StatusEnum::DISABLED;
+        if ($model->save()) {
+            return $this->message("还原成功，请到已下架查看", $this->redirect(Yii::$app->request->referrer));
         }
 
-        return ResultHelper::json(200, '修改成功');
+        return $this->message("还原失败", $this->redirect(Yii::$app->request->referrer), 'error');
     }
 
     /**
-     * @return string
-     * @throws NotFoundHttpException
-     */
-    public function actionSelect()
-    {
-        $this->layout = '@backend/views/layouts/default';
-        $multiple = Yii::$app->request->get('multiple');
-        $is_virtual = Yii::$app->request->get('is_virtual');
-        $is_virtual == StatusEnum::ENABLED && $is_virtual = '';
-
-        $searchModel = new SearchModel([
-            'model' => ProductForm::class,
-            'scenario' => 'default',
-            'partialMatchAttributes' => ['name'], // 模糊查询
-            'defaultOrder' => [
-                'sort' => SORT_ASC,
-                'id' => SORT_DESC,
-            ],
-            'pageSize' => $this->pageSize,
-        ]);
-
-        $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
-        $dataProvider->query
-            ->andWhere(['status' => StatusEnum::ENABLED])
-            ->andWhere(['product_status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['is_virtual' => $is_virtual])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->with(['cate']);
-
-        /** @var  $gridSelectType */
-        $gridSelectType = [
-            'class' => 'yii\grid\CheckboxColumn',
-            'property' => 'checkboxOptions',
-        ];
-
-        if ($multiple == false) {
-            $gridSelectType = [
-                'class' => 'yii\grid\RadioButtonColumn',
-                'property' => 'radioOptions',
-            ];
-        }
-
-
-        return $this->render($this->action->id, [
-            'dataProvider' => $dataProvider,
-            'searchModel' => $searchModel,
-            'gridSelectType' => $gridSelectType,
-            'cates' => Yii::$app->tinyShopService->productCate->getMapList(),
-        ]);
-    }
-
-    /**
-     * 选择颜色
+     * 批量还原
      *
-     * @param $value
-     * @return string
+     * @param $id
+     * @return mixed
      */
-    public function actionSelectColor()
+    public function actionRestoreAll()
     {
-        $this->layout = '@backend/views/layouts/default';
+        $ids = Yii::$app->request->post('ids', []);
+        if (empty($ids)) {
+            return ResultHelper::json(422, '请至少选择一个商品');
+        }
 
-        $value = Yii::$app->request->get('value');
-        !$value && $value = '000000';
-        $value = '#' . $value;
+        if (Yii::$app->id === AppEnum::BACKEND) {
+            $where = ['in', 'id', $ids];
+        } else {
+            $where = ['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]];
+        }
 
-        return $this->render($this->action->id, [
-            'value' => $value,
-        ]);
+        Product::updateAll(['status' => StatusEnum::DISABLED], $where);
+
+        return ResultHelper::json(200, '还原成功，请到已下架查看');
     }
 
     /**
-     * 创建商品页面
+     * 删除
      *
-     * @return string
+     * @param $id
+     * @return mixed
+     * @throws \Throwable
+     * @throws yii\db\StaleObjectException
      */
-    public function actionCreate()
+    public function actionDestroy($id)
     {
-        return $this->renderAjax($this->action->id, []);
+        $model = $this->findModel($id);
+        $model->status = StatusEnum::DELETE;
+        if ($model->save()) {
+            // 购物车失效
+            Yii::$app->tinyShopService->memberCartItem->loseByProductIds([$id], true);
+            // 营销失效
+            Yii::$app->tinyShopService->marketingProduct->loseByProductId([$id], true);
+
+            return $this->message("删除成功", $this->redirect(Yii::$app->request->referrer));
+        }
+
+        return $this->message("删除失败", $this->redirect(Yii::$app->request->referrer), 'error');
+    }
+
+    /**
+     * 批量删除
+     *
+     * @param $id
+     * @return mixed
+     */
+    public function actionDestroyAll()
+    {
+        $ids = Yii::$app->request->post('ids', []);
+        if (empty($ids)) {
+            return ResultHelper::json(422, '请至少选择一个商品');
+        }
+
+        if (Yii::$app->id === AppEnum::BACKEND) {
+            $where = ['in', 'id', $ids];
+        } else {
+            $where = ['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]];
+        }
+
+        Product::updateAll(['status' => StatusEnum::DELETE], $where);
+        // 购物车失效
+        Yii::$app->tinyShopService->memberCartItem->loseByProductIds($ids, true);
+        // 营销失效
+        Yii::$app->tinyShopService->marketingProduct->loseByProductId($ids, true);
+
+        return ResultHelper::json(200, '批量操作成功');
+    }
+
+    /**
+     * 回收站删除
+     *
+     * @param $id
+     * @return mixed
+     * @throws \Throwable
+     * @throws yii\db\StaleObjectException
+     */
+    public function actionDelete($id)
+    {
+        $model = $this->findModel($id);
+        $model->status = -2;
+        if ($model->save()) {
+            return $this->message("删除成功", $this->redirect(Yii::$app->request->referrer));
+        }
+
+        return $this->message("删除失败", $this->redirect(Yii::$app->request->referrer), 'error');
+    }
+
+    /**
+     * 回收站批量删除
+     *
+     * @param $id
+     * @return mixed
+     */
+    public function actionDeleteAll()
+    {
+        $ids = Yii::$app->request->post('ids', []);
+        if (empty($ids)) {
+            return ResultHelper::json(422, '请至少选择一个商品');
+        }
+
+        if (Yii::$app->id === AppEnum::BACKEND) {
+            $where = ['in', 'id', $ids];
+        } else {
+            $where = ['and', ['in', 'id', $ids], ['merchant_id' => $this->getMerchantId()]];
+        }
+
+        Product::updateAll(['status' => -2], $where);
+
+        return ResultHelper::json(200, '批量操作成功');
     }
 
     /**
@@ -566,10 +635,8 @@ class ProductController extends BaseController
      */
     protected function findModel($id)
     {
-        if (empty($id) || empty(($model = Product::find()->where(['id' => $id])->andWhere(['merchant_id' => $this->getMerchantId()])->one()))) {
-            $model = new ProductForm();
-            $model->merchant_id = $this->getMerchantId();
-            $model->loadDefaultValues();
+        if (empty($id) || empty(($model = Product::find()->where(['id' => $id])->andFilterWhere(['merchant_id' => $this->getMerchantId()])->one()))) {
+            return $this->message("找不到商品", $this->redirect(Yii::$app->request->referrer), 'error');
         }
 
         return $model;

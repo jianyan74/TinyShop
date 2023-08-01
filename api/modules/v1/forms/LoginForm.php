@@ -3,8 +3,7 @@
 namespace addons\TinyShop\api\modules\v1\forms;
 
 use Yii;
-use common\enums\StatusEnum;
-use common\models\member\Member;
+use common\enums\MemberTypeEnum;
 use addons\TinyShop\common\enums\AccessTokenGroupEnum;
 
 /**
@@ -12,7 +11,7 @@ use addons\TinyShop\common\enums\AccessTokenGroupEnum;
  * @package api\modules\v1\forms
  * @author jianyan74 <751393839@qq.com>
  */
-class LoginForm extends \common\models\forms\LoginForm
+class LoginForm extends \common\forms\LoginForm
 {
     public $group;
     public $mobile;
@@ -46,10 +45,11 @@ class LoginForm extends \common\models\forms\LoginForm
     public function getUser()
     {
         if ($this->_user == false) {
-            $this->_user = Member::find()
-                ->where(['mobile' => $this->mobile, 'status' => StatusEnum::ENABLED])
-                ->andFilterWhere(['merchant_id' => Yii::$app->services->merchant->getId()])
-                ->one();
+            $this->_user = Yii::$app->services->member->findByCondition([
+                'mobile' => $this->mobile,
+                'type' => MemberTypeEnum::MEMBER,
+                'merchant_id' => Yii::$app->services->merchant->getNotNullId(),
+            ]);
         }
 
         return $this->_user;

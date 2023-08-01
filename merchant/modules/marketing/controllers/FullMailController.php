@@ -20,7 +20,8 @@ class FullMailController extends BaseController
      */
     public function actionIndex()
     {
-        $model = $this->findModel();
+        /** @var FullMail $model */
+        $model = Yii::$app->tinyShopService->marketingFullMail->one($this->getMerchantId());
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             return $this->message('修改成功', $this->redirect(['index']));
         }
@@ -28,23 +29,5 @@ class FullMailController extends BaseController
         return $this->render($this->action->id, [
             'model' => $model,
         ]);
-    }
-
-    /**
-     * 返回模型
-     *
-     * @param $id
-     * @return \yii\db\ActiveRecord
-     */
-    protected function findModel()
-    {
-        /* @var $model \yii\db\ActiveRecord */
-        if (empty(($model = FullMail::find()->andFilterWhere(['merchant_id' => $this->getMerchantId()])->one()))) {
-            $model = new FullMail();
-
-            return $model->loadDefaultValues();
-        }
-
-        return $model;
     }
 }

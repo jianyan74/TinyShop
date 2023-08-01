@@ -2,8 +2,9 @@
 
 namespace addons\TinyShop\common\models\common;
 
-use addons\TinyShop\common\models\product\Product;
+use yii\db\ActiveQuery;
 use common\traits\HasOneMerchant;
+use addons\TinyShop\common\models\product\Product;
 
 /**
  * Class Collect
@@ -19,16 +20,28 @@ class Collect extends Follow
      */
     public static function tableName()
     {
-        return '{{%addon_shop_common_collect}}';
+        return '{{%addon_tiny_shop_common_collect}}';
     }
 
     /**
-     * @return \yii\db\ActiveQuery
+     * @return ActiveQuery
      */
     public function getProduct()
     {
         return $this->hasOne(Product::class, ['id' => 'topic_id'])
-            ->select(['id', 'name', 'picture', 'star', 'transmit_num', 'comment_num', 'collect_num', 'view', 'product_status', 'status'])
+            ->select([
+                'id',
+                'name',
+                'picture',
+                'star',
+                'transmit_num',
+                'comment_num',
+                'collect_num',
+                'view',
+                'is_sales_visible',
+                'is_stock_visible',
+                'status',
+            ])
             ->with('minPriceSku');
     }
 }

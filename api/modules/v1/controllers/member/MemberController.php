@@ -7,9 +7,12 @@ use yii\web\NotFoundHttpException;
 use common\helpers\ResultHelper;
 use common\models\member\Member;
 use common\enums\StatusEnum;
-use common\helpers\AddonHelper;
+use common\helpers\ArrayHelper;
 use api\controllers\OnAuthController;
-use addons\TinyShop\common\models\SettingForm;
+use addons\TinyShop\common\enums\OrderStatusEnum;
+use addons\TinyShop\api\modules\v1\forms\MobileBindingForm;
+use addons\TinyShop\api\modules\v1\forms\MobileResetForm;
+use addons\TinyShop\api\modules\v1\forms\UpPayPwdForm;
 
 /**
  * 个人信息
@@ -34,29 +37,30 @@ class MemberController extends OnAuthController
     {
         $member_id = Yii::$app->user->identity->member_id;
 
-        $member = $this->modelClass::find()
+        $data = [];
+        $data['member'] = $this->modelClass::find()
             ->where(['id' => $member_id])
             ->with(['account', 'memberLevel'])
             ->asArray()
             ->one();
 
         // 优惠券数量
-        $member['coupon_num'] = Yii::$app->tinyShopService->marketingCoupon->findCountByMemberId($member_id);
+        $data['couponNum'] = Yii::$app->tinyShopService->marketingCoupon->findCountByMemberId($member_id);
         // 购物车数量
-        $member['cart_num'] = Yii::$app->tinyShopService->memberCartItem->count($member_id);
+        $data['cartNum'] = Yii::$app->tinyShopService->memberCartItem->findCountByMemberId($member_id);
         // 订单数量统计
-        $member['order_synthesize_num'] = Yii::$app->tinyShopService->order->getOrderCountGroupByMemberId($member_id);
-        $member['promoter'] = '';
-
+        $data['orderNum'] = Yii::$app->tinyShopService->order->getOrderStatusCountByMemberId($member_id);
+        // 消息数量
+        $data['notifyNum'] = Yii::$app->tinyShopService->notifyMember->unReadCount($member_id);;
         // 开启分销商
-        $setting = new SettingForm();
-        $setting->attributes = AddonHelper::getConfig();
-        $member['is_open_commission'] = $setting->is_open_commission;
-        if ($setting->is_open_commission == StatusEnum::ENABLED) {
-            $member['promoter'] = Yii::$app->tinyDistributionService->promoter->findByMemberId($member_id);
-        }
+        $data['promoter'] = '';
+        $data['promoterAccount'] = '';
+        // 开启签到
+        $data['signOpen'] = StatusEnum::DISABLED;
+        // 判断是否会员
+        $data['memberCard'] = [];
 
-        return $member;
+        return $data;
     }
 
     /**
@@ -69,14 +73,21 @@ class MemberController extends OnAuthController
     public function actionUpdate($id)
     {
         $data = Yii::$app->request->post();
-        unset(
-            $data['password_hash'],
-            $data['mobile'],
-            $data['username'],
-            $data['auth_key'],
-            $data['password_reset_token'],
-            $data['promo_code']
-        );
+        $data = ArrayHelper::filter($data, [
+            'nickname',
+            'head_portrait',
+            'realname',
+            'birthday',
+            'province_id',
+            'city_id',
+            'area_id',
+            'address',
+            'qq',
+            'email',
+            'gender',
+            'bg_image',
+            'description',
+        ]);
 
         $model = $this->findModel($id);
         $model->attributes = $data;
@@ -85,6 +96,107 @@ class MemberController extends OnAuthController
         }
 
         return 'ok';
+    }
+
+    /**
+     * 手机号码重置
+     *
+     * @return array|mixed
+     * @throws \yii\base\Exception
+     */
+    public function actionMobileReset()
+    {
+        $model = new MobileResetForm();
+        $model->attributes = Yii::$app->request->post();
+        if ($model->validate()) {
+            $member = $model->getUser();
+            $member->mobile_reset_token = Yii::$app->security->generateRandomString() . '_' . time();
+            $member->save();
+
+            return [
+                'mobile_reset_token' => $member->mobile_reset_token
+            ];
+        }
+
+        // 返回数据验证失败
+        return ResultHelper::json(422, $this->getError($model));
+    }
+
+    /**
+     * 手机号码绑定
+     *
+     * @return array|mixed|\yii\db\ActiveRecord|null
+     */
+    public function actionMobileBinding()
+    {
+        $member_id = Yii::$app->user->identity->member_id;
+        $member = Yii::$app->services->member->findById($member_id);
+
+        $model = new MobileBindingForm();
+        $model->attributes = Yii::$app->request->post();
+        $model->user = $member;
+        if ($model->validate()) {
+            $member->mobile_reset_token = '';
+            $member->mobile = $model->mobile;
+            $member->save();
+
+            return $model->user;
+        }
+
+        return ResultHelper::json(422, $this->getError($model));
+    }
+
+    /**
+     * 修改支付密码
+     *
+     * @return array|mixed
+     * @throws \yii\base\Exception
+     */
+    public function actionUpdatePayPassword()
+    {
+        $model = new UpPayPwdForm();
+        $model->attributes = Yii::$app->request->post();
+        if (!$model->validate()) {
+            return ResultHelper::json(422, $this->getError($model));
+        }
+
+        $member = $model->getUser();
+        $member->password_hash = Yii::$app->security->generatePasswordHash($model->password);
+        if (!$member->save()) {
+            return ResultHelper::json(422, $this->getError($member));
+        }
+
+        return $this->regroupMember(Yii::$app->services->apiAccessToken->getAccessToken($member, $model->group));
+    }
+
+    /**
+     * 注销
+     *
+     * @return array|mixed|string
+     */
+    public function actionCancel()
+    {
+        $member_id = Yii::$app->user->identity->member_id;
+        $member = Yii::$app->services->member->findById($member_id);
+
+        // 余额判断
+        $account = Yii::$app->services->memberAccount->findByMemberId($member_id);
+        if($account->user_money > 0) {
+            return ResultHelper::json(422, '账户还有余额，无法注销');
+        }
+
+        // 订单判断
+        $orderStatus = Yii::$app->tinyShopService->order->getOrderCountGroupByStatus(['buyer_id' => $member_id]);
+        foreach ($orderStatus as $key => $count) {
+            if (in_array($key, [OrderStatusEnum::PAY, OrderStatusEnum::SHIPMENTS, -1]) && $count > 0) {
+                return ResultHelper::json(422, '还存在未完成订单, 无法注销');
+            }
+        }
+
+        // 注销
+        Yii::$app->services->memberCancel->create($member);
+
+        return ResultHelper::json(200, '注销成功');
     }
 
     /**

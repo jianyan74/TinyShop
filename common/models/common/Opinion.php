@@ -2,24 +2,26 @@
 
 namespace addons\TinyShop\common\models\common;
 
-use addons\TinyShop\common\traits\HasOneMember;
 use common\behaviors\MerchantBehavior;
+use common\traits\HasOneMember;
+use Yii;
 
 /**
- * This is the model class for table "{{%addon_shop_base_opinion}}".
+ * This is the model class for table "{{%addon_tiny_shop_common_opinion}}".
  *
  * @property int $id
+ * @property int|null $merchant_id 商户id
  * @property int $member_id 用户id
- * @property int $merchant_id 商户id
  * @property string $content 内容
- * @property array $covers 反馈图片
- * @property string $reply 回复
- * @property string $from 来源
- * @property int $type 反馈类型
- * @property int $sort 优先级（0-9）
- * @property int $status 状态[-1:删除;0:禁用;1启用]
- * @property int $created_at 创建时间
- * @property int $updated_at 更新时间
+ * @property string|null $covers 反馈图片
+ * @property string|null $contact_way 联系方式
+ * @property string|null $reply 回复
+ * @property int|null $type 反馈类型
+ * @property string|null $from 来源
+ * @property int|null $sort 优先级（0-9）
+ * @property int|null $status 状态[-1:删除;0:禁用;1启用]
+ * @property int|null $created_at 创建时间
+ * @property int|null $updated_at 更新时间
  */
 class Opinion extends \common\models\base\BaseModel
 {
@@ -30,7 +32,7 @@ class Opinion extends \common\models\base\BaseModel
      */
     public static function tableName()
     {
-        return '{{%addon_shop_base_opinion}}';
+        return '{{%addon_tiny_shop_common_opinion}}';
     }
 
     /**
@@ -39,11 +41,11 @@ class Opinion extends \common\models\base\BaseModel
     public function rules()
     {
         return [
-            [['member_id', 'merchant_id', 'type', 'sort', 'status', 'created_at', 'updated_at'], 'integer'],
+            [['merchant_id', 'member_id', 'type', 'sort', 'status', 'created_at', 'updated_at'], 'integer'],
             [['content', 'type'], 'required'],
             [['content'], 'string'],
             [['covers'], 'safe'],
-            [['contact_way'], 'string', 'max' => 100],
+            [['contact_way'], 'string', 'max' => 50],
             [['reply', 'from'], 'string', 'max' => 200],
         ];
     }
@@ -55,8 +57,8 @@ class Opinion extends \common\models\base\BaseModel
     {
         return [
             'id' => 'ID',
-            'member_id' => '用户id',
             'merchant_id' => '商户id',
+            'member_id' => '用户id',
             'content' => '内容',
             'covers' => '反馈图片',
             'contact_way' => '联系方式',

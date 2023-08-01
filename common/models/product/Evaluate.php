@@ -2,46 +2,45 @@
 
 namespace addons\TinyShop\common\models\product;
 
-use common\behaviors\MerchantBehavior;
 use common\models\member\Member;
 use addons\TinyShop\common\models\order\Order;
 use addons\TinyShop\common\models\order\OrderProduct;
 
 /**
- * This is the model class for table "{{%addon_shop_product_evaluate}}".
+ * This is the model class for table "{{%addon_tiny_shop_product_evaluate}}".
  *
- * @property string $id 评价ID
- * @property string $merchant_id 商户id
- * @property string $merchant_name 商户店铺名称
- * @property int $order_id 订单ID
- * @property string $order_sn 订单编号
- * @property int $order_product_id 订单项ID
- * @property int $product_id 商品ID
- * @property string $product_name 商品名称
- * @property string $product_price 商品价格
- * @property string $product_picture 商品图片
- * @property string $sku_name sku名称
+ * @property int $id 评价ID
+ * @property int $merchant_id 商户id
+ * @property int|null $order_id 订单ID
+ * @property string|null $order_sn 订单编号
+ * @property int|null $order_product_id 订单项ID
+ * @property int|null $product_id 商品ID
+ * @property string|null $product_name 商品名称
+ * @property float|null $product_price 商品价格
+ * @property string|null $product_picture 商品图片
+ * @property string|null $sku_name sku名称
  * @property string $content 评价内容
- * @property array $covers 评价图片
- * @property string $video 视频地址
- * @property string $explain_first 解释内容
- * @property int $member_id 评价人编号
- * @property string $member_nickname 评价人名称
- * @property string $member_head_portrait 头像
- * @property int $is_anonymous 0表示不是 1表示是匿名评价
+ * @property string|null $covers 评价图片
+ * @property string|null $video 视频地址
+ * @property string|null $explain_first 解释内容
+ * @property int|null $member_id 评价人编号
+ * @property string|null $member_nickname 评价人名称
+ * @property string|null $member_head_portrait 头像
+ * @property int|null $is_anonymous 0表示不是 1表示是匿名评价
  * @property int $scores 1-5分
- * @property string $again_content 追加评价内容
- * @property array $again_covers 追评评价图片
- * @property string $again_explain 追加解释内容
- * @property int $again_addtime 追加评价时间
- * @property int $explain_type 1好评2中评3差评
- * @property int $has_again 是否追加 0 否 1 是
- * @property int $has_content 是否有内容 0 否 1 是
- * @property int $has_cover 是否有图 0 否 1 是
- * @property int $has_video 是否视频 0 否 1 是
- * @property int $status 状态
- * @property string $created_at 创建时间
- * @property string $updated_at 更新时间
+ * @property string|null $again_content 追加评价内容
+ * @property string|null $again_covers 追评评价图片
+ * @property string|null $again_explain 追加解释内容
+ * @property int|null $again_addtime 追加评价时间
+ * @property int|null $explain_type 1好评2中评3差评
+ * @property int|null $has_again 是否追加 0 否 1 是
+ * @property int|null $has_content 是否有内容 0 否 1 是
+ * @property int|null $has_cover 是否有图 0 否 1 是
+ * @property int|null $has_video 是否视频 0 否 1 是
+ * @property int|null $is_auto 是否自动评价 0 否 1 是
+ * @property int|null $status 状态
+ * @property int $created_at 创建时间
+ * @property int $updated_at 更新时间
  */
 class Evaluate extends \common\models\base\BaseModel
 {
@@ -50,7 +49,7 @@ class Evaluate extends \common\models\base\BaseModel
      */
     public static function tableName()
     {
-        return '{{%addon_shop_product_evaluate}}';
+        return '{{%addon_tiny_shop_product_evaluate}}';
     }
 
     /**
@@ -59,40 +58,15 @@ class Evaluate extends \common\models\base\BaseModel
     public function rules()
     {
         return [
-            [
-                [
-                    'merchant_id',
-                    'order_id',
-                    'order_sn',
-                    'order_product_id',
-                    'product_id',
-                    'member_id',
-                    'is_anonymous',
-                    'scores',
-                    'again_addtime',
-                    'explain_type',
-                    'has_again',
-                    'has_content',
-                    'has_cover',
-                    'has_video',
-                    'status',
-                    'created_at',
-                    'updated_at',
-                ],
-                'integer',
-            ],
+            [['merchant_id', 'order_id', 'order_product_id', 'product_id', 'member_id', 'is_anonymous', 'scores', 'again_addtime', 'explain_type', 'has_again', 'has_content', 'has_cover', 'has_video', 'is_auto', 'status', 'created_at', 'updated_at'], 'integer'],
             [['product_price'], 'number'],
-            [['scores'], 'integer', 'min' => 1, 'max' => 5],
             [['covers', 'again_covers'], 'safe'],
-            [['scores', 'order_product_id'], 'required'],
+            [['scores'], 'required'],
+            [['order_sn'], 'string', 'max' => 30],
+            [['product_name', 'member_nickname'], 'string', 'max' => 100],
+            [['product_picture', 'content', 'video', 'explain_first', 'again_content', 'again_explain'], 'string', 'max' => 255],
+            [['sku_name'], 'string', 'max' => 50],
             [['member_head_portrait'], 'string', 'max' => 150],
-            [['product_name'], 'string', 'max' => 200],
-            [['merchant_name', 'member_nickname'], 'string', 'max' => 100],
-            [
-                ['product_picture', 'sku_name', 'content', 'video', 'explain_first', 'again_content', 'again_explain'],
-                'string',
-                'max' => 255,
-            ],
         ];
     }
 
@@ -104,7 +78,6 @@ class Evaluate extends \common\models\base\BaseModel
         return [
             'id' => 'ID',
             'merchant_id' => '商户id',
-            'merchant_name' => '商户店铺名称',
             'order_id' => '订单ID',
             'order_sn' => '订单编号',
             'order_product_id' => '订单项ID',
@@ -131,6 +104,7 @@ class Evaluate extends \common\models\base\BaseModel
             'has_content' => '是否有内容 0 否 1 是',
             'has_cover' => '是否有图 0 否 1 是',
             'has_video' => '是否视频 0 否 1 是',
+            'is_auto' => '是否自动评价 0 否 1 是',
             'status' => '状态',
             'created_at' => '创建时间',
             'updated_at' => '更新时间',
@@ -156,10 +130,9 @@ class Evaluate extends \common\models\base\BaseModel
     {
         return $this->hasOne(Member::class, ['id' => 'member_id'])->select([
             'id',
-            'username',
             'nickname',
-            'realname',
             'head_portrait',
+            'type',
         ]);
     }
 

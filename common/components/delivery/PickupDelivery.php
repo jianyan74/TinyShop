@@ -5,11 +5,11 @@ namespace addons\TinyShop\common\components\delivery;
 use Yii;
 use yii\web\UnprocessableEntityHttpException;
 use addons\TinyShop\common\components\PreviewInterface;
-use addons\TinyShop\common\models\forms\PreviewForm;
+use addons\TinyShop\common\forms\PreviewForm;
 use common\enums\StatusEnum;
 
 /**
- * 自提
+ * 门店自提
  *
  * Class PickupDelivery
  * @author jianyan74 <751393839@qq.com>
@@ -23,27 +23,24 @@ class PickupDelivery extends PreviewInterface
      */
     public function execute(PreviewForm $form): PreviewForm
     {
-        if ($form->buyer_self_lifting != StatusEnum::ENABLED) {
+        if ($form->config['logistics_local_distribution'] != StatusEnum::ENABLED) {
             throw new UnprocessableEntityHttpException('未开启商品自提');
         }
 
-        if (!$form->pickup_id) {
+        if (!$form->store_id) {
             throw new UnprocessableEntityHttpException('请选择自提地点');
         }
 
-        if (!($form->pickup = Yii::$app->tinyShopService->pickupPoint->findById($form->pickup_id))) {
+        if (!($form->store = Yii::$app->tinyStoreService->store->findById($form->store_id))) {
             throw new UnprocessableEntityHttpException('自提地点不存在');
         }
 
-        // 自提运费开启
-        if ($form->pickup_point_is_open == StatusEnum::ENABLED) {
-            // 计算运费
-            $form->shipping_money = $form->pickup_point_fee;
-            // 免邮
-            if (!empty($form->pickup_point_freight) && $form->pickup_point_freight <= $form->product_money) {
-                $form->shipping_money = 0;
-            }
+        if (empty($form->subscribe_shipping_start_time)) {
+            throw new UnprocessableEntityHttpException('未选择自提时间');
         }
+
+        // 计算运费
+        $form->shipping_money = Yii::$app->tinyStoreService->config->getFreight($form->pay_money, $form->merchant_id);
 
         return $form;
     }

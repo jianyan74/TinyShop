@@ -3,8 +3,7 @@
 namespace addons\TinyShop;
 
 use Yii;
-use yii\db\ColumnSchemaBuilder;
-use yii\db\Migration;
+use common\components\Migration;
 use common\interfaces\AddonWidget;
 
 /**
@@ -19,17 +18,19 @@ class Upgrade extends Migration implements AddonWidget
      * @var array
      */
     public $versions = [
-        '1.1.0',
-        '1.2.0',
+        '3.0.0', // 默认版本
     ];
 
     /**
-    * @param $addon
-    * @return mixed|void
-    * @throws \yii\db\Exception
-    */
+     * @param $addon
+     * @return mixed|void
+     * @throws \yii\db\Exception
+     */
     public function run($addon)
     {
-
+        switch ($addon->version) {
+            case '3.0.0' :
+                break;
+        }
     }
 }

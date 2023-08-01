@@ -2,6 +2,7 @@
 
 namespace addons\TinyShop\services\product;
 
+use Yii;
 use common\enums\StatusEnum;
 use common\helpers\ArrayHelper;
 use common\components\Service;
@@ -25,8 +26,8 @@ class CateService extends Service
     {
         $list = Cate::find()
             ->where(['>=', 'status', StatusEnum::DISABLED])
+            ->andWhere(['merchant_id' => Yii::$app->services->merchant->getNotNullId()])
             ->andFilterWhere(['<>', 'id', $id])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->select(['id', 'title', 'pid', 'level'])
             ->orderBy('sort asc')
             ->asArray()
@@ -41,9 +42,9 @@ class CateService extends Service
     /**
      * @return array
      */
-    public function getMapList()
+    public function getMapList($merchant_id = '')
     {
-        $models = ArrayHelper::itemsMerge($this->getList());
+        $models = ArrayHelper::itemsMerge($this->getList($merchant_id));
 
         return ArrayHelper::map(ArrayHelper::itemsMergeDropDown($models), 'id', 'title');
     }
@@ -52,12 +53,14 @@ class CateService extends Service
      * @param string $pid
      * @return array|\yii\db\ActiveRecord[]
      */
-    public function getList()
+    public function getList($merchant_id = '')
     {
+        $merchant_id === '' && $merchant_id = Yii::$app->services->merchant->getNotNullId();
+
         return Cate::find()
             ->select(['id', 'title', 'pid', 'cover', 'level'])
             ->where(['status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->andWhere(['merchant_id' => $merchant_id])
             ->orderBy('sort asc, id desc')
             ->asArray()
             ->all();
@@ -68,16 +71,60 @@ class CateService extends Service
      *
      * @return array|\yii\db\ActiveRecord[]
      */
-    public function findIndexBlock()
+    public function findByRecommend()
     {
         return Cate::find()
+            ->select(['id', 'title', 'subhead', 'cover'])
             ->where(['status' => StatusEnum::ENABLED])
-            ->andWhere(['index_block_status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->andWhere(['is_recommend' => StatusEnum::ENABLED])
+            ->andWhere(['merchant_id' => Yii::$app->services->merchant->getNotNullId()])
             ->orderBy('sort asc, id desc')
-            ->cache(60)
+            ->cache(30)
             ->asArray()
             ->all();
+    }
+
+    /**
+     * 自定义分类
+     *
+     * @param $limit
+     * @param array $ids
+     * @return array|\yii\db\ActiveRecord[]
+     */
+    public function findByCustom($limit, $ids = [])
+    {
+        if (empty($ids)) {
+            $condition = ['is_recommend' => StatusEnum::ENABLED];
+        } else {
+            $condition = ['in', 'id', $ids];
+            $limit = count($ids);
+        }
+
+        $data = Cate::find()
+            ->select(['id', 'title', 'subhead', 'cover'])
+            ->where(['status' => StatusEnum::ENABLED])
+            ->andWhere($condition)
+            ->andWhere(['merchant_id' => Yii::$app->services->merchant->getNotNullId()])
+            ->orderBy('sort asc, id desc')
+            ->limit($limit)
+            ->asArray()
+            ->all();
+
+        if (empty($ids)) {
+            return $data;
+        }
+
+        // 排序后返回
+        $newData = [];
+        foreach ($ids as $id) {
+            foreach ($data as $datum) {
+                if ($id == $datum['id']) {
+                    $newData[] = $datum;
+                }
+            }
+        }
+
+        return $newData;
     }
 
     /**
@@ -86,9 +133,9 @@ class CateService extends Service
      * @param $id
      * @return array
      */
-    public function findChildIdsById($id)
+    public function findChildIdsById($id, $merchant_id = '')
     {
-        if ($model = $this->findById($id)) {
+        if ($model = $this->findById($id, $merchant_id)) {
             $tree = $model['tree'] .  TreeHelper::prefixTreeKey($id);
             $list = $this->getChilds($tree);
 
@@ -109,21 +156,49 @@ class CateService extends Service
         return Cate::find()
             ->where(['like', 'tree', $tree . '%', false])
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->asArray()
             ->all();
+    }
+
+    /**
+     * 获取所有下级
+     *
+     * @param $tree
+     * @return array|\yii\db\ActiveRecord[]
+     */
+    public function getParentIds($ids)
+    {
+        $allTree = Cate::find()
+            ->select(['id', 'tree'])
+            ->where(['in', 'id', $ids])
+            ->andWhere(['status' => StatusEnum::ENABLED])
+            ->asArray()
+            ->all();
+
+        $parentIds = [];
+        foreach ($allTree as $item) {
+            $parentIds[$item['id']] = [];
+            $parentIds[$item['id']][] = $item['id'];
+            if (!empty(trim($item['tree']))) {
+                $parentIds[$item['id']] = array_merge($parentIds[$item['id']], explode('-', trim($item['tree'])));
+            }
+        }
+
+        return $parentIds;
     }
 
     /**
      * @param $id
      * @return array|\yii\db\ActiveRecord|null|Cate
      */
-    public function findById($id)
+    public function findById($id, $merchant_id = '')
     {
+        $merchant_id === '' && $merchant_id = Yii::$app->services->merchant->getNotNullId();
+
         return Cate::find()
             ->where(['id' => $id])
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->andWhere(['merchant_id' => $merchant_id])
             ->asArray()
             ->one();
     }
@@ -138,9 +213,24 @@ class CateService extends Service
             ->select(['id'])
             ->where(['in', 'id', $ids])
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->andWhere(['merchant_id' => Yii::$app->services->merchant->getNotNullId()])
             ->asArray()
             ->column();
+    }
+
+    /**
+     * 根据ID获取所有分类
+     *
+     * @param $ids
+     * @return array|\yii\db\ActiveRecord[]
+     */
+    public function findAllByIds($ids)
+    {
+        return Cate::find()
+            ->where(['in', 'id', $ids])
+            ->andWhere(['>=', 'status', StatusEnum::DISABLED])
+            ->asArray()
+            ->all();
     }
 
     /**
@@ -151,7 +241,6 @@ class CateService extends Service
     {
         return Cate::find()
             ->where(['status' => StatusEnum::ENABLED, 'pid' => $id])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->asArray()
             ->all();
     }
@@ -160,11 +249,13 @@ class CateService extends Service
      * @param $id
      * @return array|\yii\db\ActiveRecord|null|Cate
      */
-    public function findAll()
+    public function findAll($merchant_id = '')
     {
+        $merchant_id === '' && $merchant_id = Yii::$app->services->merchant->getNotNullId();
+
         return Cate::find()
             ->where(['status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->andWhere(['merchant_id' => $merchant_id])
             ->asArray()
             ->cache(30)
             ->all();

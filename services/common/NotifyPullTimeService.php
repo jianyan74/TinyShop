@@ -28,12 +28,14 @@ class NotifyPullTimeService extends Service
             $model->type = $type;
             $model->alert_type = $alert_type;
             $model->last_time = $time;
+            $model->last_id = 0;
         } else {
             $time = $model->last_time;
             $model->last_time = time();
         }
 
         $model->save();
+
         return $time;
     }
 

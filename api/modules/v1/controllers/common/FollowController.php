@@ -5,11 +5,11 @@ namespace addons\TinyShop\api\modules\v1\controllers\common;
 use Yii;
 use yii\base\Model;
 use yii\web\UnprocessableEntityHttpException;
-use addons\TinyShop\common\enums\CommonTypeEnum;
-use addons\TinyShop\common\models\common\Collect;
 use api\controllers\OnAuthController;
 use common\enums\StatusEnum;
 use common\helpers\ResultHelper;
+use addons\TinyShop\common\enums\CommonModelMapEnum;
+use addons\TinyShop\common\models\common\Collect;
 
 /**
  * Class FollowController
@@ -27,7 +27,7 @@ abstract class FollowController extends OnAuthController
         $topic_type = Yii::$app->request->post('topic_type');
 
         /** @var Model $class */
-        if (!($class = CommonTypeEnum::getValue($topic_type))) {
+        if (!($class = CommonModelMapEnum::getValue($topic_type))) {
             return ResultHelper::json(422, '找不到可用的类型');
         }
 
@@ -36,11 +36,18 @@ abstract class FollowController extends OnAuthController
             return ResultHelper::json(422, '请不要重复操作');
         }
 
+        // 未登陆直接回调
+        if (Yii::$app->user->isGuest) {
+            $this->callBack($model, $class, 1);
+
+            return $model;
+        }
+
         // 开始事物
         $transaction = Yii::$app->db->beginTransaction();
         try {
             $model->attributes = Yii::$app->request->post();
-            $model->member_id = Yii::$app->user->identity->member_id;
+            $model->member_id = Yii::$app->user->identity->member_id ?? 0;
             $model->status = StatusEnum::ENABLED;
             if (!$model->save()) {
                 // 返回数据验证失败
@@ -76,7 +83,7 @@ abstract class FollowController extends OnAuthController
         }
 
         /** @var Model $class */
-        if (!($class = CommonTypeEnum::getValue($model->topic_type))) {
+        if (!($class = CommonModelMapEnum::getValue($model->topic_type))) {
             return ResultHelper::json(422, '找不到可用的类型');
         }
 

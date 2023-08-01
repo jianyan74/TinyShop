@@ -3,22 +3,27 @@
 namespace addons\TinyShop\services\common;
 
 use Yii;
-use yii\data\ActiveDataProvider;
-use yii\helpers\Json;
-use yii\data\Pagination;
-use common\enums\StatusEnum;
+use common\helpers\ArrayHelper;
 use common\components\Service;
+use common\enums\NotifyTypeEnum;
+use common\enums\MemberTypeEnum;
+use common\enums\StatusEnum;
+use common\enums\PayTypeEnum;
+use common\enums\PayStatusEnum;
 use addons\TinyShop\common\models\common\Notify;
 use addons\TinyShop\common\models\common\NotifyMember;
-use addons\TinyShop\common\enums\AccessTokenGroupEnum;
 use addons\TinyShop\common\enums\SubscriptionActionEnum;
-
-//use common\enums\SubscriptionAlertTypeEnum;
-//use common\models\backend\NotifySubscriptionConfig;
+use addons\TinyShop\common\enums\OrderStatusEnum;
+use addons\TinyShop\common\enums\OrderTypeEnum;
+use addons\TinyShop\common\enums\AccessTokenGroupEnum;
+use addons\TinyShop\common\enums\MarketingEnum;
+use addons\TinyShop\common\enums\ShippingTypeEnum;
+use addons\TinyShop\common\enums\RangeTypeEnum;
+use addons\TinyShop\common\enums\DiscountTypeEnum;
+use addons\TinyShop\common\enums\CouponGetTypeEnum;
+use addons\TinyShop\common\enums\RefundStatusEnum;
 
 /**
- * 消息通知
- *
  * Class NotifyService
  * @package addons\TinyShop\services\common
  * @author jianyan74 <751393839@qq.com>
@@ -26,19 +31,84 @@ use addons\TinyShop\common\enums\SubscriptionActionEnum;
 class NotifyService extends Service
 {
     /**
-     * 创建公告
+     * 解析数据
      *
-     * @param string $content
-     * @param int $sender_id
+     * @param $data
+     * @return array|array[]|object|object[]|string|string[]
+     * @throws \yii\base\InvalidConfigException
      */
-    public function createAnnounce($content, $sender_id)
+    public function analysisData($data)
     {
-        $model = new Notify();
-        $model->content = $content;
-        $model->sender_id = $sender_id;
-        $model->type = Notify::TYPE_ANNOUNCE;
+        $data = ArrayHelper::toArray($data);
+        // 订单
+        if (isset($data['order']) && !empty($data['order'])) {
+            $order = $data['order'];
+            $order['order_status'] = OrderStatusEnum::getValue($order['order_status']);
+            $order['pay_type'] = PayTypeEnum::getValue($order['pay_type']);
+            $order['shipping_type'] = ShippingTypeEnum::getValue($order['shipping_type']);
+            $order['order_type'] = OrderTypeEnum::getValue($order['order_type']);
+            $order['order_from'] = AccessTokenGroupEnum::relevance($order['order_from']);
+            $order['marketing_type'] = MarketingEnum::getValue($order['marketing_type']);
+            $order['pay_status'] = PayStatusEnum::getValue($order['pay_status']);
+            $order['pay_time'] = Yii::$app->formatter->asDatetime($order['pay_time']);
+            $order['receiving_time'] = Yii::$app->formatter->asDatetime($order['receiving_time']);
+            $order['shipping_time'] = Yii::$app->formatter->asDatetime($order['shipping_time']);
+            $order['sign_time'] = Yii::$app->formatter->asDatetime($order['sign_time']);
+            $order['consign_time'] = Yii::$app->formatter->asDatetime($order['consign_time']);
+            $order['finish_time'] = Yii::$app->formatter->asDatetime($order['finish_time']);
+            $order['close_time'] = Yii::$app->formatter->asDatetime($order['close_time']);
+            $order['created_at'] = Yii::$app->formatter->asDatetime($order['created_at']);
+            $order['updated_at'] = Yii::$app->formatter->asDatetime($order['updated_at']);
+            $data['order'] = $order;
+        }
 
-        return $model->save();
+        // 订单产品
+        if (isset($data['orderProduct']) && !empty($data['orderProduct'])) {
+            $orderProduct = $data['orderProduct'];
+            $data['orderProduct'] = $orderProduct;
+        }
+
+        // 优惠券
+        if (isset($data['couponType']) && !empty($data['couponType'])) {
+            $couponType = $data['couponType'];
+            $couponType['get_type'] = CouponGetTypeEnum::getValue($couponType['get_type']);
+            $couponType['discount_type'] = DiscountTypeEnum::getValue($couponType['discount_type']);
+            $couponType['range_type'] = RangeTypeEnum::getValue($couponType['range_type']);
+            $couponType['created_at'] = Yii::$app->formatter->asDatetime($couponType['created_at']);
+            $couponType['updated_at'] = Yii::$app->formatter->asDatetime($couponType['updated_at']);
+            $data['couponType'] = $couponType;
+        }
+
+        // 砍价
+        if (isset($data['launch']) && !empty($data['launch'])) {
+            $launch = $data['launch'];
+            $data['launch'] = $launch;
+        }
+
+        // 好友砍价
+        if (isset($data['bargainPartake']) && !empty($data['bargainPartake'])) {
+            $bargainPartake = $data['bargainPartake'];
+            $data['bargainPartake'] = $bargainPartake;
+        }
+
+        // 开团
+        if (isset($data['wholesale']) && !empty($data['wholesale'])) {
+            $wholesale = $data['wholesale'];
+            $data['wholesale'] = $wholesale;
+        }
+
+        // 售后
+        if (isset($data['afterSale']) && !empty($data['afterSale'])) {
+            $afterSale = $data['afterSale'];
+            $afterSale['get_type'] = RefundStatusEnum::getValue($afterSale['refund_status']);
+            $data['afterSale'] = $afterSale;
+        }
+
+
+        $data['time'] = Yii::$app->formatter->asDatetime(time());
+        $data['ip'] = Yii::$app->services->base->getUserIp();
+
+        return $data;
     }
 
     /**
@@ -48,19 +118,24 @@ class NotifyService extends Service
      * @param string $targetType 触发类型
      * @param string $action 提醒关联动作
      * @param int $sender_id 发送者(用户)id
-     * @param string $content 内容
+     * @param array $data 内容
      */
-    public function createRemind($target_id, $targetType, $sender_id, $content)
+    public function createRemind($targetId, $targetType, $merchant_id, $data = [])
     {
-        $model = new Notify();
-        $model->target_id = $target_id;
-        $model->target_type = $targetType;
-        $model->action = $targetType;
-        $model->content = $content;
-        $model->sender_id = $sender_id;
-        $model->type = Notify::TYPE_REMIND;
+        $data = $this->analysisData($data);
+        $defaultMerchantId = Yii::$app->services->merchant->getId();
+        if (Yii::$app->services->devPattern->isB2C()) {
+            $auth = Yii::$app->services->memberAuth->findByMemberType(0, MemberTypeEnum::MANAGER);
+        } elseif (Yii::$app->services->devPattern->isB2B2C()) {
+            $auth = Yii::$app->services->memberAuth->findByMemberType($merchant_id, MemberTypeEnum::MERCHANT);
+        } else {
+            $auth = Yii::$app->services->memberAuth->findByMemberType($merchant_id, MemberTypeEnum::MERCHANT);
+        }
 
-        return $model->save();
+        // 配置
+        $notifyConfigs = Yii::$app->services->notifyConfig->findByName($targetType, 0, 'TinyShop');
+        Yii::$app->services->notifyConfig->send($notifyConfigs, $auth, $targetId, $targetType, $data);
+        Yii::$app->services->merchant->setId($defaultMerchantId);
     }
 
     /**
@@ -69,12 +144,48 @@ class NotifyService extends Service
      * @param $target_id
      * @param $targetType
      * @param $receiver_id
-     * @param string $content
+     * @param array $data
      * @return bool
      */
-    public function createRemindByReceiver($target_id, $targetType, $receiver_id, $content = '', $params = [])
+    public function createRemindByReceiver($target_id, $targetType, $receiver_id, $data = [])
     {
+        $data = $this->analysisData($data);
+        $defaultMerchantId = Yii::$app->services->merchant->getAutoId();
+        $sysConfig = Yii::$app->services->notifyConfig->findSysByName($targetType, 0, 'TinyShop');
+        if (empty($sysConfig->content)) {
+            $sysConfig->attributes = SubscriptionActionEnum::default($targetType);
+        }
 
+        // 创建系统提醒
+        $model = new Notify();
+        $model->target_id = $target_id;
+        $model->target_type = $targetType;
+        $model->action = $targetType;
+        $model->sender_id = 0;
+        $model->type = NotifyTypeEnum::REMIND;
+        $model->title = SubscriptionActionEnum::getValue($targetType);
+        $model->content = ArrayHelper::recursionGetVal($sysConfig->content, $data);
+        if ($model->save()) {
+            $notifyMember = new NotifyMember();
+            $notifyMember->notify_id = $model->id;
+            $notifyMember->member_id = $receiver_id;
+            $notifyMember->type = NotifyTypeEnum::REMIND;
+            $notifyMember->save();
+        }
+
+        // 未开启通知
+        $memberConfig = Yii::$app->tinyShopService->notifySubscriptionConfig->findByMemberId($receiver_id, Yii::$app->services->merchant->getNotNullId());
+        if ($memberConfig['action']['all'] == StatusEnum::DISABLED) {
+            return false;
+        }
+
+        // 用户授权
+        $auth = Yii::$app->services->memberAuth->findByMemberId($receiver_id);
+        // 配置
+        $notifyConfigs = Yii::$app->services->notifyConfig->findByName($targetType, 0, 'TinyShop');
+
+        Yii::$app->services->notifyConfig->send($notifyConfigs, $auth, $target_id, $targetType, $data);
+        Yii::$app->services->merchant->setId($defaultMerchantId);
     }
 
     /**
@@ -89,12 +200,12 @@ class NotifyService extends Service
         $model = new Notify();
         $model->content = $content;
         $model->sender_id = $sender_id;
-        $model->type = Notify::TYPE_MESSAGE;
+        $model->type = NotifyTypeEnum::MESSAGE;
         if ($model->save()) {
             $NotifyMember = new NotifyMember();
             $NotifyMember->notify_id = $model->id;
             $NotifyMember->member_id = $receiver;
-            $NotifyMember->type = Notify::TYPE_MESSAGE;
+            $NotifyMember->type = NotifyTypeEnum::MESSAGE;
 
             return $NotifyMember->save();
         }
@@ -103,271 +214,32 @@ class NotifyService extends Service
     }
 
     /**
-     * 小程序订阅消息提醒
+     * 创建公告
      *
-     * @param Notify $model
-     * @param $oauth_client_user_id
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
-     * @throws \GuzzleHttp\Exception\GuzzleException
+     * @param $title
+     * @param $status
+     * @param $sender_id
+     * @return bool
      */
-    protected function miniProgramRemind(Notify $model, $oauth_client_user_id)
+    public function createAnnounce($title, $status, $sender_id)
     {
-
-    }
-
-    /**
-     * 微信消息模板提醒
-     *
-     * @param Notify $model
-     * @param $oauth_client_user_id
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     */
-    public function wechatRemind(Notify $model, $oauth_client_user_id)
-    {
-
-    }
-
-    /**
-     * 拉取公告
-     *
-     * @param int $member_id 用户id
-     * @throws \yii\db\Exception
-     */
-    public function pullAnnounce($member_id, $created_at)
-    {
-        // 从UserNotify中获取最近的一条公告信息的创建时间: lastTime
-        $model = NotifyMember::find()
-            ->where(['member_id' => $member_id, 'type' => Notify::TYPE_ANNOUNCE])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->orderBy('id desc')
-            ->asArray()
+        $model = Notify::find()
+            ->where([
+                'sender_id' => $sender_id,
+                'type' => NotifyTypeEnum::ANNOUNCE,
+            ])
             ->one();
 
-        // 用lastTime作为过滤条件，查询Notify的公告信息
-        $lastTime = $model ? $model['created_at'] : $created_at;
-        $notifys = Notify::find()
-            ->where(['type' => Notify::TYPE_ANNOUNCE, 'status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->andWhere(['>', 'created_at', $lastTime])
-            ->asArray()
-            ->all();
-
-        // 新建UserNotify并关联查询出来的公告信息
-        $rows = [];
-        $fields = ['notify_id', 'member_id', 'type', 'created_at', 'updated_at'];
-        foreach ($notifys as $notify) {
-            $rows[] = [$notify['id'], $member_id, Notify::TYPE_ANNOUNCE, $notify['created_at'], time()];
+        if (empty($model)) {
+            $model = new Notify();
+            $model = $model->loadDefaultValues();
+            $model->type = NotifyTypeEnum::ANNOUNCE;
+            $model->sender_id = $sender_id;
         }
 
-        !empty($rows) && Yii::$app->db->createCommand()->batchInsert(NotifyMember::tableName(), $fields,
-            $rows)->execute();
-    }
+        $model->title = $title;
+        $model->status = $status;
 
-    /**
-     * 拉取提醒
-     *
-     * @param NotifySubscriptionConfig $subscriptionConfig
-     * @param string $type
-     */
-    public function pullRemind(NotifySubscriptionConfig $subscriptionConfig, $type = SubscriptionAlertTypeEnum::SYS)
-    {
-        /** @var array $action 查询用户的配置文件SubscriptionConfig */
-        $action = $subscriptionConfig->action;
-        !is_array($action) && $action = [];
-
-        $filt = [];
-        foreach ($action as $key => $item) {
-            // 默认拉取系统通知
-            if ($key == $type) {
-                foreach ($item as $index => $value) {
-                    $value == true && $filt[] = $index;
-                }
-            }
-        }
-
-        // 查询最后的一条提醒时间
-        $lastTime = Yii::$app->services->backendNotifyPullTime->getLastTime($subscriptionConfig->member_id,
-            Notify::TYPE_REMIND, $type);
-        // 直接通过自己的关注去拉取消息
-        $notifys = Notify::find()
-            ->where(['type' => Notify::TYPE_REMIND, 'status' => StatusEnum::ENABLED])
-            ->andWhere(['in', 'action', $filt])
-            ->andWhere(['>', 'created_at', $lastTime])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->asArray()
-            ->all();
-
-        // 使用过滤好的Notify作为关联新建UserNotify
-        foreach ($notifys as $notify) {
-            $NotifyMember = new NotifyMember();
-            $NotifyMember->notify_id = $notify['id'];
-            $NotifyMember->member_id = $subscriptionConfig->member_id;
-            $NotifyMember->type = Notify::TYPE_REMIND;
-            $NotifyMember->save();
-        }
-
-        return $notifys;
-    }
-
-    /**
-     * 更新订阅配置
-     *
-     * @param $member_id
-     */
-    public function updateSubscriptionConfig($member_id)
-    {
-        $actions = [];
-        $config = NotifySubscriptionConfig::findOne(['member_id' => $member_id]);
-        $config->action = Json::encode($actions);
-
-        return $config->save();
-    }
-
-    /**
-     * 获取用户消息列表
-     *
-     * @param $member_id
-     */
-    public function getUserNotify($member_id, $is_read = 0)
-    {
-        $data = NotifyMember::find()
-            ->where(['status' => StatusEnum::ENABLED, 'is_read' => $is_read])
-            ->andWhere(['member_id' => $member_id])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()]);
-        $pages = new Pagination(['totalCount' => $data->count(), 'pageSize' => 10]);
-        $models = $data->offset($pages->offset)
-            ->with('notify')
-            ->orderBy('id desc')
-            ->limit($pages->limit)
-            ->asArray()
-            ->all();
-
-        foreach ($models as &$model) {
-            $model['type'] = Notify::$typeExplain[$model['type']];
-        }
-
-        return [$models, $pages];
-    }
-
-    /**
-     * 获取公告
-     *
-     * @return array|\yii\db\ActiveRecord[]
-     */
-    public function getAnnounce()
-    {
-        return Notify::find()
-            ->select(['id', 'title', 'cover', 'synopsis', 'view', 'created_at'])
-            ->where(['status' => StatusEnum::ENABLED])
-            ->andWhere(['type' => Notify::TYPE_ANNOUNCE])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->orderBy('id desc')
-            ->cache(30)
-            ->asArray()
-            ->all();
-    }
-
-    /**
-     * 未读数量(组别)
-     *
-     * @param $member_id
-     * @return array|\yii\db\ActiveRecord[]
-     */
-    public function unReadCount($member_id)
-    {
-        $data = [
-            'count' => 0,
-            'announce' => 0,
-            'remind' => 0,
-            'message' => 0,
-        ];
-
-        $groups = NotifyMember::find()
-            ->select(['type', 'count(id) as count'])
-            ->where(['member_id' => $member_id, 'is_read' => 0])
-            ->groupBy(['type'])
-            ->asArray()
-            ->all();
-
-        foreach ($groups as $group) {
-            $data['count'] += $group['count'];
-
-            switch ($group['type']) {
-                case Notify::TYPE_ANNOUNCE :
-                    $data['announce'] += $group['count'];
-                    break;
-                case Notify::TYPE_REMIND :
-                    $data['remind'] += $group['count'];
-                    break;
-                case Notify::TYPE_MESSAGE :
-                    $data['message'] += $group['count'];
-                    break;
-            }
-        }
-
-        return $data;
-    }
-
-    /**
-     * 更新指定的notify，把isRead属性设置为true
-     *
-     * @param $member_id
-     */
-    public function read($member_id, $notifyIds)
-    {
-        NotifyMember::updateAll(['is_read' => true, 'updated_at' => time()],
-            ['and', ['member_id' => $member_id], ['in', 'notify_id', $notifyIds]]);
-    }
-
-    /**
-     * 清空
-     *
-     * @param $member_id
-     * @param $type
-     */
-    public function clear($member_id, $notifyIds)
-    {
-        NotifyMember::updateAll([
-            'is_read' => true,
-            'status' => StatusEnum::DELETE,
-            'updated_at' => time()
-        ], [
-                'and',
-                ['member_id' => $member_id],
-                ['in', 'notify_id', $notifyIds]
-            ]
-        );
-    }
-
-    /**
-     * 清空
-     *
-     * @param $member_id
-     * @param $type
-     */
-    public function clearAll($member_id, $type)
-    {
-        NotifyMember::updateAll([
-            'is_read' => true,
-            'status' => StatusEnum::DELETE,
-            'updated_at' => time()
-        ], [
-            'member_id' => $member_id,
-            'type' => $type
-        ]);
-    }
-
-    /**
-     * 全部设为已读
-     *
-     * @param $member_id
-     */
-    public function readAll($member_id)
-    {
-        NotifyMember::updateAll(['is_read' => true, 'updated_at' => time()],
-            ['member_id' => $member_id, 'is_read' => false]);
+        return $model->save();
     }
 }

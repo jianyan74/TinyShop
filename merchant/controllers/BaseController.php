@@ -7,9 +7,10 @@ use common\helpers\AddonHelper;
 use common\controllers\AddonsController;
 
 /**
- * Class BaseController
+ * 默认控制器
+ *
+ * Class DefaultController
  * @package addons\TinyShop\merchant\controllers
- * @author jianyan74 <751393839@qq.com>
  */
 class BaseController extends AddonsController
 {
@@ -18,22 +19,10 @@ class BaseController extends AddonsController
      */
     public $layout = "@backend/views/layouts/main";
 
-    /**
-     * @throws \yii\base\ErrorException
-     * @throws \yii\base\InvalidConfigException
-     */
     public function init()
     {
         // 注册资源
         AddonHelper::filePath();
-
-        $bundles = Yii::$app->assetManager->bundles;
-        foreach ($bundles as $bundle) {
-            if (YII_DEBUG && isset($bundle->baseUrl)) {
-                $path = Yii::getAlias('@root') . '/web' . $bundle->baseUrl;
-                //  FileHelper::removeDirectory($path);
-            }
-        }
 
         parent::init();
     }

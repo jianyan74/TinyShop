@@ -16,16 +16,16 @@ use common\interfaces\AddonWidget;
 class Install extends Migration implements AddonWidget
 {
     /**
-    * @param $addon
-    * @return mixed|void
-    * @throws \yii\base\InvalidConfigException
-    * @throws \yii\web\NotFoundHttpException
-    * @throws \yii\web\UnprocessableEntityHttpException
-    */
+     * @param $addon
+     * @return mixed|void
+     * @throws \yii\base\InvalidConfigException
+     * @throws \yii\web\NotFoundHttpException
+     * @throws \yii\web\UnprocessableEntityHttpException
+     */
     public function run($addon)
     {
-         MigrateHelper::upByPath([
-             '@addons/TinyShop/console/migrations/'
-         ]);
+        MigrateHelper::upByPath([
+            '@addons/TinyShop/console/migrations/'
+        ]);
     }
 }

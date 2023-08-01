@@ -2,59 +2,54 @@
 
 namespace addons\TinyShop\common\models\marketing;
 
-use addons\TinyShop\common\models\product\Product;
-use common\behaviors\MerchantBehavior;
+use yii\db\ActiveQuery;
 use common\helpers\StringHelper;
-use addons\TinyShop\common\enums\PreferentialTypeEnum;
+use common\models\base\BaseModel;
+use common\behaviors\MerchantBehavior;
 use common\traits\HasOneMerchant;
+use addons\TinyShop\common\enums\MarketingEnum;
 
 /**
- * This is the model class for table "{{%addon_shop_marketing_coupon_type}}".
+ * This is the model class for table "{{%addon_tiny_shop_marketing_coupon_type}}".
  *
  * @property int $id 优惠券类型Id
  * @property int $merchant_id 店铺ID
- * @property string $title 优惠券名称
- * @property string $money 发放面额
- * @property int $count 发放数量
- * @property int $get_count 扣减数量
- * @property int $type 优惠券类型 1:满减;2:折扣
- * @property int $discount 折扣 1-100
- * @property int $max_fetch 每人最大领取个数 0无限制
- * @property string $at_least 满多少元使用 0代表无限制
- * @property int $need_user_level 领取人会员等级
- * @property int $range_type 使用范围0部分产品使用 1全场产品使用
- * @property int $is_show 是否允许首页显示0不显示1显示
- * @property int $start_time 有效日期开始时间
- * @property int $end_time 有效日期结束时间
- * @property int $get_start_time 领取有效日期开始时间
- * @property int $get_end_time 领取有效日期结束时间
- * @property int $term_of_validity_type 有效期类型 0固定时间 1领取之日起
- * @property int $fixed_term 领取之日起N天内有效
- * @property int $status 状态[-1:删除;0:禁用;1启用]
- * @property int $created_at 创建时间
- * @property int $updated_at 修改时间
+ * @property string|null $title 优惠券名称
+ * @property float|null $discount 活动金额
+ * @property int|null $discount_type 活动金额类型
+ * @property int|null $count 发放数量
+ * @property int|null $get_count 领取数量
+ * @property int|null $max_fetch 每人最大领取个数 0无限制
+ * @property int|null $max_day_fetch 每人每日最大领取个数 0无限制
+ * @property float|null $at_least 满多少元使用 0代表无限制
+ * @property int|null $need_user_level 领取人会员等级
+ * @property int|null $range_type 使用范围
+ * @property int|null $get_start_time 领取有效日期开始时间
+ * @property int|null $get_end_time 领取有效日期结束时间
+ * @property int|null $start_time 有效日期开始时间
+ * @property int|null $end_time 有效日期结束时间
+ * @property float|null $min_price 优惠券最小金额
+ * @property float|null $max_price 优惠券最大金额
+ * @property int|null $term_of_validity_type 有效期类型
+ * @property int|null $fixed_term 领取之日起N天内有效
+ * @property int|null $single_type 单品卷
+ * @property int|null $is_list_visible 领劵列表可见
+ * @property int|null $is_new_people 新人优惠券(未下支付单)
+ * @property string|null $remark 备注
+ * @property int|null $status 状态[-1:删除;0:禁用;1启用]
+ * @property int|null $created_at 创建时间
+ * @property int|null $updated_at 修改时间
  */
-class CouponType extends \common\models\base\BaseModel
+class CouponType extends BaseModel
 {
     use MerchantBehavior, HasOneMerchant;
-
-    const TERM_OF_VALIDITY_TYPE_FIXATION = 0;
-    const TERM_OF_VALIDITY_TYPE_GET = 1;
-
-    /**
-     * @var array
-     */
-    public static $termOfValidityTypeExplain = [
-        self::TERM_OF_VALIDITY_TYPE_FIXATION => '固定时间',
-        self::TERM_OF_VALIDITY_TYPE_GET => '领到券当日开始N天内有效',
-    ];
 
     /**
      * {@inheritdoc}
      */
     public static function tableName()
     {
-        return '{{%addon_shop_marketing_coupon_type}}';
+        return '{{%addon_tiny_shop_marketing_coupon_type}}';
     }
 
     /**
@@ -65,29 +60,58 @@ class CouponType extends \common\models\base\BaseModel
         return [
             [
                 [
+                    'count',
+                    'at_least',
+                    'title',
+                    'discount_type',
+                    'term_of_validity_type',
+                    'max_fetch',
+                    'max_day_fetch',
+                    'range_type',
+                    'fixed_term',
+                    'get_start_time',
+                    'get_end_time',
+                    'start_time',
+                    'end_time',
+                ],
+                'required',
+            ],
+            [
+                [
                     'merchant_id',
-                    'type',
+                    'discount_type',
                     'count',
                     'get_count',
                     'max_fetch',
+                    'max_day_fetch',
                     'need_user_level',
                     'range_type',
-                    'is_show',
                     'term_of_validity_type',
                     'fixed_term',
+                    'single_type',
+                    'is_list_visible',
+                    'is_new_people',
                     'status',
                     'created_at',
                     'updated_at',
                 ],
                 'integer',
+                'min' => 0,
             ],
-            [['discount'], 'integer', 'min' => 1, 'max' => 100],
-            [['type'], 'requireVerifier'],
-            [['count', 'at_least', 'title', 'type', 'term_of_validity_type'], 'required'],
-            [['money', 'at_least'], 'number', 'min' => 0],
-            [['count'], 'integer', 'min' => 0],
+            [['at_least', 'min_price', 'max_price'], 'number', 'min' => 0],
+            [['discount'], 'number', 'min' => 0, 'max' => 9.9],
+            [['remark'], 'string', 'min' => 0, 'max' => 10],
+            [['discount'], 'required'],
             [['title'], 'string', 'max' => 50],
-            [['start_time', 'end_time', 'get_start_time', 'get_end_time'], 'safe'],
+            [
+                [
+                    'get_start_time',
+                    'get_end_time',
+                    'start_time',
+                    'end_time',
+                ],
+                'safe',
+            ],
         ];
     }
 
@@ -97,73 +121,64 @@ class CouponType extends \common\models\base\BaseModel
     public function attributeLabels()
     {
         return [
-            'id' => 'ID',
-            'merchant_id' => 'Merchant ID',
-            'title' => '名称',
-            'money' => '面额',
+            'id' => '优惠券类型Id',
+            'merchant_id' => '店铺ID',
+            'title' => '优惠券名称',
+            'discount' => '折扣',
+            'discount_type' => '优惠券类型',
             'count' => '发放数量',
             'get_count' => '领取数量',
-            'type' => '优惠券类型',
-            'discount' => '折扣率',
-            'max_fetch' => '每人最大领取数',
+            'max_fetch' => '每人最大领取个数',
+            'max_day_fetch' => '每人每日最大领取个数',
             'at_least' => '满多少元使用',
-            'need_user_level' => '需要会员级别',
+            'need_user_level' => '领取人会员等级',
             'range_type' => '参与商品',
-            'is_show' => '首页显示',
-            'start_time' => '生效时间',
-            'end_time' => '过期时间',
-            'get_start_time' => '可领取开始时间',
-            'get_end_time' => '可领取过期时间',
-            'term_of_validity_type' => '有效时间',
-            'fixed_term' => '领取之日起几天有效',
+            'get_start_time' => '领取有效日期开始时间',
+            'get_end_time' => '领取有效日期结束时间',
+            'start_time' => '有效日期开始时间',
+            'end_time' => '有效日期结束时间',
+            'min_price' => '优惠券最小金额',
+            'max_price' => '优惠券最大金额',
+            'term_of_validity_type' => '有效期类型',
+            'fixed_term' => '领取之日起 N 天内有效',
+            'single_type' => '单品卷',
+            'is_list_visible' => '领劵列表可见',
+            'is_new_people' => '新人卷',
+            'remark' => '备注',
             'status' => '状态',
             'created_at' => '创建时间',
-            'updated_at' => 'Updated At',
+            'updated_at' => '修改时间',
         ];
     }
 
     /**
-     * @param $attribute
-     */
-    public function requireVerifier($attribute)
-    {
-        if ($this->type == PreferentialTypeEnum::MONEY && empty($this->money)) {
-            $this->addError('money', '面额不能为空');
-        }
-
-        if ($this->type == PreferentialTypeEnum::DISCOUNT && empty($this->discount)) {
-            $this->addError('discount', '折扣不能为空');
-        }
-    }
-
-    /**
-     * 关联产品
+     * 关联商品
      *
-     * @return \yii\db\ActiveQuery
+     * @return ActiveQuery
      */
     public function getProduct()
     {
-        return $this->hasMany(CouponProduct::class, ['coupon_type_id' => 'id']);
+        return $this->hasMany(MarketingProduct::class, ['marketing_id' => 'id'])
+            ->select(['id', 'marketing_type', 'product_id'])
+            ->andWhere(['in', 'marketing_type', [MarketingEnum::COUPON_IN, MarketingEnum::COUPON_NOT_IN]]);
     }
 
     /**
-     * 可用商品
+     * 关联分类
      *
-     * @return \yii\db\ActiveQuery
-     * @throws \yii\base\InvalidConfigException
+     * @return ActiveQuery
      */
-    public function getUsableProduct()
+    public function getCate()
     {
-        return $this->hasMany(Product::class, ['id' => 'product_id'])
-            ->viaTable(CouponProduct::tableName(), ['coupon_type_id' => 'id'])
-            ->select(['id', 'name'])
-            ->asArray();
+        return $this->hasMany(MarketingCate::class, ['marketing_id' => 'id'])
+            ->select(['id', 'marketing_type', 'cate_id'])
+            ->andWhere(['in', 'marketing_type', [MarketingEnum::COUPON_IN, MarketingEnum::COUPON_NOT_IN]]);
     }
 
     /**
      * 关联我的领取总数量
      *
-     * @return \yii\db\ActiveQuery
+     * @return ActiveQuery
      */
     public function getMyGet()
     {

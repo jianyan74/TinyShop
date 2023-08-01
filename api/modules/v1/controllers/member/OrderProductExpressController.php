@@ -16,7 +16,7 @@ class OrderProductExpressController extends UserAuthController
     /**
      * @var ProductExpress
      */
-    public $modelClass = ProductExpress::class;
+    public $modelClass = '';
 
     /**
      * @return array

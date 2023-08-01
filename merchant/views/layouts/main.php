@@ -1,9 +1,12 @@
 <?php
-use addons\TinyShop\merchant\assets\AppAsset;
+
 use common\helpers\Html;
+use addons\TinyShop\merchant\assets\AppAsset;
 
 AppAsset::register($this);
+
 ?>
+
 <?php $this->beginPage() ?>
 <!DOCTYPE html>
 <html lang="<?= Yii::$app->language ?>">
@@ -21,7 +24,7 @@ AppAsset::register($this);
 </head>
 <body>
 <?php $this->beginBody() ?>
-<?= $content ?>
+    <?= $content ?>
 <?php $this->endBody() ?>
 </body>
 </html>

@@ -4,15 +4,10 @@ namespace addons\TinyShop\common\components\marketing;
 
 use Yii;
 use yii\web\UnprocessableEntityHttpException;
-use common\helpers\ArrayHelper;
-use common\helpers\BcHelper;
-use addons\TinyShop\common\models\forms\PreviewForm;
-use addons\TinyShop\common\models\marketing\Coupon;
+use common\enums\UseStateEnum;
+use addons\TinyShop\common\forms\PreviewForm;
 use addons\TinyShop\common\components\PreviewInterface;
-use addons\TinyShop\common\enums\RangeTypeEnum;
-use addons\TinyShop\common\enums\PreferentialTypeEnum;
-use addons\TinyShop\common\traits\CalculatePriceTrait;
-use addons\TinyShop\common\enums\ProductMarketingEnum;
+use addons\TinyShop\common\enums\MarketingEnum;
 
 /**
  * 优惠券
@@ -23,8 +18,6 @@ use addons\TinyShop\common\enums\ProductMarketingEnum;
  */
 class CouponHandler extends PreviewInterface
 {
-    use CalculatePriceTrait;
-
     /**
      * @param PreviewForm $form
      * @return PreviewForm
@@ -36,61 +29,44 @@ class CouponHandler extends PreviewInterface
             return $form;
         }
 
-        if (!($coupon = Yii::$app->tinyShopService->marketingCoupon->findByIdWithType($form->coupon_id, $form->member->id))) {
+        if (!($coupon = Yii::$app->tinyShopService->marketingCoupon->findByMemberId($form->coupon_id, $form->member->id))) {
             throw new UnprocessableEntityHttpException('找不到优惠券');
         }
 
-        if ($coupon['state'] == Coupon::STATE_UNSED) {
+        if ($coupon['state'] == UseStateEnum::USE) {
             throw new UnprocessableEntityHttpException('优惠券已使用');
         }
 
-        if ($coupon['state'] == Coupon::STATE_PAST_DUE) {
+        if ($coupon['state'] == UseStateEnum::PAST_DUE) {
             throw new UnprocessableEntityHttpException('优惠券已过期');
         }
 
-        if ($coupon['state'] == Coupon::STATE_GET && (time() <= $coupon['start_time'] || time() >= $coupon['end_time'])) {
+        if ($coupon['state'] == UseStateEnum::GET && (time() <= $coupon['start_time'] || time() >= $coupon['end_time'])) {
             throw new UnprocessableEntityHttpException('优惠券不在有效使用时间内');
         }
 
-        // 校验是否是某些产品可用
-        if ($coupon['couponType']['range_type'] ==  RangeTypeEnum::ASSIGN) {
-            $couponProductIds = ArrayHelper::getColumn($coupon->couponProduct, 'product_id');
-            // 判断是否在可用产品内
-            $productIds = array_keys($form->groupOrderProducts);
-            // 有效的产品id
-            $usableIds = $this->usableVerify($couponProductIds, $productIds);
+        if ($coupon['merchant_id'] != 0 && $form->merchant_id != $coupon['merchant_id']) {
+            throw new UnprocessableEntityHttpException('无效的优惠券');
+        }
 
-            // 折扣获取最高价产品进行折扣
-            $money = 0;
-            $product_id = 0;
-            foreach ($form->groupOrderProducts as $key => $groupOrderProduct) {
-                if (in_array($key, $usableIds) && ($groupOrderProduct['product_money'] > $money)) {
-                    $money = $groupOrderProduct['product_money'];
-                    $product_id = $key;
-                }
-            }
+        $validCoupon = Yii::$app->tinyShopService->marketingCoupon->getPredictDiscountByCoupon($coupon, $form->groupOrderProducts);
+        if ($validCoupon == false) {
+            throw new UnprocessableEntityHttpException('优惠券不可用');
+        }
 
-            $form->coupon_money = $this->getCouponMoney($money, $coupon);
+        $couponMoney = $validCoupon['predictDiscount'];
 
-            // 记录营销
-            $form->marketingDetails[] = [
-                'marketing_id' => $coupon['couponType']['id'],
-                'marketing_type' => ProductMarketingEnum::COUPON,
-                'marketing_condition' => '满' . $coupon['at_least'] . '元，减' . $form->coupon_money,
-                'discount_money' => $form->coupon_money,
-                'product_id' => $product_id,
-            ];
-        } else {
-            $form = $this->calculatePrice($form);
-            $form->coupon_money = $this->getCouponMoney($form->product_money, $coupon);
+        // 记录营销
+        $form->marketingDetails[] = [
+            'uuid' => $validCoupon['productIds'],
+            'marketing_id' => $coupon['coupon_type_id'],
+            'marketing_type' => MarketingEnum::COUPON,
+            'marketing_condition' => '满' . $coupon['at_least'] . '元，折扣减' . $couponMoney,
+            'discount_money' => $couponMoney,
+        ];
 
-            // 记录营销
-            $form->marketingDetails[] = [
-                'marketing_id' => $coupon['couponType']['id'],
-                'marketing_type' => ProductMarketingEnum::COUPON,
-                'marketing_condition' => '满' . $coupon['at_least'] . '元，折扣减' . $form->coupon_money,
-                'discount_money' => $form->coupon_money,
-            ];
+        if ($validCoupon['predictTotalMoney'] < $coupon['at_least']) {
+            throw new UnprocessableEntityHttpException('优惠券需满 ' . $coupon['at_least'] . ' 元才可使用.');
         }
 
         $form->coupon = $coupon;
@@ -100,37 +76,14 @@ class CouponHandler extends PreviewInterface
     }
 
     /**
-     * 获取优惠券金额
-     *
-     * @param double $money 使用金额
-     * @param array $coupon 优惠券
-     * @return float
-     * @throws UnprocessableEntityHttpException
-     */
-    public function getCouponMoney($money, $coupon)
-    {
-        if ($money < $coupon['at_least']) {
-            throw new UnprocessableEntityHttpException('优惠券最低可使用金额为' . $coupon['at_least']);
-        }
-
-        // 满减
-        if ($coupon['type'] == PreferentialTypeEnum::MONEY) {
-            return $coupon['money'];
-        }
-
-        // 满折扣
-        return BcHelper::mul(BcHelper::div((100 - $coupon['discount']), 100, 4), $money);
-    }
-
-    /**
-     * @param array $couponProductIds 优惠券可用产品id
-     * @param array $productIds 已有产品id
+     * @param array $couponProductIds 优惠券可用商品id
+     * @param array $productIds 已有商品id
      * @return array
      * @throws UnprocessableEntityHttpException
      */
     public function usableVerify(array $couponProductIds, array $productIds)
     {
-        // 有效的产品id
+        // 有效的商品id
         $usableIds = [];
         $couponUsable = false;
         foreach ($couponProductIds as $couponProductId) {

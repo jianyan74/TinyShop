@@ -9,26 +9,24 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
 ?>
 
 <div class="row">
-    <div class="col-xs-12">
+    <div class="col-12">
         <div class="box">
             <div class="box-header">
                 <h3 class="box-title"><?= $this->title; ?></h3>
             </div>
             <div class="box-body">
                 <div class="row">
-                    <div class="col-md-12 col-xs-12 m-l">
+                    <div class="col-12 m-l">
                         总下单金额：<?= $total['pay_money'] ?? 0 ?> 元<br>
                         总下单量(件)： <?= $total['product_count'] ?? 0 ?>
                     </div>
-                    <div class="col-md-12 col-xs-12">
-                        <div class="row">
-                            <?= \common\widgets\echarts\Echarts::widget([
-                                'config' => [
-                                    'server' => Url::to(['order-money']),
-                                    'height' => '300px'
-                                ]
-                            ])?>
-                        </div>
+                    <div class="col-12">
+                        <?= \common\widgets\echarts\Echarts::widget([
+                            'config' => [
+                                'server' => Url::to(['order-money']),
+                                'height' => '300px'
+                            ]
+                        ])?>
                         <!-- /.box -->
                     </div>
                 </div>
@@ -37,14 +35,14 @@ $this->params['breadcrumbs'][] = ['label' => $this->title];
     </div>
 </div>
 <div class="row">
-    <div class="col-xs-12">
+    <div class="col-12">
         <div class="box">
             <div class="box-header">
                 <h3 class="box-title">下单数量</h3>
             </div>
             <div class="box-bod">
                 <div class="row p-m">
-                    <div class="col-md-12 col-xs-12">
+                    <div class="col-12">
                         <?= \common\widgets\echarts\Echarts::widget([
                             'config' => [
                                 'server' => Url::to(['order-create-count']),

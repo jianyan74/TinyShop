@@ -21,11 +21,10 @@ class AccountController extends UserAuthController
     public $modelClass = Account::class;
 
     /**
-     * @param $id
      * @return \yii\db\ActiveRecord
      * @throws NotFoundHttpException
      */
-    public function actionView($id)
+    public function actionDetail()
     {
         /* @var $model \yii\db\ActiveRecord */
         if (empty($id) || !($model = $this->modelClass::find()->where([
@@ -49,7 +48,7 @@ class AccountController extends UserAuthController
     public function checkAccess($action, $model = null, $params = [])
     {
         // 方法名称
-        if (in_array($action, ['delete', 'index', 'update', 'create'])) {
+        if (in_array($action, ['delete', 'index', 'view', 'update', 'create'])) {
             throw new \yii\web\BadRequestHttpException('权限不足');
         }
     }

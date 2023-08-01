@@ -1,12 +1,13 @@
-
-$('.orderProductAgree').click(function () {
+$(document).on("click", ".orderProductAgree", function () {
     var id = $(this).parent().attr('id');
-
-    swal("确定同意退款吗？", {
+    var title = "确定同意退款吗？";
+    swal(title, {
         buttons: {
             cancel: "取消",
             defeat: '确定',
         },
+        title: title,
+        text: '请谨慎操作',
     }).then((value) => {
         switch (value) {
             case "defeat":
@@ -17,10 +18,10 @@ $('.orderProductAgree').click(function () {
     });
 });
 
-$('.orderProductRefuse').click(function () {
+$(document).on("click", ".orderProductRefuse", function () {
     var id = $(this).parent().attr('id');
-
-    swal("您可以拒绝本次退款或者永久拒绝！", {
+    var title = "您可以拒绝本次退款或者永久拒绝!";
+    swal(title, {
         buttons: {
             cancel: "取消",
             defeat: '永久拒绝',
@@ -29,6 +30,8 @@ $('.orderProductRefuse').click(function () {
                 value: "catch",
             },
         },
+        title: title,
+        text: '请谨慎操作',
     }).then((value) => {
         switch (value) {
             case "defeat":
@@ -43,17 +46,20 @@ $('.orderProductRefuse').click(function () {
     });
 });
 
-$('.orderProductDelivery').click(function () {
+$(document).on("click", ".orderProductTakeDelivery", function () {
     var id = $(this).parent().attr('id');
-    swal("确定收货吗？", {
+    var title = "确定收货吗？";
+    swal(title, {
         buttons: {
             cancel: "取消",
             defeat: '确定',
         },
+        title: title,
+        text: '请谨慎操作',
     }).then((value) => {
         switch (value) {
             case "defeat":
-                updateProductRefundStatus(id, orderProductDeliveryUrl);
+                updateProductRefundStatus(id, orderProductTakeDeliveryUrl);
                 break;
             default:
         }
@@ -61,13 +67,16 @@ $('.orderProductDelivery').click(function () {
 });
 
 // 备货完成
-$('.ordersStockUpAccomplish').click(function () {
+$(document).on("click", ".ordersStockUpAccomplish", function () {
     var id = $(this).parent().parent().attr('id');
-    swal("确定备货完成吗？", {
+    var title = "确定备货完成吗？";
+    swal(title, {
         buttons: {
             cancel: "取消",
             defeat: '确定',
         },
+        title: title,
+        text: '请谨慎操作',
     }).then((value) => {
         switch (value) {
             case "defeat":
@@ -78,7 +87,28 @@ $('.ordersStockUpAccomplish').click(function () {
     });
 });
 
-// 修改产品退款申请状态
+// 确认接单
+$(document).on("click", ".orderAffirm", function () {
+    var id = $(this).parent().parent().attr('id');
+    var title = "确定接单吗？";
+    swal(title, {
+        buttons: {
+            cancel: "取消",
+            defeat: '确定',
+        },
+        title: title,
+        text: '请谨慎操作',
+    }).then((value) => {
+        switch (value) {
+            case "defeat":
+                updateOrderStatus(id, '', orderAffirmUrl);
+                break;
+            default:
+        }
+    });
+});
+
+// 修改商品退款申请状态
 function updateProductRefundStatus(id, url, always = '') {
     $.ajax({
         type: "post",
@@ -99,15 +129,18 @@ function updateProductRefundStatus(id, url, always = '') {
 
 // ------------------  订单操作 ------------------ //
 
-$('.orderDelivery').click(function () {
+$(document).on("click", ".orderDelivery", function () {
     var id = $(this).parent().parent().attr('id');
     var status = $(this).data('status');
+    var title = "确定收货吗？";
 
-    swal("确定收货吗？", {
+    swal(title, {
         buttons: {
             cancel: "取消",
             defeat: '确定',
         },
+        title: title,
+        text: '请谨慎操作',
     }).then((value) => {
         switch (value) {
             case "defeat":
@@ -118,19 +151,44 @@ $('.orderDelivery').click(function () {
     });
 });
 
-$('.orderClose').click(function () {
+$(document).on("click", ".orderClose", function () {
     var id = $(this).parent().parent().attr('id');
     var status = $(this).data('status');
+    var title = "确定关闭订单吗？";
 
-    swal("确定关闭订单吗？", {
+    swal(title, {
         buttons: {
             cancel: "取消",
             defeat: '确定',
         },
+        title: title,
+        text: '请谨慎操作',
     }).then((value) => {
         switch (value) {
             case "defeat":
                 updateOrderStatus(id, status, orderCloseUrl);
+                break;
+            default:
+        }
+    });
+});
+
+$(document).on("click", ".orderChargeback", function () {
+    var id = $(this).parent().parent().attr('id');
+    var status = $(this).data('status');
+    var title = "确定退掉整个订单吗？";
+
+    swal(title, {
+        buttons: {
+            cancel: "取消",
+            defeat: '确定',
+        },
+        title: title,
+        text: '请谨慎操作',
+    }).then((value) => {
+        switch (value) {
+            case "defeat":
+                updateOrderStatus(id, status, orderChargebackUrl);
                 break;
             default:
         }

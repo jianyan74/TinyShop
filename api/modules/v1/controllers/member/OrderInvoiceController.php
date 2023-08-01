@@ -3,11 +3,13 @@
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
 use Yii;
+use common\helpers\ResultHelper;
+use common\enums\StatusEnum;
+use yii\data\ActiveDataProvider;
 use api\controllers\UserAuthController;
 use addons\TinyShop\common\models\order\Invoice;
 use addons\TinyShop\api\modules\v1\forms\InvoiceForm;
 use addons\TinyShop\common\models\order\Order;
-use common\helpers\ResultHelper;
 
 /**
  * 订单发票
@@ -24,10 +26,34 @@ class OrderInvoiceController extends UserAuthController
     public $modelClass = Invoice::class;
 
     /**
+     * @return ActiveDataProvider
+     */
+    public function actionIndex()
+    {
+        return new ActiveDataProvider([
+            'query' => $this->modelClass::find()
+                ->where(['status' => StatusEnum::ENABLED, 'member_id' => Yii::$app->user->identity->member_id])
+                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+                ->orderBy('id desc')
+                ->with(['order'])
+                ->asArray(),
+            'pagination' => [
+                'pageSize' => $this->pageSize,
+                'validatePage' => false,// 超出分页不返回data
+            ],
+        ]);
+    }
+
+    /**
      * @return Invoice|array|mixed|\yii\db\ActiveRecord
      */
     public function actionCreate()
     {
+        $config = Yii::$app->tinyShopService->config->setting();
+        if (empty($config['order_invoice_status'])) {
+            return ResultHelper::json(422, '发票申请已关闭，请联系管理员');
+        }
+
         /* @var $model InvoiceForm */
         $model = new InvoiceForm();
         $model->attributes = Yii::$app->request->post();

@@ -3,9 +3,9 @@
 namespace addons\TinyShop\services\common;
 
 use common\enums\AppEnum;
-use addons\TinyShop\common\models\base\NotifySubscriptionConfig;
 use common\components\Service;
 use common\enums\StatusEnum;
+use addons\TinyShop\common\models\common\NotifySubscriptionConfig;
 
 /**
  * Class NotifySubscriptionConfigService

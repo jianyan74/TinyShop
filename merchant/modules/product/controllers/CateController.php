@@ -31,8 +31,8 @@ class CateController extends BaseController
     public function actionIndex()
     {
         $models = Cate::find()
-            ->orderBy('sort asc, created_at asc')
-            ->filterWhere(['merchant_id' => $this->getMerchantId()])
+            ->where(['merchant_id' => Yii::$app->services->merchant->getNotNullId()])
+            ->orderBy('sort asc, id desc')
             ->asArray()
             ->all();
 

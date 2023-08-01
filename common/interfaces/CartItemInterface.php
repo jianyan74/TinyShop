@@ -2,6 +2,8 @@
 
 namespace addons\TinyShop\common\interfaces;
 
+use addons\TinyShop\common\forms\CartItemForm;
+
 /**
  * Interface CartItemInterface
  * @package addons\TinyShop\common\interfaces
@@ -17,31 +19,37 @@ interface CartItemInterface
     public function all($member_id);
 
     /**
-     * @param $sku
-     * @param $num
-     * @param $member_id
+     * 创建
+     *
+     * @param CartItemForm $form
      * @return mixed
      */
-    public function create($sku, $num, $member_id);
+    public function create(CartItemForm $form);
 
     /**
      * 修改购物车数量
      *
-     * @param $sku
-     * @param $num
-     * @param $member_id
+     * @param CartItemForm $form
      * @return mixed
      */
-    public function updateNum($sku, $num, $member_id);
+    public function updateNumber(CartItemForm $form);
+
+    /**
+     * 修改规格
+     *
+     * @param CartItemForm $form
+     * @return mixed
+     */
+    public function updateSku(CartItemForm $form);
 
     /**
      * 删除一组
      *
-     * @param array $sku_ids
+     * @param array $ids
      * @param $member_id
      * @return mixed
      */
-    public function deleteBySkuIds(array $sku_ids, $member_id);
+    public function deleteIds(array $ids, $member_id);
 
     /**
      * 清空购物车
@@ -61,7 +69,7 @@ interface CartItemInterface
     public function loseBySkus($skus);
 
     /**
-     * 让所有产品失效
+     * 让所有商品失效
      *
      * @param $product_id
      */

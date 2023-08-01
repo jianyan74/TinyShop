@@ -19,11 +19,14 @@ class AppAsset extends AssetBundle
     public $sourcePath = '@addons/TinyShop/merchant/resources/';
 
     public $css = [
+        'https://at.alicdn.com/t/font_1681579_ymtux4xwd9.css',
         'css/tinyshop.css',
+        'css/font-demo.css',
     ];
 
     public $js = [
         'js/tinyshop.js',
+        'js/vuedraggable.min.js',
     ];
 
     public $depends = [

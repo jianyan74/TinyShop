@@ -4,8 +4,7 @@ namespace addons\TinyShop\merchant\controllers;
 
 use Yii;
 use common\helpers\ArrayHelper;
-use common\interfaces\AddonsSetting;
-use addons\TinyShop\common\models\SettingForm;
+use addons\TinyShop\common\forms\SettingForm;
 
 /**
  * 参数设置
@@ -13,7 +12,7 @@ use addons\TinyShop\common\models\SettingForm;
  * Class SettingController
  * @package addons\TinyShop\merchant\controllers
  */
-class SettingController extends BaseController implements AddonsSetting
+class SettingController extends BaseController
 {
     /**
      * @return mixed|string
@@ -22,14 +21,13 @@ class SettingController extends BaseController implements AddonsSetting
     {
         $request = Yii::$app->request;
         $model = new SettingForm();
-        $model->attributes = $this->getConfig();
+        $model->attributes = Yii::$app->services->addonsConfig->getConfig();
         if ($model->load($request->post()) && $model->validate()) {
-            $this->setConfig(ArrayHelper::toArray($model));
-
-            return $this->message('保存成功', $this->redirect(['display']));
+            Yii::$app->services->addonsConfig->setConfig(ArrayHelper::toArray($model));
+            return $this->message('修改成功', $this->redirect(['display']));
         }
 
-        return $this->render('@addons/TinyShop/backend/views/setting/display', [
+        return $this->render('display',[
             'model' => $model,
         ]);
     }

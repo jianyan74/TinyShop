@@ -41,59 +41,6 @@ ul {
     cursor: pointer;
 }
 
-/* 导航栏 */
-.goods-nav {
-    background: #E1E6F0;
-    overflow: hidden;
-    padding-left: 5px;
-}
-
-.goods-nav ul {
-    margin: 0;
-    padding: 0;
-    list-style-type: none;
-}
-
-.goods-nav.fixed {
-    position: fixed;
-    top: 50px;
-    z-index: 1000;
-    width: 100%;
-}
-
-.goods-nav li {
-    float: left;
-    width: 85px;
-    text-align: center;
-    padding: 5px 2px 0 2px;
-    position: relative;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.goods-nav li a {
-    display: block;
-    height: 35px;
-    line-height: 35px;
-    padding: 0 8px;
-    color: #76838f;
-}
-
-.goods-nav li.selected a,
-.goods-nav li:hover a {
-    background: #fff;
-}
-
-.goods-nav li a:hover,
-.goods-nav li a:active,
-.goods-nav li a:focus {
-    color: #76838f;
-}
-
-.goods-nav li {
-    width: 130px;
-}
-
 .mod-table {
     /*padding:15px;*/
 }
@@ -169,7 +116,7 @@ ul {
 
 .ui-step li.ui-step-done .ui-step-number::after {
     position: absolute;
-    left: 7px;
+    left: 6px;
     width: 17px;
     height: 30px;
     line-height: 30px;
@@ -375,7 +322,7 @@ ul {
     padding: 2px 0;
 }
 
-/* 产品编辑 */
+/* 商品编辑 */
 .selectImage {
     width: 30px;
     height: 30px;
@@ -429,4 +376,67 @@ ul {
     align-items: center;
     -webkit-box-pack: center;
     justify-content: center;
+}
+
+/** 模拟手机 **/
+
+.phone-header {
+    position: relative;
+    background: transparent url(../img/mobile_head_old.png);
+    background-position: 0 0;
+    overflow: hidden;
+    text-align: center;
+    padding-top: 30px;
+    font-size: 15px;
+    color: #fff;
+    border: 1px solid #e7e7eb;
+}
+
+.phone-binding {
+    font-size: 15px;
+    line-height: 30px;
+}
+
+.phone-body {
+    height: 500px;
+    position: relative;
+    background-color: white;
+}
+
+.phone-body .menu {
+    border-top: 1px solid #e4eaec;
+    position: relative;
+}
+
+.phone-body .menu .btn {
+    padding: 5px;
+    line-height: 1.5;
+}
+.phone-body .menu .btn {
+    font-size: 12px;
+    border-radius: 3px;
+}
+
+.phone-foot {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-top: 0;
+    background-position: 0 -3px;
+    background-repeat: no-repeat;
+    margin-bottom: 0;
+}
+
+/** 伸缩盒子布局 **/
+.flex-row {
+    display: flex;
+}
+
+.flex-row > * {
+    display: block;
+}
+
+.flex-col {
+    flex: 1;
 }

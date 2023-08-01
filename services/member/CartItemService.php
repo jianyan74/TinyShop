@@ -3,21 +3,22 @@
 namespace addons\TinyShop\services\member;
 
 use Yii;
-use yii\data\ActiveDataProvider;
 use yii\db\ActiveQuery;
+use yii\helpers\Json;
+use yii\web\NotFoundHttpException;
 use yii\web\UnprocessableEntityHttpException;
 use common\components\Service;
 use common\enums\StatusEnum;
-use common\helpers\ResultHelper;
+use common\helpers\ArrayHelper;
+use addons\TinyShop\common\forms\CartItemForm;
 use addons\TinyShop\common\models\member\CartItem;
 use addons\TinyShop\common\interfaces\CartItemInterface;
-use addons\TinyShop\common\enums\PointExchangeTypeEnum;
+use addons\TinyShop\common\enums\ProductTypeEnum;
+use addons\TinyShop\common\enums\MarketingEnum;
 
 /**
- * 已登录的购物车
- *
  * Class CartItemService
- * @package addons\TinyShop\common\services
+ * @package addons\TinyShop\services\member
  * @author jianyan74 <751393839@qq.com>
  */
 class CartItemService extends Service implements CartItemInterface
@@ -46,133 +47,128 @@ class CartItemService extends Service implements CartItemInterface
     }
 
     /**
-     * 列表
-     *
-     * @return ActiveDataProvider
-     */
-    public function list($member_id)
-    {
-        return new ActiveDataProvider([
-            'query' => $this->modelClass::find()
-                ->where(['status' => StatusEnum::ENABLED, 'member_id' => $member_id])
-                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-                ->orderBy('id desc')
-                ->with(['product', 'sku'])
-                ->asArray(),
-            'pagination' => [
-                'pageSize' => 10,
-                'validatePage' => false,// 超出分页不返回data
-            ],
-        ]);
-    }
-
-    /**
-     * @param $sku_id
-     * @param $member_id
-     * @return array|\yii\db\ActiveRecord|null|CartItem
-     */
-    public function findBySukId($sku_id, $member_id)
-    {
-        return $this->modelClass::find()
-            ->where(['sku_id' => $sku_id, 'status' => StatusEnum::ENABLED, 'member_id' => $member_id])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->one();
-    }
-
-    /**
      * @param $member_id
      * @return array|\yii\db\ActiveRecord[]
      */
     public function all($member_id)
     {
-        $member = Yii::$app->services->member->get($member_id);
         $data = $this->modelClass::find()
             ->where(['member_id' => $member_id])
             ->andWhere(['>=', 'status', StatusEnum::DISABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->orderBy('status desc, created_at asc')
-            ->with(['product', 'sku'])
+            ->orderBy('marketing_id desc, created_at asc')
+            ->with(['baseMerchant', 'product', 'sku'])
             ->asArray()
             ->all();
 
-        foreach ($data as &$datum) {
-            $datum['remark'] = '';
-            if ($datum['status'] == StatusEnum::DISABLED) {
-                if ($datum['product']['stock'] <= 0) {
-                    $datum['remark'] = '库存不足';
-                }
+        $carts = [];
+        $carts[0] = [
+            'merchant' => [],
+            'items' => [
+                [
+                    'marketing' => [],
+                    'products' => [],
+                    'updated_at' => '', // 排序时间
+                ]
+            ],
+        ];
 
-                if (!isset($datum['sku'])) {
-                    $datum['remark'] = '宝贝已不能购买';
-                }
+        $loseEfficacy = [];
+        $deleteIds = [];
+        foreach ($data as $key => &$datum) {
+            $datum['original_price'] = $datum['price'];
+            $datum['min_buy'] = 0;
+            $datum['max_buy'] = 0;
+            $datum['remark'] = '';
+            $datum['price'] = floatval($datum['sku']['price'] ?? $datum['price']);
+            $datum['marketing_price'] = $datum['price'];
+            $datum['product_name'] = $datum['product']['name'];
+            $datum['product_picture'] = $datum['sku']['picture'] ?? '';
+            $datum['stock'] = $datum['sku']['stock'] ?? 0;
+            empty($datum['product_picture']) && $datum['product_picture'] = $datum['product']['picture'];
+
+            // 无效商品
+            $datum['product']['stock'] <= 0 && $datum['remark'] = '库存不足';
+            !isset($datum['sku']) && $datum['remark'] = '宝贝已不能购买';
+            if ($datum['status'] == StatusEnum::DISABLED || !empty($datum['remark'])) {
+                empty($datum['remark']) && $datum['remark'] = '宝贝已失效';
+
+                unset(
+                    $datum['product'],
+                    $datum['sku'],
+                    $datum['baseMerchant'],
+                    $datum['created_at']
+                );
+
+                $loseEfficacy[] = $datum;
+                unset($data[$key]);
+                continue;
             }
+
+            unset(
+                $datum['product'],
+                $datum['sku'],
+                $datum['baseMerchant'],
+                $datum['created_at']
+            );
         }
 
-        return $data;
-    }
+        !empty($deleteIds) && $this->deleteIds($deleteIds, $member_id);
+        // 重构营销
+        $marketingData = [];
+        foreach ($data as $value) {
+            $marketingData[] = [
+                'marketing' => [],
+                'marketing_tag' => '',
+                'marketing_explain' => '',
+                'products' => [$value],
+                'updated_at' => $value['updated_at'],
+            ];
+        }
 
-    /**
-     * 获取总数量
-     *
-     * @param $member_id
-     * @return int|string
-     */
-    public function count($member_id)
-    {
-        return $this->modelClass::find()
-            ->select('count(id)')
-            ->where(['member_id' => $member_id, 'status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->scalar();
+        // 写入购物车
+        foreach ($marketingData as $marketingDatum) {
+            $carts[0]['items'][] = $marketingDatum;
+        }
+
+        return [$carts, $loseEfficacy];
     }
 
     /**
      * 加入购物车
      *
-     * @param $sku
-     * @param $num
-     * @param $member_id
-     * @return CartItem|array|mixed|\yii\db\ActiveRecord|null
-     * @throws UnprocessableEntityHttpException
+     * @param CartItemForm $form
+     * @return mixed|void
      */
-    public function create($sku, $num, $member_id)
+    public function create(CartItemForm $form)
     {
-        $model = $this->findProductModel($sku['product_id'], $sku['id'], $member_id);
-        $model->number += $num;
+        $sku = $form->getSku();
+        $model = $this->findModel($sku['product_id'], $sku['id'], $form->member_id, $form->marketing_id, $form->marketing_type);
+        $model->number += $form->number;
         $model->sku_id = $sku['id'];
         $model->sku_name = $sku['name'];
-        $model->member_id = $member_id;
+        $model->member_id = $form->member_id;
+        $model->marketing_id = $form->marketing_id;
+        $model->marketing_type = $form->marketing_type;
         $model->price = $sku['price'];
         $model->product_id = $sku['product']['id'];
-        $model->product_img = $sku['product']['picture'];
+        $model->product_picture = $sku['product']['picture'];
         $model->product_name = $sku['product']['name'];
+        $model->merchant_id = $sku['merchant_id'];
 
-        if ($sku['product']['is_virtual'] == StatusEnum::ENABLED) {
+        if (!in_array($sku['product']['type'], ProductTypeEnum::entity())) {
             throw new UnprocessableEntityHttpException('虚拟商品不可加入购物车');
         }
 
-        if ($sku['product']['is_open_presell'] == StatusEnum::ENABLED) {
-            throw new UnprocessableEntityHttpException('预售商品不可加入购物车');
-        }
-
-        if (PointExchangeTypeEnum::isIntegralBuy($sku['product']['point_exchange_type'])) {
-            throw new UnprocessableEntityHttpException('积分商品不可加入购物车');
-        }
-
         if ($sku['stock'] < $model->number) {
-            throw new UnprocessableEntityHttpException('库存不足');
-        }
-
-        if ($sku['product']['status'] != StatusEnum::ENABLED || $sku['product']['product_status'] != StatusEnum::ENABLED) {
-            throw new UnprocessableEntityHttpException('产品已下架或者不存在');
+            throw new UnprocessableEntityHttpException('购物车已有数量已超出库存');
         }
 
         if ($sku['product']['max_buy'] > 0) {
             // 当前购物车所有的数量
-            $sum = Yii::$app->tinyShopService->memberCartItem->getSumByProductId($sku['product']['id'], $member_id) + $num;
-
+            $sum = Yii::$app->tinyShopService->memberCartItem->getSumByProductId($sku['product']['id'], $form->member_id) + $form->number;
             if ($sum > $sku['product']['max_buy']) {
-                throw new UnprocessableEntityHttpException('每人最多购买数量为' . $sku['product']['max_buy']);
+                throw new UnprocessableEntityHttpException('购物车已存在该商品，每人最多购买数量为' . $sku['product']['max_buy']);
             }
         }
 
@@ -190,37 +186,71 @@ class CartItemService extends Service implements CartItemInterface
     /**
      * 修改购物车数量
      *
-     * @param $product_id
-     * @param $sku_id
-     * @param $num
-     * @param $member_id
-     * @return CartItem|array|mixed|null|\yii\db\ActiveRecord
-     * @throws UnprocessableEntityHttpException
+     * @param CartItemForm $form
+     * @return mixed|void
      */
-    public function updateNum($sku, $num, $member_id)
+    public function updateNumber(CartItemForm $form)
     {
-        $model = $this->findBySukId($sku['id'], $member_id);
+        $model = $this->findById($form->id, $form->member_id);
         if (!$model) {
-            throw new UnprocessableEntityHttpException('购物车产品已被移除');
+            throw new UnprocessableEntityHttpException('购物车商品已被移除');
         }
 
+        $sku = Yii::$app->tinyShopService->productSku->findById($model->sku_id);
         if ($sku['product']['max_buy'] > 0) {
             // 当前购物车所有的数量
-            $sum = Yii::$app->tinyShopService->memberCartItem->getSumByProductId($sku['product']['id'], $member_id);
-            $sum = ($sum - $model->number) + $num;
+            $sum = Yii::$app->tinyShopService->memberCartItem->findSumByProductId($sku['product']['id'], $form->member_id);
+            $sum = ($sum - $model->number) + $form->number;
 
             if ($sum > $sku['product']['max_buy']) {
                 throw new UnprocessableEntityHttpException('每人最多购买数量为' . $sku['product']['max_buy']);
             }
         }
 
-        $model->number = $num;
+        $model->number = $form->number;
         if ($sku['stock'] < $model->number) {
-            return ResultHelper::json(422, '库存不足');
+            throw new UnprocessableEntityHttpException('购物车已有数量已超出库存');
+        }
+
+        if ($sku['product']['min_buy'] > $model->number) {
+            throw new UnprocessableEntityHttpException('每人最少购买数量为' . $sku['product']['min_buy']);
         }
 
         if (!$model->save()) {
-            return ResultHelper::json(422, $this->getError($model));
+            throw new UnprocessableEntityHttpException($this->getError($model));
+        }
+
+        return $model;
+    }
+
+    /**
+     * 修改规格
+     *
+     * @param CartItemForm $form
+     */
+    public function updateSku(CartItemForm $form)
+    {
+        $sku = $form->getSku();
+        /** @var CartItem $oldCartItem */
+        $oldCartItem = Yii::$app->tinyShopService->memberCartItem->findById($form->id, $form->member_id);
+        if (!$oldCartItem) {
+            throw new UnprocessableEntityHttpException('购物车找不到该商品');
+        }
+
+        Yii::$app->tinyShopService->memberCartItem->deleteIds([$form->id], $form->member_id);
+        $model = $this->findModel($sku['product_id'], $sku['id'], $form->member_id);
+        $model->number = $oldCartItem->number;
+        $model->member_id = $oldCartItem->member_id;
+        $model->sku_id = $sku->id;
+        $model->sku_name = $sku->name;
+        $model->price = $sku->price;
+        $model->merchant_id = $sku->merchant_id;
+        $model->product_id = $sku->product_id;
+        $model->product_name = $oldCartItem->product_name;
+        $model->product_picture = $oldCartItem->product_picture;
+        $form->verifyValid($model->number);
+        if (!$model->save()) {
+            throw new NotFoundHttpException($this->getError($model));
         }
 
         return $model;
@@ -233,15 +263,13 @@ class CartItemService extends Service implements CartItemInterface
      * @param $member_id
      * @return bool
      */
-    public function deleteBySkuIds(array $sku_ids, $member_id)
+    public function deleteIds(array $ids, $member_id)
     {
-        $this->modelClass::deleteAll([
+        return $this->modelClass::deleteAll([
             'and',
-            ['in', 'sku_id', $sku_ids],
+            ['in', 'id', $ids,],
             ['member_id' => $member_id]
         ]);
-
-        return true;
     }
 
     /**
@@ -265,32 +293,6 @@ class CartItemService extends Service implements CartItemInterface
     }
 
     /**
-     * 让购物车内的这些sku失效
-     *
-     * @param $skus
-     */
-    public function loseBySkus($skus)
-    {
-        $this->modelClass::updateAll(['status' => StatusEnum::DISABLED], [
-            'and',
-            ['in', 'sku_id', $skus],
-            ['merchant_id' => Yii::$app->services->merchant->getId()]
-        ]);
-    }
-
-    /**
-     * 设置为禁用的
-     *
-     * @param $product_id
-     */
-    public function loseByProductIds(array $product_ids)
-    {
-        $this->modelClass::updateAll(['status' => StatusEnum::DISABLED], ['in', 'product_id', $product_ids]);
-
-        // TODO 设置该产品订单为关闭
-    }
-
-    /**
      * 获取该产品总数量
      *
      * @return false|string|null
@@ -302,23 +304,129 @@ class CartItemService extends Service implements CartItemInterface
             ->where(['product_id' => $product_id])
             ->andWhere(['member_id' => $member_id])
             ->andWhere(['status' => StatusEnum::ENABLED])
-            ->scalar();
+            ->scalar() ?? 0;
+    }
+
+    /**
+     * @param $member_id
+     * @param $marketing_id
+     * @return false|string|null
+     */
+    public function getCountByPlusBuyId($member_id, $marketing_id)
+    {
+        return $this->modelClass::find()
+            ->where(['member_id' => $member_id, 'marketing_id' => $marketing_id, 'marketing_type' => MarketingEnum::PLUS_BUY, 'status' => StatusEnum::ENABLED])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->sum('number');
     }
 
     /**
      * @param $ids
+     * @param $all
+     * @return void
+     */
+    public function loseByProductIds($ids, $all = false)
+    {
+        $this->modelClass::updateAll(['status' => StatusEnum::DISABLED], ['in', 'product_id', $ids]);
+    }
+
+    /**
+     * @param $skuIds
+     * @return mixed|void
+     */
+    public function loseBySkus($skuIds)
+    {
+        $this->modelClass::updateAll(['status' => StatusEnum::DISABLED], ['in', 'sku_id', $skuIds]);
+    }
+
+    /**
+     * 获取总数量
+     *
      * @param $member_id
+     * @return int|string
+     */
+    public function findCountByMemberId($member_id)
+    {
+        return $this->modelClass::find()
+            ->select('count(id)')
+            ->where(['member_id' => $member_id, 'status' => StatusEnum::ENABLED])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->scalar() ?? 0;
+    }
+
+    /**
+     * @param $member_id
+     * @param $marketing_id
+     * @return false|string|null
+     */
+    public function findSumByPlusBuyId($member_id, $marketing_id)
+    {
+        return $this->modelClass::find()
+                ->where([
+                        'member_id' => $member_id,
+                        'marketing_id' => $marketing_id,
+                        'marketing_type' => MarketingEnum::PLUS_BUY,
+                        'status' => StatusEnum::ENABLED]
+                )
+                ->sum('number') ?? 0;
+    }
+
+    /**
+     * 获取该商品总数量
+     *
+     * @return false|string|null
+     */
+    public function findSumByProductId($product_id, $member_id)
+    {
+        return $this->modelClass::find()
+                ->select('sum(number)')
+                ->where(['member_id' => $member_id, 'product_id' => $product_id, 'status' => StatusEnum::ENABLED])
+                ->scalar() ?? 0;
+    }
+
+    /**
+     * @param $sku_id
+     * @param $member_id
+     * @return array|\yii\db\ActiveRecord|null|CartItem
+     */
+    public function findBySukId($sku_id, $member_id)
+    {
+        return $this->modelClass::find()
+            ->where(['member_id' => $member_id, 'sku_id' => $sku_id, 'status' => StatusEnum::ENABLED])
+            ->one();
+    }
+
+    /**
+     * @param $id
+     * @param $member_id
+     * @return array|\yii\db\ActiveRecord|null|CartItem
+     */
+    public function findById($id, $member_id)
+    {
+        return $this->modelClass::find()
+            ->where(['id' => $id, 'member_id' => $member_id, 'status' => StatusEnum::ENABLED])
+            ->one();
+    }
+
+    /**
+     * 查询
+     *
+     * @param $ids
+     * @param $member_id
+     * @param false $plus_buy
      * @return array|\yii\db\ActiveRecord[]
      */
-    public function findByIds($ids, $member_id)
+    public function findByIds($ids, $member_id, $plus_buy = false)
     {
+        $condition = $plus_buy == false ? ['marketing_id' => 0] : [];
+
         return $this->modelClass::find()
             ->where(['in', 'id', $ids])
             ->andWhere(['status' => StatusEnum::ENABLED, 'member_id' => $member_id])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->andFilterWhere($condition)
             ->with(['product.myGet' => function(ActiveQuery $query) use ($member_id) {
-                return $query->andWhere(['member_id' => $member_id]);
-            }, 'sku'])
+                return $query->andWhere(['buyer_id' => $member_id]);
+            }, 'product.cateMap', 'sku', 'merchant'])
             ->asArray()
             ->all();
     }
@@ -327,12 +435,20 @@ class CartItemService extends Service implements CartItemInterface
      * @param $product_id
      * @param $sku_id
      * @param $member_id
-     * @return CartItem|array|\yii\db\ActiveRecord|null
+     * @param $marketing_id
+     * @param $marketing_type
+     * @return CartItem|array|\yii\db\ActiveRecord
      */
-    protected function findProductModel($product_id, $sku_id, $member_id)
+    protected function findModel($product_id, $sku_id, $member_id, $marketing_id = 0, $marketing_type = '')
     {
         $model = $this->modelClass::find()
-            ->where(['product_id' => $product_id, 'status' => StatusEnum::ENABLED, 'member_id' => $member_id])
+            ->where([
+                'product_id' => $product_id,
+                'member_id' => $member_id,
+                'marketing_id' => $marketing_id,
+                'status' => StatusEnum::ENABLED,
+            ])
+            ->andFilterWhere(['marketing_type' => $marketing_type])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->andFilterWhere(['sku_id' => $sku_id])
             ->one();

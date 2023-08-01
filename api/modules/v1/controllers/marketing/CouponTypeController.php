@@ -4,16 +4,17 @@ namespace addons\TinyShop\api\modules\v1\controllers\marketing;
 
 use Yii;
 use yii\data\ActiveDataProvider;
+use yii\data\Pagination;
 use yii\db\ActiveQuery;
 use yii\rest\Serializer;
 use yii\web\NotFoundHttpException;
+use api\controllers\OnAuthController;
 use common\enums\StatusEnum;
 use common\enums\WhetherEnum;
 use common\helpers\ResultHelper;
 use common\helpers\ArrayHelper;
-use addons\TinyShop\common\models\forms\CouponTypeForm;
+use addons\TinyShop\common\forms\CouponTypeForm;
 use addons\TinyShop\common\models\marketing\CouponType;
-use api\controllers\OnAuthController;
 
 /**
  * 优惠券领取列表
@@ -36,7 +37,7 @@ class CouponTypeController extends OnAuthController
      *
      * @var array
      */
-    protected $authOptional = ['index', 'view'];
+    protected $authOptional = ['index', 'list', 'view'];
 
     /**
      * @return mixed|ActiveDataProvider
@@ -55,11 +56,13 @@ class CouponTypeController extends OnAuthController
             'query' => $this->modelClass::find()
                 ->where([
                     'status' => StatusEnum::ENABLED,
-                    'is_show' => WhetherEnum::ENABLED,
+                    'is_list_visible' => WhetherEnum::ENABLED,
                 ])
+                ->andWhere(['<', 'get_start_time', time()])
+                ->andWhere(['>', 'get_end_time', time()])
                 ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
                 ->orderBy('id desc')
-                ->with(ArrayHelper::merge($with, ['usableProduct', 'merchant']))
+                ->with(ArrayHelper::merge($with, ['baseMerchant']))
                 ->asArray(),
             'pagination' => [
                 'pageSize' => $this->pageSize,
@@ -71,6 +74,7 @@ class CouponTypeController extends OnAuthController
         $models = (new Serializer())->serialize($data);
         foreach ($models as &$model) {
             $model = Yii::$app->tinyShopService->marketingCouponType->regroupShow($model);
+            $model['discount'] = !empty($model['discount']) ? floatval($model['discount']) : 0;
         }
 
         return $models;
@@ -121,10 +125,10 @@ class CouponTypeController extends OnAuthController
         $model = $this->modelClass::find()
             ->where([
                 'id' => $id,
-                'merchant_id' => $this->getMerchantId(),
                 'status' => StatusEnum::ENABLED,
             ])
-            ->with(ArrayHelper::merge($with, ['usableProduct']))
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->with($with)
             ->asArray()
             ->one();
 
@@ -132,7 +136,40 @@ class CouponTypeController extends OnAuthController
             throw new NotFoundHttpException('请求的数据不存在');
         }
 
+        $model['discount'] = !empty($model['discount']) ? floatval($model['discount']) : 0;
+
         return Yii::$app->tinyShopService->marketingCouponType->regroupShow($model);
+    }
+
+    /**
+     * 自定义装修可用
+     *
+     * 修改数据格式返回
+     *
+     * @return array|mixed
+     */
+    public function actionList()
+    {
+        $data = $this->modelClass::find()
+            ->where(['status' => StatusEnum::ENABLED])
+            ->andWhere(['<', 'get_start_time', time()])
+            ->andWhere(['>', 'get_end_time', time()])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()]);
+        $pages = new Pagination(['totalCount' => $data->count(), 'pageSize' => $this->pageSize]);
+        $models = $data->offset($pages->offset)
+            ->orderBy('id desc')
+            ->with(['merchant'])
+            ->limit($pages->limit)
+            ->asArray()
+            ->all();
+
+        return [
+            'list' => $models,
+            'pages' => [
+                'totalCount' => $pages->totalCount,
+                'pageSize' => $pages->pageSize,
+            ]
+        ];
     }
 
     /**

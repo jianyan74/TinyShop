@@ -7,9 +7,8 @@ use yii\web\NotFoundHttpException;
 use common\helpers\ResultHelper;
 use common\helpers\ArrayHelper;
 use common\models\member\Member;
-use common\models\common\SmsLog;
+use common\models\extend\SmsLog;
 use common\enums\StatusEnum;
-use common\helpers\AddonHelper;
 use api\controllers\OnAuthController;
 use addons\TinyShop\api\modules\v1\forms\UpPwdForm;
 use addons\TinyShop\api\modules\v1\forms\LoginForm;
@@ -17,7 +16,10 @@ use addons\TinyShop\api\modules\v1\forms\RefreshForm;
 use addons\TinyShop\api\modules\v1\forms\MobileLogin;
 use addons\TinyShop\api\modules\v1\forms\SmsCodeForm;
 use addons\TinyShop\api\modules\v1\forms\RegisterForm;
-use addons\TinyShop\common\models\SettingForm;
+use addons\TinyShop\api\modules\v1\forms\RegisterEmailForm;
+use addons\TinyShop\api\modules\v1\forms\EmailCodeForm;
+use addons\TinyShop\common\enums\AccessTokenGroupEnum;
+use yii\web\UnprocessableEntityHttpException;
 
 /**
  * Class SiteController
@@ -39,6 +41,39 @@ class SiteController extends OnAuthController
     protected $authOptional = ['login', 'refresh', 'mobile-login', 'sms-code', 'register', 'up-pwd', 'verify-access-token'];
 
     /**
+     * @var Member
+     */
+    protected $member;
+
+    /**
+     * @param $action
+     * @return bool
+     * @throws UnprocessableEntityHttpException
+     * @throws \yii\base\InvalidConfigException
+     * @throws \yii\web\BadRequestHttpException
+     * @throws \yii\web\ForbiddenHttpException
+     */
+    public function beforeAction($action)
+    {
+        $config = Yii::$app->tinyShopService->config->setting();
+        switch ($action->id) {
+            case 'login' :
+            case 'mobile-login' :
+                if ($config['member_login'] == StatusEnum::DISABLED) {
+                    throw new UnprocessableEntityHttpException('账号密码/手机验证码登录已关闭');
+                }
+                break;
+            case 'register' :
+                if ($config['member_register'] == StatusEnum::DISABLED) {
+                    throw new UnprocessableEntityHttpException('会员注册已关闭');
+                }
+                break;
+        }
+
+        return parent::beforeAction($action);
+    }
+
+    /**
      * 登录根据用户信息返回accessToken
      *
      * @return array|bool
@@ -50,11 +85,42 @@ class SiteController extends OnAuthController
         $model = new LoginForm();
         $model->attributes = Yii::$app->request->post();
         if ($model->validate()) {
+            $this->member = $model->getUser();
+
             return $this->regroupMember(Yii::$app->services->apiAccessToken->getAccessToken($model->getUser(), $model->group));
         }
 
         // 返回数据验证失败
         return ResultHelper::json(422, $this->getError($model));
+    }
+
+    /**
+     * 手机验证码登录
+     *
+     * @return array|mixed
+     * @throws \yii\base\Exception
+     */
+    public function actionMobileLogin()
+    {
+        $model = new MobileLogin();
+        $model->attributes = Yii::$app->request->post();
+        if (!$model->validate()) {
+            return ResultHelper::json(422, $this->getError($model));
+        }
+
+        // 已有用户
+        if (!empty($model->getUser())) {
+            $this->member = $model->getUser();
+
+            return $this->regroupMember(Yii::$app->services->apiAccessToken->getAccessToken($model->getUser(), $model->group));
+        }
+
+        $setting = Yii::$app->tinyShopService->config->setting();
+        if ($setting->member_mobile_login_be_register == StatusEnum::DISABLED) {
+            throw new UnprocessableEntityHttpException('找不到用户');
+        }
+
+        return $this->register($model);
     }
 
     /**
@@ -91,24 +157,6 @@ class SiteController extends OnAuthController
     }
 
     /**
-     * 手机验证码登录
-     *
-     * @return array|mixed
-     * @throws \yii\base\Exception
-     */
-    public function actionMobileLogin()
-    {
-        $model = new MobileLogin();
-        $model->attributes = Yii::$app->request->post();
-        if ($model->validate()) {
-            return $this->regroupMember(Yii::$app->services->apiAccessToken->getAccessToken($model->getUser(), $model->group));
-        }
-
-        // 返回数据验证失败
-        return ResultHelper::json(422, $this->getError($model));
-    }
-
-    /**
      * 获取验证码
      *
      * @return int|mixed
@@ -116,8 +164,11 @@ class SiteController extends OnAuthController
      */
     public function actionSmsCode()
     {
+        $setting = Yii::$app->tinyShopService->config->setting();
+
         $model = new SmsCodeForm();
         $model->attributes = Yii::$app->request->post();
+        $model->member_mobile_login_be_register = $setting->member_mobile_login_be_register;
         if (!$model->validate()) {
             return ResultHelper::json(422, $this->getError($model));
         }
@@ -158,16 +209,44 @@ class SiteController extends OnAuthController
             return ResultHelper::json(422, $this->getError($model));
         }
 
-        $member = new Member();
-        $member->attributes = ArrayHelper::toArray($model);
-        $member->promo_code = '';
-        $member->merchant_id = !empty($this->getMerchantId()) ? $this->getMerchantId() : 0;
-        $member->password_hash = Yii::$app->security->generatePasswordHash($model->password);
-        if (!$member->save()) {
-            return ResultHelper::json(422, $this->getError($member));
+        return $this->register($model);
+    }
+
+    /**
+     * 邮箱注册
+     *
+     * @return array|mixed
+     * @throws \yii\base\Exception
+     */
+    protected function actionRegisterEmail()
+    {
+        $model = new RegisterEmailForm();
+        $model->attributes = Yii::$app->request->post();
+        if (!$model->validate()) {
+            return ResultHelper::json(422, $this->getError($model));
         }
 
-        return $this->regroupMember(Yii::$app->services->apiAccessToken->getAccessToken($member, $model->group));
+        return $this->register($model);
+    }
+
+    /**
+     * 获取邮箱验证码
+     *
+     * @return int|mixed
+     * @throws \yii\web\UnprocessableEntityHttpException
+     */
+    protected function actionEmailCode()
+    {
+        $setting = Yii::$app->tinyShopService->config->setting();
+
+        $model = new EmailCodeForm();
+        $model->attributes = Yii::$app->request->post();
+        $model->member_mobile_login_be_register = $setting->member_mobile_login_be_register;
+        if (!$model->validate()) {
+            return ResultHelper::json(422, $this->getError($model));
+        }
+
+        return $model->send();
     }
 
     /**
@@ -207,9 +286,51 @@ class SiteController extends OnAuthController
             ];
         }
 
+        // 判断验证token有效性是否开启
+        if (Yii::$app->params['user.accessTokenValidity'] === true) {
+            $timestamp = (int)substr($token, strrpos($token, '_') + 1);
+            $expire = Yii::$app->params['user.accessTokenExpire'];
+
+            // 验证有效期
+            if ($timestamp + $expire <= time()) {
+                return [
+                    'token' => true
+                ];
+            }
+        }
+
         return [
             'token' => true
         ];
+    }
+
+    /**
+     * 注册
+     *
+     * @param RegisterForm|RegisterEmailForm|MobileLogin $model
+     * @param Member $parent
+     * @return array|mixed
+     * @throws NotFoundHttpException
+     * @throws \yii\base\Exception
+     * @throws \yii\web\UnprocessableEntityHttpException
+     */
+    protected function register($model)
+    {
+        $parent = $model->getParent();
+
+        $member = new Member();
+        $member->attributes = ArrayHelper::toArray($model);
+        $member->promoter_code = '';
+        $member->source = AccessTokenGroupEnum::relevance($model->group);
+        $member->merchant_id = !empty($this->getMerchantId()) ? $this->getMerchantId() : 0;
+        isset($model->password) && $member->password_hash = Yii::$app->security->generatePasswordHash($model->password);
+        // 未开启分销商不支持绑定上下级关系
+        $member->pid = 0;
+        if (!$member->save()) {
+            return ResultHelper::json(422, $this->getError($member));
+        }
+
+        return $this->regroupMember(Yii::$app->services->apiAccessToken->getAccessToken($member, $model->group));
     }
 
     /**
@@ -221,11 +342,17 @@ class SiteController extends OnAuthController
     protected function regroupMember($data)
     {
         // 优惠券数量
-        $data['member']['coupon_num'] = Yii::$app->tinyShopService->marketingCoupon->findCountByMemberId($data['member']['id']);
+        $data['couponNum'] = Yii::$app->tinyShopService->marketingCoupon->findCountByMemberId($data['member']['id']);
         // 订单数量统计
-        $data['member']['order_synthesize_num'] = Yii::$app->tinyShopService->order->getOrderCountGroupByMemberId($data['member']['id']);
+        $data['orderNum'] = Yii::$app->tinyShopService->order->getOrderStatusCountByMemberId($data['member']['id']);
         // 购物车数量
-        $data['member']['cart_num'] = Yii::$app->tinyShopService->memberCartItem->count($data['member']['id']);
+        $data['cartNum'] = Yii::$app->tinyShopService->memberCartItem->findCountByMemberId($data['member']['id']);
+        // 开启分销商
+        $data['promoter'] = '';
+        $data['promoterAccount'] = '';
+
+        // 记录登录时间次数
+        !empty($this->member) && Yii::$app->services->member->lastLogin($this->member);
 
         return $data;
     }

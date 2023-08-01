@@ -5,7 +5,9 @@ namespace addons\TinyShop\api\modules\v1\forms;
 use Yii;
 use yii\base\Model;
 use common\helpers\RegularHelper;
-use common\models\common\SmsLog;
+use common\enums\StatusEnum;
+use common\enums\SmsUsageEnum;
+use common\enums\MemberTypeEnum;
 
 /**
  * Class SmsCodeForm
@@ -25,6 +27,11 @@ class SmsCodeForm extends Model
     public $usage;
 
     /**
+     * @var int
+     */
+    public $member_mobile_login_be_register;
+
+    /**
      * @return array
      */
     public function rules()
@@ -32,7 +39,7 @@ class SmsCodeForm extends Model
         return [
             [['mobile', 'usage'], 'required'],
             [['mobile'], 'isBeforeSend'],
-            [['usage'], 'in', 'range' => array_keys(SmsLog::$usageExplain)],
+            [['usage'], 'in', 'range' => array_keys(SmsUsageEnum::getMap())],
             ['mobile', 'match', 'pattern' => RegularHelper::mobile(), 'message' => '请输入正确的手机号'],
         ];
     }
@@ -53,13 +60,20 @@ class SmsCodeForm extends Model
      */
     public function isBeforeSend($attribute)
     {
-        if ($this->usage == SmsLog::USAGE_REGISTER && Yii::$app->services->member->findByMobile($this->mobile)) {
+        $member = Yii::$app->services->member->findByCondition([
+            'mobile' => $this->mobile,
+            'type' => MemberTypeEnum::MEMBER,
+        ]);
+
+        if ($this->usage == SmsUsageEnum::REGISTER && $member) {
             $this->addError($attribute, '该手机号码已注册');
         }
 
         if (
-            in_array($this->usage, [SmsLog::USAGE_LOGIN, SmsLog::USAGE_UP_PWD]) &&
-            !Yii::$app->services->member->findByMobile($this->mobile)) {
+            in_array($this->usage, [SmsUsageEnum::LOGIN, SmsUsageEnum::UP_PWD]) &&
+            !$member &&
+            $this->member_mobile_login_be_register == StatusEnum::DISABLED
+        ) {
             $this->addError($attribute, '该手机号码未注册');
         }
     }
@@ -70,6 +84,7 @@ class SmsCodeForm extends Model
     public function send()
     {
         $code = rand(1000, 9999);
-        return Yii::$app->services->sms->send($this->mobile, $code, $this->usage);
+
+        return Yii::$app->services->extendSms->send($this->mobile, $code, $this->usage);
     }
 }

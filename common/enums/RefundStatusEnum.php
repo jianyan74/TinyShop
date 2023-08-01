@@ -13,14 +13,19 @@ use common\enums\BaseEnum;
  */
 class RefundStatusEnum extends BaseEnum
 {
-    const APPLY = 1;
-    const SALES_RETURN = 2;
-    const AFFIRM_SALES_RETURN = 3;
-    const AFFIRM_RETURN_MONEY = 4;
-    const CONSENT = 5;
-    const NO_PASS_ALWAYS = -1;
-    const CANCEL = -2;
-    const NO_PASS = -3;
+    const APPLY = 10;
+    const SALES_RETURN = 20;
+    const AFFIRM_SALES_RETURN = 30;
+    const AFFIRM_RETURN_MONEY = 40;
+    const CONSENT = 50;
+    const NO_PASS_ALWAYS = -10;
+    const CANCEL = -20;
+    const NO_PASS = -30;
+
+    // 换货
+    const AFFIRM_SHIPMENTS = 41;
+    const SHIPMENTS = 42;
+    const MEMBER_AFFIRM = 43;
 
     /**
      * @return array
@@ -33,9 +38,13 @@ class RefundStatusEnum extends BaseEnum
             self::AFFIRM_SALES_RETURN => '等待卖家确认收货', // 买家已退货,等待卖家确认收货
             self::AFFIRM_RETURN_MONEY => '等待卖家确认退款',
             self::CONSENT => '卖家同意退款',
-            self::NO_PASS_ALWAYS => '退款已拒绝',
+            self::NO_PASS_ALWAYS => '退款已拒绝', // 不允许再次申请
             self::CANCEL => '退款已关闭',
             self::NO_PASS => '退款申请不通过',
+            // 换货
+            self::AFFIRM_SHIPMENTS => '等待卖家发货',
+            self::SHIPMENTS => '等待买家收到商品',
+            self::MEMBER_AFFIRM => '换货完成', // 等待买家确认收货
         ];
     }
 
@@ -51,6 +60,8 @@ class RefundStatusEnum extends BaseEnum
             self::SALES_RETURN,
             self::AFFIRM_SALES_RETURN,
             self::AFFIRM_RETURN_MONEY,
+            self::AFFIRM_SHIPMENTS, // 换货
+            self::SHIPMENTS, // 换货
         ];
     }
 
@@ -66,6 +77,7 @@ class RefundStatusEnum extends BaseEnum
             self::NO_PASS_ALWAYS,
             self::CANCEL,
             self::NO_PASS,
+            self::MEMBER_AFFIRM,
         ];
     }
 
@@ -77,6 +89,7 @@ class RefundStatusEnum extends BaseEnum
         return [
             self::NO_PASS_ALWAYS,
             self::CANCEL,
+            self::MEMBER_AFFIRM,
             0
         ];
     }

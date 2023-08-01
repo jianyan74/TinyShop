@@ -7,194 +7,230 @@ use yii\data\Pagination;
 use yii\db\ActiveQuery;
 use yii\helpers\Json;
 use yii\web\NotFoundHttpException;
-use common\helpers\ArrayHelper;
 use common\components\Service;
-use common\enums\WhetherEnum;
+use common\enums\AuditStatusEnum;
 use common\enums\StatusEnum;
-use common\helpers\StringHelper;
-use common\helpers\BcHelper;
-use common\helpers\AddonHelper;
 use common\helpers\EchantsHelper;
-use addons\TinyShop\common\models\SettingForm;
+use common\helpers\ArrayHelper;
 use addons\TinyShop\common\models\product\Product;
-use addons\TinyShop\common\models\forms\ProductSearch;
-use addons\TinyShop\common\enums\PointExchangeTypeEnum;
-use addons\TinyShop\common\models\base\Spec;
+use addons\TinyShop\common\forms\ProductSearchForm;
+use addons\TinyShop\common\enums\ProductTypeEnum;
 use yii\web\UnprocessableEntityHttpException;
 
 /**
  * Class ProductService
  * @package addons\TinyShop\services\product
- * @author jianyan74 <751393839@qq.com>
  */
 class ProductService extends Service
 {
     /**
-     * 获取猜你喜欢的产品
-     *
-     * @param $member_id
-     * @return mixed|\yii\db\ActiveRecord
+     * @param ProductSearchForm $search
+     * @param false $returnPageData
+     * @return array|\yii\db\ActiveRecord[]
      */
-    public function getGuessYouLike($member_id)
+    public function getListBySearch(ProductSearchForm $search, $returnPageData = false)
     {
-        $cates = Yii::$app->tinyShopService->memberFootprint->findCateIdsByMemberId($member_id);
+        // 记录搜索
+        !empty($search->keyword) && Yii::$app->tinyShopService->searchHistory->create($search->keyword, $search->member_id);
+        $order = ArrayHelper::merge($search->getOrderBy(), ['sort asc', 'id desc']);
 
         $data = Product::find()
-            ->where(['status' => StatusEnum::ENABLED, 'product_status' => StatusEnum::ENABLED])
+            ->where(['status' => StatusEnum::ENABLED, 'audit_status' => StatusEnum::ENABLED, 'is_list_visible' => StatusEnum::ENABLED])
+            ->andFilterWhere(['in', 'id', $search->getIds()])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->andFilterWhere(['in', 'cate_id', $cates]);
-        $pages = new Pagination(['totalCount' => $data->count(), 'pageSize' => 12, 'validatePage' => false]);
+            ->andFilterWhere(['merchant_id' => $search->merchant_id])
+            ->andFilterWhere($search->getCateIds())
+            ->andFilterWhere(['between', 'price', $search->min_price, $search->max_price])
+            ->andFilterWhere(['is_member_discount' => $search->is_member_discount])
+            ->andFilterWhere(['is_commission' => $search->is_commission])
+            ->andFilterWhere(['in', 'brand_id', $search->getBrandIds()])
+            ->andFilterWhere($search->getOrCondition())
+            ->andFilterWhere($search->getGather())
+            ->andFilterWhere(['like', 'name', trim($search->keyword)]);
+
+        $pages = new Pagination([
+            'totalCount' => $data->count(),
+            'pageSize' => $search->limit,
+            'validatePage' => false,
+        ]);
+
         $models = $data->offset($pages->offset)
-            ->orderBy('rand()')
+            ->orderBy(implode(',', $order))
+            ->cache(Yii::$app->params['cacheExpirationTime']['common'])
             ->select([
                 'id',
                 'name',
                 'sketch',
                 'keywords',
                 'picture',
+                'tags',
                 'view',
-                'star',
+                'type',
+                'match_point',
                 'price',
                 'market_price',
-                'cost_price',
                 'stock',
                 'total_sales',
                 'merchant_id',
                 'shipping_type',
-                'is_open_presell',
-                'is_open_commission',
-                'is_virtual',
-                'point_exchange_type',
-                'point_exchange',
+                'is_member_discount',
+                'member_discount_config',
+                'is_commission',
+                'is_hot',
+                'is_recommend',
+                'is_new',
+                'member_discount_type',
                 'max_use_point',
-                'integral_give_type',
                 'give_point',
+                'match_ratio',
                 'unit',
             ])
+            ->with($search->getWith())
             ->asArray()
             ->limit($pages->limit)
             ->all();
 
         foreach ($models as &$model) {
+            $model['tags'] = Json::decode($model['tags']);
             $model['price'] = floatval($model['price']);
             $model['market_price'] = floatval($model['market_price']);
-            $model['cost_price'] = floatval($model['cost_price']);
+            // 营销
+            $model['marketing_id'] = '';
+            $model['marketing_type'] = '';
+            $model['marketing_tags'] = [];
+
+            // 营销标签
+            $model['is_hot'] == StatusEnum::ENABLED && $model['marketing_tags'][] = '热门';
+            $model['is_recommend'] == StatusEnum::ENABLED && $model['marketing_tags'][] = '推荐';
+            $model['is_new'] == StatusEnum::ENABLED && $model['marketing_tags'][] = '新品';
+
+            unset($model['sku']);
+        }
+
+        // 返回分页数量
+        if ($returnPageData) {
+            return [$models, $pages];
         }
 
         return $models;
     }
 
     /**
-     * @param ProductSearch $search
-     * @return array|\yii\db\ActiveRecord[]
+     * @param $id
+     * @param $member_id
+     * @return array|\yii\db\ActiveRecord|null
+     * @throws NotFoundHttpException
      */
-    public function getListBySearch(ProductSearch $search)
+    public function findViewById($id, $member_id, $with = ['sku', 'cateMap', 'attributeValue', 'evaluate', 'evaluateStat'])
     {
-        // 查询开启分销的产品
-        $setting = new SettingForm();
-        $setting->attributes = AddonHelper::getConfig();
-        // 分类查询方式
-        $cate_ids = $search->getCateIds();
-        $where = ['in', 'cate_id', $cate_ids];
-        if (
-            $setting->product_cate_type == 2 &&
-            !empty($cate_ids) &&
-            ($ids = Yii::$app->tinyShopService->productCateMap->findByCateIds($cate_ids))
-        ) {
-            $where = ['in', 'id', $ids];
-        }
-
-        // 记录搜索
-        !empty($search->keyword) && Yii::$app->tinyShopService->searchHistory->create($search->keyword);
-        $order = ArrayHelper::merge($search->getOrderBy(), ['sort asc', 'id desc']);
-
-        // 是否积分产品
-        $point_exchange_type = [];
-        if ($search->is_integral) {
-            if ($search->is_integral == StatusEnum::ENABLED) {
-                $point_exchange_type = PointExchangeTypeEnum::isIntegral(true);
-            } else {
-                $point_exchange_type = PointExchangeTypeEnum::isIntegral(true);
-            }
-        }
-
-        $data = Product::find()
-            ->where(['status' => StatusEnum::ENABLED, 'product_status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->andFilterWhere($where)
-            ->andFilterWhere(['between', 'price', $search->min_price, $search->max_price])
-            ->andFilterWhere(['is_open_presell' => $search->is_open_presell])
-            ->andFilterWhere(['in', 'brand_id', $search->getBrandIds()])
-            ->andFilterWhere($search->getOrCondition())
-            ->andFilterWhere(['in', 'point_exchange_type', $point_exchange_type])
-            ->andFilterWhere(['like', 'name', $search->keyword]);
-
-        $pages = new Pagination([
-            'totalCount' => $data->count(),
-            'pageSize' => $search->page_size,
-            'validatePage' => false,
-        ]);
-        $models = $data->offset($pages->offset)
-            ->orderBy(implode(',', $order))
-            ->select([
-                'id',
-                'name',
-                'sketch',
-                'keywords',
-                'picture',
-                'view',
-                'match_point',
-                'price',
-                'market_price',
-                'cost_price',
-                'stock',
-                'total_sales',
-                'merchant_id',
-                'shipping_type',
-                'is_open_presell',
-                'is_open_commission',
-                'is_virtual',
-                'point_exchange_type',
-                'point_exchange',
-                'max_use_point',
-                'integral_give_type',
-                'give_point',
-                'unit',
-            ])
-            ->with('merchant')
-            ->asArray()
-            ->limit($pages->limit)
-            ->all();
-
-        $product_ids = [];
-        foreach ($models as &$model) {
-            $model['price'] = floatval($model['price']);
-            $model['market_price'] = floatval($model['market_price']);
-            $model['cost_price'] = floatval($model['cost_price']);
-
-            // 开启分销
-            if ($model['is_open_commission'] == true) {
-                $product_ids[] = $model['id'];
-            }
-
-            $model['commissionRate'] = 0.00;
-        }
-
-        if (
-            $setting->is_open_commission == StatusEnum::ENABLED &&
-            !empty($product_ids) &&
-            ($commissionRate = Yii::$app->tinyShopService->productCommissionRate->findByProductIds($product_ids))
-        ) {
-            $commissionRate = ArrayHelper::arrayKey($commissionRate, 'product_id');
-            foreach ($models as &$model) {
-                if (isset($commissionRate[$model['id']])) {
-                    $distribution_commission_rate = $commissionRate[$model['id']]['distribution_commission_rate'] / 100;
-                    $model['commissionRate'] = BcHelper::mul($model['price'], $distribution_commission_rate) ;
+        $model = Product::find()
+            ->where(['id' => $id])
+            ->andWhere(['>=', 'status', StatusEnum::DISABLED])
+            ->with($with)
+            ->with([
+                'myCollect' => function (ActiveQuery $query) use ($member_id) {
+                    return $query->andWhere(['member_id' => $member_id]);
                 }
-            }
+            ])
+            ->cache(10)
+            ->asArray()
+            ->one();
+
+        if (!$model) {
+            throw new NotFoundHttpException('找不到该商品');
         }
 
-        return $models;
+        $model['spec_format'] = Json::decode($model['spec_format']);
+        $model['covers'] = Json::decode($model['covers']);
+        $model['tags'] = Json::decode($model['tags']);
+        $model['delivery_type'] = Json::decode($model['delivery_type']);
+
+        // 商户
+        $model['merchant'] = [];
+        $model['merchant_id'] > 0 && $model['merchant'] = Yii::$app->tinyShopService->merchant->findOneWithGrade($model['merchant_id']);
+
+        // 提取最小sku和最大sku
+        $skuPrices = array_column($model['sku'], 'price');
+        asort($skuPrices);
+        $model['minSkuPrice'] = array_shift($skuPrices);
+        $model['maxSkuPrice'] = end($skuPrices);
+
+        if (!empty($model['cateMap'])) {
+            $model['cateIds'] = ArrayHelper::getColumn($model['cateMap'], 'cate_id');
+            unset($model['cateMap']);
+        }
+
+        return $model;
+    }
+
+    public function copy($product)
+    {
+        // 复制商品
+        $model = new Product();
+        $model = $model->loadDefaultValues();
+        $model->attributes = ArrayHelper::toArray($product);
+        $model->sales = $model->real_sales = $model->collect_num = $model->transmit_num = $model->comment_num = 0;
+        $model->name = $model->name . ' - 复制';
+        $model->star = 5;
+        $model->status = StatusEnum::DISABLED;
+        if (!$model->save()) {
+            throw new UnprocessableEntityHttpException($this->getError($model));
+        }
+
+        $product_id = $model->id;
+        // 复制 sku
+        if ($sku = Yii::$app->tinyShopService->productSku->findByProductId($product->id)) {
+            Yii::$app->tinyShopService->productSku->createByCopy($product_id, $sku);
+        }
+
+        // 复制 规格
+        if ($spec = Yii::$app->tinyShopService->productSpec->findByProductId($product->id)) {
+            Yii::$app->tinyShopService->productSpec->createByCopy($product_id, $spec);
+        }
+
+        // 复制 规格值
+        if ($specValue = Yii::$app->tinyShopService->productSpecValue->findByProductId($product->id)) {
+            Yii::$app->tinyShopService->productSpecValue->createByCopy($product_id, $specValue);
+        }
+
+        // 属性
+        if ($attributeValue = Yii::$app->tinyShopService->productAttributeValue->findByProductId($product->id)) {
+            Yii::$app->tinyShopService->productAttributeValue->createByCopy($product_id, $attributeValue);
+        }
+
+        // 复制 分类映射
+        if ($cateMap = Yii::$app->tinyShopService->productCateMap->findByProductId($product->id)) {
+            Yii::$app->tinyShopService->productCateMap->create($product_id, $cateMap);
+        }
+    }
+
+    /**
+     * 获取商品构成类型
+     *
+     * @return array
+     */
+    public function getProductTypeStat()
+    {
+        $fields = ProductTypeEnum::getMap();
+
+        // 获取时间和格式化
+        list($time, $format) = EchantsHelper::getFormatTime('all');
+        // 获取数据
+        return EchantsHelper::pie(function ($start_time, $end_time) use ($fields) {
+            $data = Product::find()
+                ->select(['count(id) as value', 'type'])
+                ->where(['status' => StatusEnum::ENABLED])
+                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+                ->groupBy(['type'])
+                ->asArray()
+                ->all();
+
+            foreach ($data as &$datum) {
+                $datum['name'] = ProductTypeEnum::getValue($datum['type']);
+            }
+
+            return [$data, $fields];
+        }, $time);
     }
 
     /**
@@ -204,7 +240,7 @@ class ProductService extends Service
      * @param int $scores
      * @param int $num
      */
-    public function commentNumChange($product_id, $scores = 5, $num = 1)
+    public function updateCommentNum($product_id, $scores = 5, $num = 1)
     {
         $product = $this->findById($product_id);
         $product->comment_num += $num;
@@ -220,223 +256,19 @@ class ProductService extends Service
     }
 
     /**
-     * 绑定营销
+     * 审核数量
      *
-     * @param $product_ids
-     * @param int $scores
-     * @param int $num
+     * @return array|\yii\db\ActiveRecord[]
      */
-    public function bindingMarketing($product_ids, $marketing_id, $marketing_type)
+    public function getAuditStatusCount()
     {
-        Product::updateAll(['marketing_id' => $marketing_id, 'marketing_type' => $marketing_type], ['in', 'id', $product_ids]);
-        // 触发购物车失效
-        Yii::$app->tinyShopService->memberCartItem->loseByProductIds($product_ids);
-    }
-
-    /**
-     * @param string $keyword
-     * @return array
-     */
-    public function getList($keyword = '')
-    {
-        $data = Product::find()
-            ->where(['status' => StatusEnum::ENABLED, 'product_status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['like', 'name', $keyword])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()]);
-        $pages = new Pagination(['totalCount' => $data->count(), 'pageSize' => 10]);
-        $models = $data->offset($pages->offset)
-            ->orderBy('sort asc, id desc')
-            ->with(['minPriceSku'])
-            ->select(['id', 'name', 'sketch', 'keywords', 'picture', 'view', 'star', 'total_sales'])
-            ->asArray()
-            ->limit($pages->limit)
-            ->all();
-
-        foreach ($models as &$model) {
-            $model['covers'] = unserialize($model['covers']);
-        }
-
-        return [$models, $pages];
-    }
-
-    /**
-     * @param $id
-     * @return array|\yii\db\ActiveRecord|null
-     */
-    public function findById($id)
-    {
-        return Product::find()
-            ->where(['id' => $id, 'status' => StatusEnum::ENABLED])
+        return ArrayHelper::map(Product::find()
+            ->select(['count(id) as count', 'audit_status'])
+            ->where(['status' => StatusEnum::ENABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->one();
-    }
-
-    /**
-     * @param $id
-     * @param $member_id
-     * @return array|\yii\db\ActiveRecord|null
-     * @throws NotFoundHttpException
-     */
-    public function findViewById($id, $member_id)
-    {
-        $model = Product::find()
-            ->where(['id' => $id, 'product_status' => StatusEnum::ENABLED])
-            ->andWhere(['>=', 'status', StatusEnum::DISABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->with(['sku', 'attributeValue', 'merchant'])
-            ->with([
-                'myCollect' => function (ActiveQuery $query) use ($member_id) {
-                    return $query->andWhere(['member_id' => $member_id]);
-                },
-                'evaluate',
-                'evaluateStat',
-            ])
+            ->groupBy('audit_status')
             ->asArray()
-            ->one();
-
-        if (!$model) {
-            throw new NotFoundHttpException('找不到该产品');
-        }
-
-        $model['base_attribute_format'] = Json::decode($model['base_attribute_format']);
-        $model['covers'] = unserialize($model['covers']);
-
-        // 提取最小sku和最大sku
-        $skuPrices = array_column($model['sku'], 'price');
-        asort($skuPrices);
-        $model['minSkuPrice'] = array_shift($skuPrices);
-        $model['maxSkuPrice'] = end($skuPrices);
-
-        return $model;
-    }
-
-    /**
-     * 获取属性值、规格属性、规格值
-     *
-     * @param Product $model
-     * @return array
-     */
-    public function getSpecValueAttribute(Product $model)
-    {
-        $attributeValue = $specValue = $jsData = [];
-        if (!$model->id || $model->is_attribute != WhetherEnum::ENABLED) {
-            return [$attributeValue, $specValue, $jsData];
-        }
-
-        if ($model->base_attribute_id > 0) {
-            // 获取基础属性
-            $baseAttribute = Yii::$app->tinyShopService->baseAttribute->getDataById($model->base_attribute_id);
-
-            // 获取产品属性值
-            $attributeValue = $this->getAttributeValue($model, $baseAttribute);
-            // 获取规格(规格值)和js选中规格
-            list($specValue, $jsData) = $this->getSpecValue($model, $baseAttribute['spec_ids']);
-
-            unset($baseAttribute, $model);
-        }
-
-        return [$attributeValue, $specValue, $jsData];
-    }
-
-    /**
-     * 获取产品规格
-     *
-     * @param $model
-     * @param $spec_ids
-     * @return array
-     */
-    protected function getSpecValue($model, $spec_ids)
-    {
-        $tmpSpecValue = [];
-        $jsData = [];
-        $spec_ids = explode(',', $spec_ids);
-        $baseSpecValue = Yii::$app->tinyShopService->baseSpec->getListWithValueByIds($spec_ids);
-        /* @var $model Product 获取已选择的规格属性 */
-        if (!empty($specValue = $model->getSpecWithSpecValue($model->id)->all())) {
-            foreach ($specValue as &$item) {
-                $item['id'] = $item['base_spec_id'];
-                foreach ($item['value'] as &$value) {
-                    $value['id'] = $value['base_spec_value_id'];
-                    $jsData[] = [
-                        'id' => $value['base_spec_value_id'],
-                        'title' => $value['title'],
-                        'pid' => $item['base_spec_id'],
-                        'ptitle' => $item['title'],
-                        'sort' => $value['sort'],
-                        'data' => $value['data'],
-                    ];
-
-                    // 加入临时规格值数据方便调用
-                    $tmpSpecValue[$value['id']] = $value;
-                }
-            }
-
-            // 判断模型是否被删除如果被删除则直接替换
-            empty($baseSpecValue) && $baseSpecValue = $specValue;
-        }
-
-        // 重新赋值已有数据并判断颜色是否正常
-        foreach ($baseSpecValue as &$item) {
-            foreach ($item['value'] as &$value) {
-                $value['data'] = $tmpSpecValue[$value['id']]['data'] ?? '';
-
-                if (substr($value['data'], 0, 1) == "#") {
-                    $value['data'] = StringHelper::clipping($value['data'], '#', 1);
-                } else {
-                    $item['show_type'] == Spec::SHOW_TYPE_COLOR && $value['data'] = '';
-                }
-            }
-        }
-
-        unset($tmpSpecValue, $model);
-
-        return [$baseSpecValue, $jsData];
-    }
-
-    /**
-     * 返回产品编辑的属性
-     *
-     * @param $model
-     * @return array
-     */
-    protected function getAttributeValue($model, $baseAttribute)
-    {
-        $attributeValue = [];
-        if (empty($baseAttribute['value'])) {
-            return $attributeValue;
-        }
-
-        // 获取商品类型自带属性
-        foreach ($baseAttribute['value'] as $value) {
-            // 调整属性显示
-            $baseValue = !empty($value['value']) ? explode(',', $value['value']) : [];
-            $config = [];
-            foreach ($baseValue as $item) {
-                $config[$item] = $item;
-            }
-
-            $attributeValue[$value['id']] = [
-                'id' => $value['id'],
-                'title' => $value['title'],
-                'type' => $value['type'],
-                'value' => '',
-                'sort' => $value['sort'],
-                'config' => $config,
-            ];
-        }
-
-        // 获取已有的属性数据
-        if (!empty($attributeValueModel = $model->attributeValue)) {
-            foreach ($attributeValueModel as $item) {
-                if (isset($attributeValue[$item['base_attribute_value_id']])) {
-                    $attributeValue[$item['base_attribute_value_id']]['value'] = $item['value'];
-                }
-            }
-        }
-
-        unset($model, $baseAttribute);
-
-        return ArrayHelper::arraySort($attributeValue, 'sort');
+            ->all(), 'audit_status', 'count');
     }
 
     /**
@@ -447,6 +279,7 @@ class ProductService extends Service
     public function getRank($limit = 8)
     {
         return Product::find()
+            ->select(['id', 'real_sales', 'name'])
             ->where(['status' => StatusEnum::ENABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->orderBy('real_sales desc')
@@ -456,69 +289,29 @@ class ProductService extends Service
     }
 
     /**
-     * 获取商品构成类型
-     *
-     * @return array
+     * @return false|int|string|null
      */
-    public function getGroupVirtual()
+    public function findWarehouseCount()
     {
-        $fields = [
-            '虚拟物品', '实物'
-        ];
-
-        // 获取时间和格式化
-        list($time, $format) = EchantsHelper::getFormatTime('all');
-        // 获取数据
-        return EchantsHelper::pie(function ($start_time, $end_time) use ($fields) {
-            $data = Product::find()
-                ->select(['count(id) as value', 'is_virtual'])
-                ->where(['status' => StatusEnum::ENABLED])
-                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-                ->groupBy(['is_virtual'])
-                ->asArray()
-                ->all();
-
-            foreach ($data as &$datum) {
-                if ($datum['is_virtual'] == StatusEnum::ENABLED) {
-                    $datum['name'] = '虚拟物品';
-                } else {
-                    $datum['name'] = '实物';
-                }
-
-                unset($datum['is_virtual']);
-            }
-
-            return [$data, $fields];
-        }, $time);
+        return Product::find()
+            ->select(['count(id)'])
+            ->where(['status' => StatusEnum::DISABLED, 'audit_status' => AuditStatusEnum::ENABLED])
+            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->scalar() ?? 0;
     }
 
     /**
-     * 获取产品发布/出售/仓库的数量
-     *
-     * @return array
+     * @return false|int|string|null
      */
-    public function getCountStat()
+    public function findSellCount($merchant_id = '')
     {
-        $stat = [
-            'sellCount' => 0,
-            'warehouseCount' => 0,
-            'allCount' => 0,
-        ];
+        $merchant_id === '' && $merchant_id = $this->getMerchantId();
 
-        $model = Product::find()
-            ->select(['count(id) as count', 'product_status'])
-            ->where(['status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->groupBy('product_status')
-            ->asArray()
-            ->all();
-
-        $model = ArrayHelper::arrayKey($model, 'product_status');
-        $stat['sellCount'] = isset($model[Product::PRODUCT_STATUS_PUTAWAY]) ? $model[Product::PRODUCT_STATUS_PUTAWAY]['count'] : 0;
-        $stat['warehouseCount'] = isset($model[Product::PRODUCT_STATUS_SOLD_OUT]) ? $model[Product::PRODUCT_STATUS_SOLD_OUT]['count'] : 0;
-        $stat['allCount'] = $stat['sellCount'] + $stat['warehouseCount'];
-
-        return $stat;
+        return Product::find()
+            ->select(['count(id)'])
+            ->where(['status' => StatusEnum::ENABLED, 'audit_status' => AuditStatusEnum::ENABLED])
+            ->andFilterWhere(['merchant_id' => $merchant_id])
+            ->scalar() ?? 0;
     }
 
     /**
@@ -530,20 +323,32 @@ class ProductService extends Service
     {
         return Product::find()
             ->select(['count(id) as count'])
-            ->andWhere(['status' => StatusEnum::ENABLED, 'product_status' => StatusEnum::ENABLED])
-            ->andWhere('warning_stock > stock')
+            ->andWhere(['status' => StatusEnum::ENABLED, 'audit_status' => AuditStatusEnum::ENABLED])
+            ->andWhere('stock_warning_num > stock')
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->scalar();
+            ->scalar() ?? 0;
+    }
+
+    /**
+     * @param $id
+     * @return array|\yii\db\ActiveRecord|null
+     */
+    public function findById($id)
+    {
+        return Product::find()
+            ->where(['id' => $id, 'status' => StatusEnum::ENABLED])
+            ->one();
     }
 
     /**
      * @param $ids
      * @return array|\yii\db\ActiveRecord|null
      */
-    public function findByIds($ids)
+    public function findByIds($ids, $select = ['*'])
     {
         return Product::find()
-            ->where(['status' => StatusEnum::ENABLED, 'product_status' => StatusEnum::ENABLED])
+            ->select($select)
+            ->where(['status' => StatusEnum::ENABLED, 'audit_status' => AuditStatusEnum::ENABLED])
             ->andWhere(['in', 'id', $ids])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->orderBy('id asc')

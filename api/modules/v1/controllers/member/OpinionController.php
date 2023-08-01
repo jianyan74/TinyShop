@@ -7,9 +7,10 @@ use yii\helpers\Json;
 use yii\web\NotFoundHttpException;
 use yii\data\ActiveDataProvider;
 use api\controllers\UserAuthController;
-use addons\TinyShop\common\models\common\Opinion;
 use common\enums\StatusEnum;
 use common\helpers\ResultHelper;
+use addons\TinyShop\common\models\common\Opinion;
+use addons\TinyShop\common\enums\SubscriptionActionEnum;
 
 /**
  * 意见反馈
@@ -26,25 +27,6 @@ class OpinionController extends UserAuthController
     public $modelClass = Opinion::class;
 
     /**
-     * 首页
-     *
-     * @return ActiveDataProvider
-     */
-    public function actionIndex()
-    {
-        return new ActiveDataProvider([
-            'query' => $this->modelClass::find()
-                ->where(['status' => StatusEnum::ENABLED, 'member_id' => Yii::$app->user->identity->member_id])
-                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-                ->orderBy('id desc'),
-            'pagination' => [
-                'pageSize' => $this->pageSize,
-                'validatePage' => false,// 超出分页不返回data
-            ],
-        ]);
-    }
-
-    /**
      * @return array|mixed|\yii\db\ActiveRecord
      */
     public function actionCreate()
@@ -58,6 +40,14 @@ class OpinionController extends UserAuthController
         if (!$model->save()) {
             return ResultHelper::json(422, $this->getError($model));
         }
+
+        // 意见反馈
+        Yii::$app->tinyShopService->notify->createRemind(
+            $model->id,
+            SubscriptionActionEnum::OPINION_CREATE,
+            $model->merchant_id,
+            ['opinion' => $model]
+        );
 
         return $model;
     }

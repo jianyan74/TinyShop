@@ -2,13 +2,15 @@
 
 use yii\grid\GridView;
 use common\helpers\Html;
+use common\enums\AppEnum;
 
 $this->title = '品牌管理';
 $this->params['breadcrumbs'][] = $this->title;
+
 ?>
 
 <div class="row">
-    <div class="col-xs-12">
+    <div class="col-12 col-xs-12">
         <div class="box">
             <div class="box-header">
                 <h3 class="box-title"><?= $this->title; ?></h3>
@@ -32,10 +34,27 @@ $this->params['breadcrumbs'][] = $this->title;
                         ],
                         'title',
                         [
-                            'attribute' => 'sort',
+                            'attribute' => '排序',
                             'filter' => false, //不显示搜索框
-                            'value' => function ($model) {
+                            'value' => function ($model) use ($merchant_id) {
+                                if ($model->merchant_id != $merchant_id) {
+                                    return false;
+                                }
+
                                 return Html::sort($model->sort);
+                            },
+                            'format' => 'raw',
+                            'headerOptions' => ['class' => 'col-md-1'],
+                        ],
+                        [
+                            'label' => '类型',
+                            'filter' => false, //不显示搜索框
+                            'value' => function ($model) use ($merchant_id) {
+                                if ($model->merchant_id != $merchant_id || Yii::$app->id == AppEnum::BACKEND) {
+                                    return '平台';
+                                }
+
+                                return '商家';
                             },
                             'format' => 'raw',
                             'headerOptions' => ['class' => 'col-md-1'],
@@ -45,16 +64,28 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'yii\grid\ActionColumn',
                             'template' => '{template} {edit} {status} {delete}',
                             'buttons' => [
-                                'edit' => function ($url, $model, $key) {
+                                'edit' => function ($url, $model, $key) use ($merchant_id) {
+                                    if ($model->merchant_id != $merchant_id) {
+                                        return false;
+                                    }
+
                                     return Html::edit(['ajax-edit', 'id' => $model['id']], '编辑', [
                                         'data-toggle' => 'modal',
                                         'data-target' => '#ajaxModal',
                                     ]);
                                 },
-                                'status' => function ($url, $model, $key) {
+                                'status' => function ($url, $model, $key) use ($merchant_id) {
+                                    if ($model->merchant_id != $merchant_id) {
+                                        return false;
+                                    }
+
                                     return Html::status($model->status);
                                 },
-                                'delete' => function ($url, $model, $key) {
+                                'delete' => function ($url, $model, $key) use ($merchant_id) {
+                                    if ($model->merchant_id != $merchant_id) {
+                                        return false;
+                                    }
+
                                     return Html::delete(['delete', 'id' => $model->id]);
                                 },
                             ],

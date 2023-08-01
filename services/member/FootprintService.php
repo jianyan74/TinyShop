@@ -19,10 +19,11 @@ class FootprintService extends Service
      */
     public function create($product, $member_id)
     {
-        if (!($model = $this->findByProducId($product['id'], $member_id))) {
+        if (!($model = $this->findByProductId($member_id, $product['id']))) {
             $model = new Footprint();
             $model = $model->loadDefaultValues();
             $model->member_id = $member_id;
+            $model->merchant_id = $product['merchant_id'];
             $model->product_id = $product['id'];
             $model->cate_id = $product['cate_id'];
         }
@@ -43,7 +44,6 @@ class FootprintService extends Service
             ->select(['cate_id'])
             ->where(['status' => StatusEnum::ENABLED])
             ->andFilterWhere(['member_id' => $member_id])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->limit(20)
             ->column();
     }
@@ -53,12 +53,11 @@ class FootprintService extends Service
      * @param $member_id
      * @return array|\yii\db\ActiveRecord|null
      */
-    public function findByProducId($product_id, $member_id)
+    public function findByProductId($member_id, $product_id)
     {
         return Footprint::find()
-            ->where(['product_id' => $product_id, 'member_id' => $member_id])
+            ->where(['member_id' => $member_id, 'product_id' => $product_id])
             ->andWhere(['status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
             ->one();
     }
 }

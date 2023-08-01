@@ -14,7 +14,7 @@ use common\controllers\AddonsController;
 class BaseController extends AddonsController
 {
     /**
-    * @var string
-    */
+     * @var string
+     */
     public $layout = "@addons/TinyShop/frontend/views/layouts/main";
 }

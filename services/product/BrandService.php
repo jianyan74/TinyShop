@@ -28,6 +28,19 @@ class BrandService extends Service
     }
 
     /**
+     * @param $id
+     * @return array|\yii\db\ActiveRecord|null
+     */
+    public function findById($id)
+    {
+        return Brand::find()
+            ->select(['id', 'title'])
+            ->where(['id' => $id])
+            ->asArray()
+            ->one();
+    }
+
+    /**
      * @return array
      */
     public function getMapList()
@@ -42,7 +55,7 @@ class BrandService extends Service
     {
         return Brand::find()
             ->where(['status' => StatusEnum::ENABLED])
-            ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+            ->andWhere(['in', 'merchant_id', [0, $this->getMerchantId()]])
             ->orderBy('sort asc, id desc')
             ->asArray()
             ->all();

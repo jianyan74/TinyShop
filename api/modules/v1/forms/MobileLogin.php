@@ -4,11 +4,12 @@ namespace addons\TinyShop\api\modules\v1\forms;
 
 use Yii;
 use yii\base\Model;
-use common\enums\StatusEnum;
+use common\enums\MemberTypeEnum;
 use common\helpers\RegularHelper;
 use common\models\member\Member;
-use common\models\common\SmsLog;
+use common\enums\SmsUsageEnum;
 use addons\TinyShop\common\enums\AccessTokenGroupEnum;
+use yii\web\UnprocessableEntityHttpException;
 
 /**
  * Class MobileLogin
@@ -35,7 +36,17 @@ class MobileLogin extends Model
     /**
      * @var
      */
+    public $promoter_code;
+
+    /**
+     * @var
+     */
     protected $_user;
+
+    /**
+     * @var Member
+     */
+    public $_parent;
 
     /**
      * @return array
@@ -44,10 +55,10 @@ class MobileLogin extends Model
     {
         return [
             [['mobile', 'code', 'group'], 'required'],
-            ['code', '\common\models\validators\SmsCodeValidator', 'usage' => SmsLog::USAGE_LOGIN],
+            ['code', '\common\models\validators\SmsCodeValidator', 'usage' => SmsUsageEnum::LOGIN],
             ['code', 'filter', 'filter' => 'trim'],
+            ['promoter_code', 'promoCodeVerify'],
             ['mobile', 'match', 'pattern' => RegularHelper::mobile(), 'message' => '请输入正确的手机号'],
-            ['mobile', 'validateMobile'],
             ['group', 'in', 'range' => AccessTokenGroupEnum::getKeys()]
         ];
     }
@@ -65,16 +76,6 @@ class MobileLogin extends Model
     }
 
     /**
-     * @param $attribute
-     */
-    public function validateMobile($attribute)
-    {
-        if (!$this->getUser()) {
-            $this->addError($attribute, '找不到用户');
-        }
-    }
-
-    /**
      * 获取用户信息
      *
      * @return mixed|null|static
@@ -82,12 +83,34 @@ class MobileLogin extends Model
     public function getUser()
     {
         if ($this->_user == false) {
-            $this->_user = Member::find()
-                ->where(['mobile' => $this->mobile, 'status' => StatusEnum::ENABLED])
-                ->andFilterWhere(['merchant_id' => Yii::$app->services->merchant->getId()])
-                ->one();
+            $this->_user = Yii::$app->services->member->findByCondition([
+                'mobile' => $this->mobile,
+                'type' => MemberTypeEnum::MEMBER,
+            ]);
         }
 
         return $this->_user;
+    }
+
+    /**
+     * @param $attribute
+     * @throws UnprocessableEntityHttpException
+     */
+    public function promoCodeVerify($attribute)
+    {
+        if ($this->promoter_code && $this->promoter_code != 'undefined') {
+            $this->_parent = Yii::$app->services->member->findByPromoterCode($this->promoter_code);
+            if (!$this->_parent) {
+                throw new UnprocessableEntityHttpException('找不到推广员');
+            }
+        }
+    }
+
+    /**
+     * @return Member
+     */
+    public function getParent()
+    {
+        return $this->_parent;
     }
 }

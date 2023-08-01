@@ -5,19 +5,18 @@ namespace addons\TinyShop\api\modules\v1\controllers\member;
 use Yii;
 use yii\data\ActiveDataProvider;
 use yii\helpers\Json;
-use yii\web\NotFoundHttpException;
 use common\helpers\ResultHelper;
-use common\helpers\ArrayHelper;
-use addons\TinyShop\common\models\forms\CartItemForm;
+use api\controllers\UserAuthController;
+use addons\TinyShop\common\forms\CartItemForm;
 use addons\TinyShop\common\models\member\CartItem;
 use addons\TinyShop\common\interfaces\CartItemInterface;
-use api\controllers\UserAuthController;
 
 /**
  * 购物车
  *
  * Class CartItemController
- * @package addons\TinyShop\api\controllers
+ * @package addons\TinyShop\api\modules\v1\controllers\member
+ * @author jianyan74 <751393839@qq.com>
  */
 class CartItemController extends UserAuthController
 {
@@ -55,33 +54,18 @@ class CartItemController extends UserAuthController
     }
 
     /**
+     * 购物车
+     *
      * @return mixed|ActiveDataProvider
      */
     public function actionIndex()
     {
-        return Yii::$app->tinyShopService->memberCartItem->all($this->member_id);
-    }
+        list($carts, $loseEfficacy) = Yii::$app->tinyShopService->memberCartItem->all($this->member_id);
 
-    /**
-     * 同步
-     *
-     * @return bool
-     * @throws \yii\web\UnprocessableEntityHttpException
-     */
-    public function actionSync()
-    {
-        $data = Yii::$app->request->post('all');
-        $data = Json::decode($data);
-
-        foreach ($data as $datum) {
-            $model = new CartItemForm();
-            $model->attributes = $datum;
-            if ($model->validate()) {
-                Yii::$app->tinyShopService->memberCartItem->create($model->getSku(), $model->num, $this->member_id);
-            }
-        }
-
-        return true;
+        return [
+            'carts' => array_merge($carts),
+            'lose_efficacy' => $loseEfficacy,
+        ];
     }
 
     /**
@@ -94,11 +78,12 @@ class CartItemController extends UserAuthController
     {
         $model = new CartItemForm();
         $model->attributes = Yii::$app->request->post();
+        $model->member_id = $this->member_id;
         if (!$model->validate()) {
             return ResultHelper::json(422, $this->getError($model));
         }
 
-        return Yii::$app->tinyShopService->memberCartItem->create($model->getSku(), $model->num, $this->member_id);
+        return Yii::$app->tinyShopService->memberCartItem->create($model);
     }
 
     /**
@@ -107,27 +92,20 @@ class CartItemController extends UserAuthController
      * @return CartItem|array|mixed|\yii\db\ActiveRecord|null
      * @throws \yii\web\UnprocessableEntityHttpException
      */
-    public function actionUpdateNum()
+    public function actionUpdateNumber()
     {
         $model = new CartItemForm();
         $model->attributes = Yii::$app->request->post();
+        $model->member_id = $this->member_id;
         if (!$model->validate()) {
             return ResultHelper::json(422, $this->getError($model));
         }
 
-        $data = Yii::$app->tinyShopService->memberCartItem->updateNum($model->getSku(), $model->num,
-            $this->member_id);
-
-        $sku = $data->sku;
-        $data = ArrayHelper::toArray($data);
-        $data['ladderPreferential'] = [];
-        $data['sku'] = $sku;
-
-        return $data;
+        return Yii::$app->tinyShopService->memberCartItem->updateNumber($model);
     }
 
     /**
-     * 修改购物车sku
+     * 修改购物车 sku
      *
      * @param $product_id
      * @param $sku_id
@@ -135,50 +113,17 @@ class CartItemController extends UserAuthController
      */
     public function actionUpdateSku()
     {
-        $sku_id = Yii::$app->request->post('sku_id', null);
-        $new_sku_id = Yii::$app->request->post('new_sku_id', null);
-
-        /** @var CartItem $cartItem */
-        $cartItem = Yii::$app->tinyShopService->memberCartItem->findBySukId($sku_id, $this->member_id);
-        if (!$cartItem) {
-            return ResultHelper::json(422, '购物车找不到该产品');
+        $model = new CartItemForm();
+        $model->attributes = Yii::$app->request->post();
+        $model->member_id = $this->member_id;
+        if (!$model->validate()) {
+            return ResultHelper::json(422, $this->getError($model));
         }
 
         // 事务
         $transaction = Yii::$app->db->beginTransaction();
         try {
-            Yii::$app->tinyShopService->memberCartItem->deleteBySkuIds([$sku_id], $this->member_id);
-
-            // 判断购物车是否已存在该sku
-            $newCartItem = Yii::$app->tinyShopService->memberCartItem->findBySukId($new_sku_id, $this->member_id);
-            if ($newCartItem) {
-                $sku = Yii::$app->tinyShopService->productSku->findById($newCartItem->sku_id);
-                Yii::$app->tinyShopService->memberCartItem->updateNum($sku, $cartItem->number + $newCartItem->number, $this->member_id);
-                $transaction->commit();
-
-                $sku = $newCartItem->sku;
-                $newCartItem = ArrayHelper::toArray($newCartItem);
-                $newCartItem['ladderPreferential'] = [];
-                $newCartItem['sku'] = $sku;
-
-                return $newCartItem;
-            }
-
-            $model = new CartItemForm();
-            $model->sku_id = $new_sku_id;
-            $model->num = $cartItem->number;
-            if (!$model->validate()) {
-                throw new NotFoundHttpException($this->getError($model));
-            }
-
-            $data = Yii::$app->tinyShopService->memberCartItem->create($model->getSku(), $model->num,
-                $this->member_id);
-
-            $sku = $data->sku;
-            $data = ArrayHelper::toArray($data);
-            $data['ladderPreferential'] = [];
-            $data['sku'] = $sku;
-
+            $data = Yii::$app->tinyShopService->memberCartItem->updateSku($model);
             $transaction->commit();
 
             return $data;
@@ -198,19 +143,19 @@ class CartItemController extends UserAuthController
      */
     public function actionDeleteIds()
     {
-        $sku_ids = Yii::$app->request->post('sku_ids', '');
+        $ids = Yii::$app->request->post('ids', '');
 
         try {
-            $sku_ids = Json::decode($sku_ids);
+            $ids = Json::decode($ids);
         } catch (\Exception $e) {
             return ResultHelper::json(422, '请提交正确的 json 格式');
         }
 
-        if (empty($sku_ids)) {
-            return ResultHelper::json(422, '请选择要删除的购物车产品');
+        if (empty($ids)) {
+            return ResultHelper::json(422, '请选择要删除的购物车商品');
         }
 
-        return Yii::$app->tinyShopService->memberCartItem->deleteBySkuIds($sku_ids, $this->member_id);
+        return Yii::$app->tinyShopService->memberCartItem->deleteIds($ids, $this->member_id);
     }
 
     /**
@@ -218,7 +163,7 @@ class CartItemController extends UserAuthController
      */
     public function actionCount()
     {
-        return Yii::$app->tinyShopService->memberCartItem->count($this->member_id);
+        return Yii::$app->tinyShopService->memberCartItem->findCountByMemberId($this->member_id);
     }
 
     /**
@@ -228,7 +173,7 @@ class CartItemController extends UserAuthController
      */
     public function actionClear()
     {
-        // 清空失效的购物车产品
+        // 清空失效的购物车商品
         $lose_status = Yii::$app->request->post('lose_status');
 
         return Yii::$app->tinyShopService->memberCartItem->clear($this->member_id, $lose_status);

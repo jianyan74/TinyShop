@@ -11,7 +11,7 @@ use addons\TinyShop\common\models\product\Product;
 trait HasOneProduct
 {
     /**
-     * 关联产品
+     * 关联商品
      *
      * @return \yii\db\ActiveQuery
      */
@@ -19,6 +19,7 @@ trait HasOneProduct
     {
         return $this->hasOne(Product::class, ['id' => 'product_id'])->select([
             'id',
+            'merchant_id',
             'name',
             'sketch',
             'keywords',
@@ -28,11 +29,30 @@ trait HasOneProduct
             'price',
             'market_price',
             'cost_price',
-            'wholesale_price',
             'stock',
             'total_sales',
             'shipping_type',
+            'delivery_type',
+            'is_member_discount',
+            'member_discount_type',
+            'is_sales_visible',
+            'is_stock_visible',
+            'is_commission',
             'unit',
+            'type',
+            'stock_deduction_type',
+            'min_buy',
+            'max_buy',
+            'tags',
+            'point_exchange_type',
+            'point_give_type',
+            'max_use_point',
+            'give_point',
+            'growth_give_type',
+            'give_growth',
+            'supplier_id',
+            'audit_status',
+            'status',
         ]);
     }
 }

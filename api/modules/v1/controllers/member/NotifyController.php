@@ -7,7 +7,7 @@ use yii\data\ActiveDataProvider;
 use yii\web\NotFoundHttpException;
 use api\controllers\UserAuthController;
 use common\enums\StatusEnum;
-use addons\TinyShop\common\models\common\Notify;
+use common\enums\NotifyTypeEnum;
 use addons\TinyShop\common\models\common\NotifyMember;
 
 /**
@@ -23,26 +23,54 @@ class NotifyController extends UserAuthController
     public $modelClass = NotifyMember::class;
 
     /**
-     * 首页
-     *
-     * @return ActiveDataProvider
+     * @return array
      */
     public function actionIndex()
     {
-        $type = Yii::$app->request->get('type', Notify::TYPE_REMIND);
-        return new ActiveDataProvider([
-            'query' => $this->modelClass::find()
-                ->where(['status' => StatusEnum::ENABLED])
-                ->andWhere(['type' => $type, 'member_id' => Yii::$app->user->identity->member_id])
-                ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-                ->with(['notify'])
-                ->orderBy('id desc')
-                ->asArray(),
-            'pagination' => [
-                'pageSize' => $this->pageSize,
-                'validatePage' => false,// 超出分页不返回data
+        $type = Yii::$app->request->post('type', NotifyTypeEnum::REMIND);
+        $member_id = Yii::$app->user->identity->member_id;
+        $chat = [];
+        $unReadCount = 0;
+        if (Yii::$app->has('tinyChatService')) {
+            $chat = Yii::$app->tinyChatService->conversation->findNewestByMemberId($member_id);
+            $unReadCount = Yii::$app->tinyChatService->bubble->unReadCount($member_id);
+        }
+
+        return [
+            'chat' => [
+                'newest' => $chat,
+                'unReadCount' => $unReadCount
             ],
-        ]);
+            'list' => new ActiveDataProvider([
+                'query' => $this->modelClass::find()
+                    ->where(['status' => StatusEnum::ENABLED])
+                    ->andWhere(['type' => $type, 'member_id' => $member_id])
+                    ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
+                    ->with(['notify'])
+                    ->orderBy('id desc')
+                    ->asArray(),
+                'pagination' => [
+                    'pageSize' => $this->pageSize,
+                    'validatePage' => false,// 超出分页不返回data
+                ],
+            ]),
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function actionNewest()
+    {
+        $memberId = Yii::$app->user->identity->member_id;
+
+        $unReadCount = Yii::$app->tinyShopService->notifyMember->unReadCount($memberId);
+        $newest = Yii::$app->tinyShopService->notifyMember->newest($memberId);
+
+        return [
+            'newest' => $newest,
+            'unReadCount' => $unReadCount
+        ];
     }
 
     /**
@@ -63,7 +91,7 @@ class NotifyController extends UserAuthController
         }
 
         // 设置为已读
-        Yii::$app->tinyShopService->notify->read($member_id, [$model['notify_id']]);
+        Yii::$app->tinyShopService->notifyMember->read($member_id, [$model['notify_id']]);
 
         return $model;
     }
@@ -77,19 +105,21 @@ class NotifyController extends UserAuthController
     {
         $member_id = Yii::$app->user->identity->member_id;
 
-        return Yii::$app->tinyShopService->notify->unReadCount($member_id);
+        return Yii::$app->tinyShopService->notifyMember->unReadCount($member_id);
     }
 
     /**
      * 单个已读
      *
-     * @return mixed
+     * @param $notify_id
      */
     public function actionRead($notify_id)
     {
         // 设置为已读
         $member_id = Yii::$app->user->identity->member_id;
-        return Yii::$app->tinyShopService->notify->read($member_id, [$notify_id]);
+        Yii::$app->tinyShopService->notifyMember->read($member_id, [$notify_id]);
+
+        return true;
     }
 
     /**
@@ -103,7 +133,9 @@ class NotifyController extends UserAuthController
         $notify_ids = explode(',', $notify_ids);
         $member_id = Yii::$app->user->identity->member_id;
 
-        return Yii::$app->tinyShopService->notify->clear($member_id, $notify_ids);
+        Yii::$app->tinyShopService->notifyMember->clear($member_id, $notify_ids);
+
+        return true;
     }
 
     /**
@@ -113,10 +145,12 @@ class NotifyController extends UserAuthController
      */
     public function actionClearAll()
     {
-        $type = Yii::$app->request->post('type', Notify::TYPE_REMIND);
+        $type = Yii::$app->request->post('type', NotifyTypeEnum::REMIND);
         $member_id = Yii::$app->user->identity->member_id;
 
-        return Yii::$app->tinyShopService->notify->clearAll($member_id, $type);
+        Yii::$app->tinyShopService->notifyMember->clearAll($member_id, $type);
+
+        return true;
     }
 
     /**
@@ -129,6 +163,8 @@ class NotifyController extends UserAuthController
         // 设置为已读
         $member_id = Yii::$app->user->identity->member_id;
 
-        return Yii::$app->tinyShopService->notify->readAll($member_id);
+        Yii::$app->tinyShopService->notifyMember->readAll($member_id);
+
+        return true;
     }
 }

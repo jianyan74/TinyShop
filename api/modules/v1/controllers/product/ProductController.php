@@ -2,21 +2,20 @@
 
 namespace addons\TinyShop\api\modules\v1\controllers\product;
 
+use common\helpers\BcHelper;
 use Yii;
-use yii\data\ActiveDataProvider;
 use yii\helpers\Json;
-use common\helpers\ResultHelper;
+use yii\data\ActiveDataProvider;
 use common\enums\StatusEnum;
-use common\helpers\AddonHelper;
-use addons\TinyShop\common\models\product\Product;
+use common\helpers\ResultHelper;
 use api\controllers\OnAuthController;
-use addons\TinyShop\common\models\forms\ProductSearch;
-use addons\TinyShop\common\enums\PointExchangeTypeEnum;
-use addons\TinyShop\common\models\SettingForm;
+use addons\TinyShop\common\models\product\Product;
+use addons\TinyShop\common\forms\ProductSearchForm;
+use addons\TinyShop\common\enums\MarketingEnum;
+use addons\TinyShop\common\enums\ProductShippingTypeEnum;
+use addons\TinyShop\common\enums\ShippingTypeEnum;
 
 /**
- * 产品
- *
  * Class ProductController
  * @package addons\TinyShop\api\modules\v1\controllers\product
  * @author jianyan74 <751393839@qq.com>
@@ -35,15 +34,20 @@ class ProductController extends OnAuthController
      *
      * @var array
      */
-    protected $authOptional = ['index', 'view', 'guess-you-like'];
+    protected $authOptional = ['index', 'list', 'view', 'view', 'view-by-base', 'excellent', 'guess-you-like'];
 
     /**
      * @return array|ActiveDataProvider|\yii\db\ActiveRecord[]
      */
     public function actionIndex()
     {
-        $model = new ProductSearch();
+        // 判断用户
+        $member_id = !Yii::$app->user->isGuest ? Yii::$app->user->identity->member_id : '';
+
+        $model = new ProductSearchForm();
         $model->attributes = Yii::$app->request->get();
+        $model->member_id = $member_id;
+        $model->current_level = Yii::$app->tinyShopService->member->getCurrentLevel($member_id);
 
         return Yii::$app->tinyShopService->product->getListBySearch($model);
     }
@@ -55,6 +59,11 @@ class ProductController extends OnAuthController
      */
     public function actionView($id)
     {
+        // 强制不获取营销信息
+        $not_marketing = Yii::$app->request->get('not_marketing', StatusEnum::DISABLED);
+        $marketing_id = Yii::$app->request->get('marketing_id');
+        $marketing_type = Yii::$app->request->get('marketing_type');
+        $marketing_product_id = Yii::$app->request->get('marketing_product_id');
         // 判断用户
         $member_id = !Yii::$app->user->isGuest ? Yii::$app->user->identity->member_id : '';
 
@@ -63,18 +72,10 @@ class ProductController extends OnAuthController
             return ResultHelper::json(422, '商品找不到了');
         }
 
-        if (
-            $model['product_status'] == StatusEnum::DISABLED ||
-            $model['status'] == StatusEnum::DISABLED ||
-            $model['status'] == StatusEnum::DELETE
-        ) {
-            return ResultHelper::json(422, '商品已下架');
-        }
-
         // 销量
-        unset($model['real_sales'], $model['sales']);
-        // 标签
-        $model['tags'] = !empty($model['tags']) ? explode(',', $model['tags']) : [];
+        unset($model['real_sales'], $model['sales'], $model['cost_price']);
+        // 品牌
+        $model['brand'] = $model['brand_id'] > 0 ? Yii::$app->tinyShopService->productBrand->findById($model['brand_id']) : [];
         // 浏览量 + 1
         Product::updateAllCounters(['view' => 1], ['id' => $id]);
         // 足迹
@@ -95,58 +96,135 @@ class ProductController extends OnAuthController
             }
         }
 
-        // 查询开启分销 (非积分兑换才可以)
-        $model['commissionRate'] = [];
-        $setting = new SettingForm();
-        $setting->attributes = AddonHelper::getConfig();
+        // 营销
+        $model['marketing'] = [];
+        $model['marketing_tags'] = [];
+
+        // 限购判断
+        $model['is_buy'] = StatusEnum::ENABLED;
+        $model['purchased'] = 0;
+        if ($model['max_buy'] > 0 && !empty($member_id)) {
+            $model['purchased'] = Yii::$app->tinyShopService->orderProduct->findSumByMember($id, $member_id);
+            $model['purchased'] >= $model['max_buy'] && $model['is_buy'] = StatusEnum::DISABLED;
+        }
+
+        // 配送
+        if (!empty($model['delivery_type'])) {
+            $deliveryType = [];
+            foreach ($model['delivery_type'] as $value) {
+                ShippingTypeEnum::getValue($value) && $deliveryType[] = [
+                    'name' => ShippingTypeEnum::getValue($value),
+                    'explain' => ShippingTypeEnum::getExplain($value),
+                ];
+            }
+            $model['delivery_type'] = $deliveryType;
+        }
+
+        // 服务
+        $model['service'] = Yii::$app->tinyShopService->productServiceMap->findByMerchantId($model['merchant_id']);
+        // 微信小程序直播
+        $model['live'] = Yii::$app->has('wechatMiniService') ? Yii::$app->wechatMiniService->live->findByCustom() : [];
+
+        // 可领优惠券
+        $canReceiveCoupon = Yii::$app->tinyShopService->marketingCouponType->getCanReceiveCouponByProductId($id, $model['cateIds'], $member_id, $model['merchant_id']);
+        foreach ($canReceiveCoupon as &$item) {
+            $item = Yii::$app->tinyShopService->marketingCouponType->regroupShow($item);
+        }
+        $model['canReceiveCoupon'] = $canReceiveCoupon;
+
+
+        // ***************************** 标签 ***************************** //
+        $model['is_hot'] == StatusEnum::ENABLED && $model['marketing_tags'][] = '热门';
+        $model['is_recommend'] == StatusEnum::ENABLED && $model['marketing_tags'][] = '推荐';
+        $model['is_new'] == StatusEnum::ENABLED && $model['marketing_tags'][] = '新品';
+        $model['shipping_type'] == ProductShippingTypeEnum::FULL_MAIL && $model['marketing_tags'][] = '包邮';
+        // 未包邮判断是否需要满包邮
         if (
-            $setting->is_open_commission == StatusEnum::ENABLED &&
-            !PointExchangeTypeEnum::isIntegralBuy($model['point_exchange_type']) &&
-            $model['is_open_commission'] == StatusEnum::ENABLED
+            $model['shipping_type'] != ProductShippingTypeEnum::FULL_MAIL &&
+            !empty($fullMail = Yii::$app->tinyShopService->marketingFullMail->findOne($model['merchant_id'])) &&
+            $fullMail['status'] == StatusEnum::ENABLED &&
+            $fullMail['full_mail_money'] > 0
         ) {
-            $model['commissionRate'] = Yii::$app->tinyShopService->productCommissionRate->findByProductId($model['id']);
+            $model['marketing_tags'][] = '满' . $fullMail['full_mail_money'] . '包邮';
+        }
+        $model['min_buy'] > 1 && $model['marketing_tags'][] = $model['min_buy'] . '件起';
+        // $model['max_buy'] > 0 && $model['marketing_tags'][] = '限购' . $model['max_buy'] . '件';
+        // 积分抵现
+        if (
+            !empty($member_id) &&
+            $model['marketing_type'] != MarketingEnum::POINT_EXCHANGE &&
+            !empty($memberAccount = Yii::$app->services->memberAccount->findByMemberId($member_id)) &&
+            $memberAccount['user_integral'] > 0 &&
+            !empty($pointMaxConfig = Yii::$app->tinyShopService->marketingPointConfig->getMaxConfig($model['minSkuPrice'], $memberAccount['user_integral']))
+        ) {
+            $pointTag = $pointMaxConfig['maxPoint'] . '积分可抵' . $pointMaxConfig['maxMoney'] . '元';
+            $pointMaxConfig['minOrderMoney'] > 0 && $pointTag = '满' . $pointMaxConfig['minOrderMoney'] . '元' . $pointTag;
+            $model['marketing_tags'][] = $pointTag;
+        }
+
+        empty($model['marketing_tags']) && $model['marketing_tags'] = ['普通商品'];
+        $model['match_ratio'] = floatval(BcHelper::add($model['match_ratio'], 0));
+        !empty($model['extend']) && $model['extend'] = Json::decode($model['extend']);
+
+        return $model;
+    }
+
+    /**
+     * 基础信息
+     *
+     * @param $id
+     * @return array|mixed|\yii\db\ActiveRecord|null
+     * @throws \yii\web\NotFoundHttpException
+     */
+    public function actionViewByBase($id)
+    {
+        // 强制不获取营销信息
+        $not_marketing = Yii::$app->request->get('not_marketing', StatusEnum::DISABLED);
+        $marketing_id = Yii::$app->request->get('marketing_id');
+        $marketing_type = Yii::$app->request->get('marketing_type');
+        $marketing_product_id = Yii::$app->request->get('marketing_product_id');
+
+        $member_id = !Yii::$app->user->isGuest ? Yii::$app->user->identity->member_id : '';
+        $model = Yii::$app->tinyShopService->product->findViewById($id, $member_id, ['sku']);
+
+        if (!$model) {
+            return ResultHelper::json(422, '商品找不到了');
         }
 
         // 营销
         $model['marketing'] = [];
-        empty($model['marketing']) && $model['marketing_type']  = '';
 
-        // 可领优惠券
-        $canReceiveCoupon = Yii::$app->tinyShopService->marketingCouponType->getCanReceiveCouponByProductId($id, $member_id, $model['merchant_id']);
-        foreach ($canReceiveCoupon as &$item) {
-            $item = Yii::$app->tinyShopService->marketingCouponType->regroupShow($item);
-        }
-
-        $model['canReceiveCoupon'] = $canReceiveCoupon;
-
-        // 反转阶梯优惠，因为默认是递减
-        $model['ladderPreferential'] = [];
-
-        // 限购判断：是否可购买
+        // 限购判断
         $model['is_buy'] = StatusEnum::ENABLED;
         $model['purchased'] = 0;
         if ($model['max_buy'] > 0 && !empty($member_id)) {
-            $model['purchased'] = Yii::$app->tinyShopService->orderProduct->getSumByMember($id, $member_id);
-
-            if ($model['purchased'] >= $model['max_buy']) {
-                $model['is_buy'] = StatusEnum::DISABLED;
-            }
+            $model['purchased'] = Yii::$app->tinyShopService->orderProduct->findSumByMember($id, $member_id);
+            $model['purchased'] >= $model['max_buy'] && $model['is_buy'] = StatusEnum::DISABLED;
         }
 
-        // 积分抵现
-        $model['pointConfig'] = Yii::$app->tinyShopService->marketingPointConfig->findOne($model['merchant_id']);
-        // 满包邮
-        $model['fullMail'] = Yii::$app->tinyShopService->marketingFullMail->findOne($model['merchant_id']);
-        // 满减送
-        $model['fullGive'] = [];
-        // 满减送规则
-        $model['fullGiveRule'] = [];
-        // 会员折扣
-        $model['memberDiscount'] = [];
-        // 组合套餐
-        $model['combination'] = [];
-
         return $model;
+    }
+
+    /**
+     * 自定义装修可用
+     *
+     * @return array|ActiveDataProvider|\yii\db\ActiveRecord[]
+     */
+    public function actionList()
+    {
+        $model = new ProductSearchForm();
+        $model->attributes = Yii::$app->request->get();
+        $model->limit = $this->pageSize;
+
+        list($list, $pages) = Yii::$app->tinyShopService->product->getListBySearch($model, true);
+
+        return [
+            'list' => $list,
+            'pages' => [
+                'totalCount' => $pages->totalCount,
+                'pageSize' => $pages->pageSize,
+            ]
+        ];
     }
 
     /**
@@ -157,8 +235,13 @@ class ProductController extends OnAuthController
     public function actionGuessYouLike()
     {
         $member_id = !Yii::$app->user->isGuest ? Yii::$app->user->identity->member_id : '';
+        $cateIds = Yii::$app->tinyShopService->memberFootprint->findCateIdsByMemberId($member_id);
 
-        return Yii::$app->tinyShopService->product->getGuessYouLike($member_id);
+        $model = new ProductSearchForm();
+        $model->current_level = Yii::$app->tinyShopService->member->getCurrentLevel($member_id);
+        $model->cate_id = implode(',', $cateIds);
+
+        return Yii::$app->tinyShopService->product->getListBySearch($model);
     }
 
     /**

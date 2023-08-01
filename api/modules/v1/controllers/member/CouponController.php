@@ -3,11 +3,12 @@
 namespace addons\TinyShop\api\modules\v1\controllers\member;
 
 use Yii;
+use yii\web\NotFoundHttpException;
 use yii\data\ActiveDataProvider;
 use api\controllers\UserAuthController;
 use addons\TinyShop\common\models\marketing\Coupon;
 use common\enums\StatusEnum;
-use yii\web\NotFoundHttpException;
+use common\enums\UseStateEnum;
 
 /**
  * 我的优惠券
@@ -24,14 +25,15 @@ class CouponController extends UserAuthController
     public $modelClass = Coupon::class;
 
     /**
-     * @return ActiveDataProvider
+     * @return array
      */
     public function actionIndex()
     {
-        $state = Yii::$app->request->get('state', 1);
+        $member_id = Yii::$app->user->identity->member_id;
+        $state = Yii::$app->request->get('state', UseStateEnum::GET);
 
         switch ($state) {
-            case Coupon::STATE_GET :
+            case UseStateEnum::GET :
                 $where = [
                     'and',
                     ['member_id' => Yii::$app->user->identity->member_id],
@@ -42,7 +44,7 @@ class CouponController extends UserAuthController
 
                 $orderBy = 'fetch_time desc, id desc';
                 break;
-            case Coupon::STATE_PAST_DUE :
+            case UseStateEnum::PAST_DUE :
                 $where = [
                     'and',
                     ['member_id' => Yii::$app->user->identity->member_id],
@@ -52,7 +54,7 @@ class CouponController extends UserAuthController
                         ['state' => $state],
                         [
                             'and',
-                            ['state' => Coupon::STATE_GET],
+                            ['state' => UseStateEnum::GET],
                             ['<', 'end_time', time()],
                         ],
                     ],
@@ -72,11 +74,11 @@ class CouponController extends UserAuthController
                 break;
         }
 
-        return new ActiveDataProvider([
+        $data = new ActiveDataProvider([
             'query' => $this->modelClass::find()
                 ->where($where)
                 ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-                ->with(['usableProduct', 'couponType', 'merchant'])
+                ->with(['couponType', 'baseMerchant'])
                 ->orderBy($orderBy)
                 ->asArray(),
             'pagination' => [
@@ -84,6 +86,11 @@ class CouponController extends UserAuthController
                 'validatePage' => false,// 超出分页不返回data
             ],
         ]);
+
+        return [
+            'list' => $data->getModels(),
+            'groupCount' => Yii::$app->tinyShopService->marketingCoupon->findStateCount($member_id),
+        ];
     }
 
     /**
@@ -99,7 +106,7 @@ class CouponController extends UserAuthController
                     'id' => $id,
                     'status' => StatusEnum::ENABLED,
                 ])
-                ->with(['usableProduct', 'couponType', 'merchant'])
+                ->with(['couponType', 'baseMerchant'])
                 ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
                 ->asArray()
                 ->one())
@@ -120,7 +127,23 @@ class CouponController extends UserAuthController
         return Coupon::updateAll(['status' => StatusEnum::DELETE], [
             'member_id' => Yii::$app->user->identity->member_id,
             'status' => StatusEnum::ENABLED,
-            'state' => Coupon::STATE_PAST_DUE
+            'state' => UseStateEnum::PAST_DUE
         ]);
+    }
+
+    /**
+     * 权限验证
+     *
+     * @param string $action 当前的方法
+     * @param null $model 当前的模型类
+     * @param array $params $_GET变量
+     * @throws \yii\web\BadRequestHttpException
+     */
+    public function checkAccess($action, $model = null, $params = [])
+    {
+        // 方法名称
+        if (in_array($action, ['delete', 'update', 'create'])) {
+            throw new \yii\web\BadRequestHttpException('权限不足');
+        }
     }
 }

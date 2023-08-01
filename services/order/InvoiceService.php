@@ -17,19 +17,20 @@ class InvoiceService extends Service
 {
     /**
      * @param Order $order
-     * @param \common\models\member\Invoice $invoice
-     * @param $content
+     * @param $invoice
+     * @param $explain
+     * @return Invoice
+     * @throws UnprocessableEntityHttpException
      */
-    public function create(Order $order, \common\models\member\Invoice $invoice, $content)
+    public function create(Order $order, $invoice, $explain)
     {
         $model = new Invoice();
         $model->attributes = ArrayHelper::toArray($invoice);
-        $model->order_id = $order->id;
         $model->merchant_id = $order->merchant_id;
+        $model->order_id = $order->id;
         $model->order_sn = $order->order_sn;
         $model->tax_money = $order->tax_money;
-        $model->user_name = $order->user_name;
-        $model->content = $content;
+        $model->explain = $explain;
         if (!$model->save()) {
             throw new UnprocessableEntityHttpException($this->getError($model));
         }

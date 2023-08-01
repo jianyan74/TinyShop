@@ -6,10 +6,11 @@ use Yii;
 use yii\data\ActiveDataProvider;
 use api\controllers\UserAuthController;
 use common\enums\StatusEnum;
+use common\enums\CreditsLogTypeEnum;
 use common\models\member\CreditsLog;
 
 /**
- * 积分/余额记录
+ * 积分/余额/成长值记录
  *
  * Class CreditsLogController
  * @package addons\TinyShop\api\modules\v1\controllers\member
@@ -29,22 +30,37 @@ class CreditsLogController extends UserAuthController
      */
     public function actionIndex()
     {
-        $credit_type = [CreditsLog::CREDIT_TYPE_USER_INTEGRAL, CreditsLog::CREDIT_TYPE_GIVE_INTEGRAL];
-        if (Yii::$app->request->get('credit_type') == StatusEnum::ENABLED) {
-            $credit_type = [CreditsLog::CREDIT_TYPE_USER_MONEY, CreditsLog::CREDIT_TYPE_GIVE_MONEY, CreditsLog::CREDIT_TYPE_CONSUME_MONEY];
+        $type = Yii::$app->request->get('type');
+        $numType = Yii::$app->request->get('num_type');
+        switch ($type) {
+            case 1 :
+                // 余额
+                $type = [CreditsLogTypeEnum::USER_MONEY, CreditsLogTypeEnum::CONSUME_MONEY];
+                break;
+            case 2 :
+                // 成长值
+                $type = [CreditsLogTypeEnum::USER_GROWTH];
+                break;
+            default :
+                // 积分
+                $type = [CreditsLogTypeEnum::USER_INTEGRAL];
+                break;
         }
 
-        $num_where = [];
-        if (!empty($num_type = Yii::$app->request->get('num_type'))) {
+        $numWhere = [];
+        if (!empty($numType)) {
             // 1: 增加;2：减少;
-            $num_where = $num_type == 1 ? ['>', 'num', 0] : ['<=', 'num', 0];
+            $numWhere = $numType == 1 ? ['>', 'num', 0] : ['<=', 'num', 0];
         }
 
         return new ActiveDataProvider([
             'query' => $this->modelClass::find()
-                ->where(['status' => StatusEnum::ENABLED, 'member_id' => Yii::$app->user->identity->member_id])
-                ->andWhere(['in', 'credit_type', $credit_type])
-                ->andFilterWhere($num_where)
+                ->where([
+                    'member_id' => Yii::$app->user->identity->member_id,
+                    'status' => StatusEnum::ENABLED
+                ])
+                ->andWhere(['in', 'type', $type])
+                ->andFilterWhere($numWhere)
                 ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
                 ->orderBy('id desc')
                 ->asArray(),
@@ -53,5 +69,21 @@ class CreditsLogController extends UserAuthController
                 'validatePage' => false,// 超出分页不返回data
             ],
         ]);
+    }
+
+    /**
+     * 权限验证
+     *
+     * @param string $action 当前的方法
+     * @param null $model 当前的模型类
+     * @param array $params $_GET变量
+     * @throws \yii\web\BadRequestHttpException
+     */
+    public function checkAccess($action, $model = null, $params = [])
+    {
+        // 方法名称
+        if (in_array($action, ['delete', 'update', 'create'])) {
+            throw new \yii\web\BadRequestHttpException('权限不足');
+        }
     }
 }

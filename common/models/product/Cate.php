@@ -1,33 +1,37 @@
 <?php
+
 namespace addons\TinyShop\common\models\product;
 
 use common\traits\Tree;
 use common\behaviors\MerchantBehavior;
 
 /**
- * This is the model class for table "{{%addon_shop_product_cate}}".
+ * This is the model class for table "{{%addon_tiny_shop_product_cate}}".
  *
  * @property int $id 主键
+ * @property int|null $merchant_id 商户id
  * @property string $title 标题
- * @property string $cover 封面图
- * @property int $sort 排序
- * @property int $level 级别
- * @property int $pid 上级id
- * @property int $index_block_status 首页块级状态 1=>显示
- * @property int $status 状态[-1:删除;0:禁用;1启用]
- * @property string $created_at 创建时间
- * @property string $updated_at 更新时间
+ * @property string|null $subhead 副标题
+ * @property string|null $cover 封面图
+ * @property int|null $sort 排序
+ * @property int|null $level 级别
+ * @property int|null $pid 上级id
+ * @property string|null $tree 树
+ * @property int|null $is_recommend 推荐
+ * @property int|null $status 状态[-1:删除;0:禁用;1启用]
+ * @property int $created_at 创建时间
+ * @property int $updated_at 更新时间
  */
 class Cate extends \common\models\base\BaseModel
 {
-    use Tree, MerchantBehavior;
+    use MerchantBehavior, Tree;
 
     /**
      * {@inheritdoc}
      */
     public static function tableName()
     {
-        return '{{%addon_shop_product_cate}}';
+        return '{{%addon_tiny_shop_product_cate}}';
     }
 
     /**
@@ -36,11 +40,11 @@ class Cate extends \common\models\base\BaseModel
     public function rules()
     {
         return [
-            [['title'], 'required'],
-            [['merchant_id', 'sort', 'level', 'pid', 'index_block_status', 'status', 'created_at', 'updated_at'], 'integer'],
-            [['title'], 'string', 'max' => 50],
-            [['cover'], 'string', 'max' => 255],
+            [['merchant_id', 'sort', 'level', 'pid', 'is_recommend', 'status', 'created_at', 'updated_at'], 'integer'],
             [['tree'], 'string'],
+            [['title'], 'required'],
+            [['title', 'subhead'], 'string', 'max' => 50],
+            [['cover'], 'string', 'max' => 255],
         ];
     }
 
@@ -50,25 +54,19 @@ class Cate extends \common\models\base\BaseModel
     public function attributeLabels()
     {
         return [
-            'id' => 'ID',
+            'id' => '主键',
+            'merchant_id' => '商户id',
             'title' => '标题',
-            'cover' => '封面',
+            'subhead' => '副标题',
+            'cover' => '封面图',
             'sort' => '排序',
             'level' => '级别',
+            'pid' => '上级分类',
             'tree' => '树',
-            'pid' => '父级',
-            'index_block_status' => '首页显示',
+            'is_recommend' => '推荐',
             'status' => '状态',
             'created_at' => '创建时间',
             'updated_at' => '更新时间',
         ];
-    }
-
-    /**
-     * @return \yii\db\ActiveQuery
-     */
-    public function getParent()
-    {
-        return $this->hasOne(self::class, ['id' => 'pid']);
     }
 }

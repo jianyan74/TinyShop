@@ -4,7 +4,8 @@ namespace addons\TinyShop\common\components\delivery;
 
 use Yii;
 use yii\web\UnprocessableEntityHttpException;
-use addons\TinyShop\common\models\forms\PreviewForm;
+use common\enums\StatusEnum;
+use addons\TinyShop\common\forms\PreviewForm;
 use addons\TinyShop\common\components\PreviewInterface;
 
 /**
@@ -28,7 +29,7 @@ class LogisticsDelivery extends PreviewInterface
         }
 
         // 物流配送
-        if (empty($form->is_open_logistics)) {
+        if ($form->config['logistics'] == StatusEnum::DISABLED) {
             throw new UnprocessableEntityHttpException('物流配送已关闭');
         }
 
@@ -37,10 +38,8 @@ class LogisticsDelivery extends PreviewInterface
         }
 
         // 自选物流
-        if (!empty($form->is_logistics)) {
-            if (!$form->company_id || !Yii::$app->tinyShopService->expressCompany->findById($form->company_id)) {
-                throw new UnprocessableEntityHttpException('请选择物流公司');
-            }
+        if ($form->config['logistics_select'] == StatusEnum::ENABLED && (!$form->company_id || !Yii::$app->tinyShopService->expressCompany->findById($form->company_id))) {
+            throw new UnprocessableEntityHttpException('请选择物流公司');
         }
 
         return $form;

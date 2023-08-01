@@ -2,8 +2,8 @@
 
 namespace addons\TinyShop\merchant\modules\statistics\controllers;
 
-use common\helpers\ResultHelper;
 use Yii;
+use common\helpers\ResultHelper;
 use addons\TinyShop\merchant\controllers\BaseController;
 
 /**
@@ -22,7 +22,7 @@ class TransactionAnalyzeController extends BaseController
     public function actionIndex()
     {
         return $this->render($this->action->id, [
-            'total' => Yii::$app->tinyShopService->order->getStatByTime(0),
+            'total' => Yii::$app->tinyShopService->orderStat->getStatByTime(0),
         ]);
     }
 
@@ -32,7 +32,7 @@ class TransactionAnalyzeController extends BaseController
     public function actionOrderMoney()
     {
         $type = Yii::$app->request->get('type');
-        $data = Yii::$app->tinyShopService->order->getBetweenProductMoneyAndCountStatToEchant($type);
+        $data = Yii::$app->tinyShopService->orderStat->getBetweenProductMoneyAndCountStatToEchant($type);
 
         return ResultHelper::json(200, '获取成功', $data);
     }
@@ -43,7 +43,7 @@ class TransactionAnalyzeController extends BaseController
     public function actionOrderCreateCount()
     {
         $type = Yii::$app->request->get('type');
-        $data = Yii::$app->tinyShopService->order->getOrderCreateCountStat($type);
+        $data = Yii::$app->tinyShopService->orderStat->getOrderCreateCountStat($type);
 
         return ResultHelper::json(200, '获取成功', $data);
     }
@@ -56,7 +56,7 @@ class TransactionAnalyzeController extends BaseController
     public function actionOrderFrom()
     {
         $type = Yii::$app->request->get('type');
-        $data = Yii::$app->tinyShopService->order->getFormStat($type);
+        $data = Yii::$app->tinyShopService->orderStat->getFormStat($type);
 
         return ResultHelper::json(200, '获取成功', $data);
     }
@@ -69,7 +69,7 @@ class TransactionAnalyzeController extends BaseController
     public function actionOrderType()
     {
         $type = Yii::$app->request->get('type');
-        $data = Yii::$app->tinyShopService->order->getOrderTypeStat($type);
+        $data = Yii::$app->tinyShopService->orderStat->getOrderTypeStat($type);
 
         return ResultHelper::json(200, '获取成功', $data);
     }

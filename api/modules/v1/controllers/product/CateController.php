@@ -5,11 +5,12 @@ namespace addons\TinyShop\api\modules\v1\controllers\product;
 use Yii;
 use common\enums\StatusEnum;
 use common\helpers\ArrayHelper;
+use common\helpers\TreeHelper;
 use api\controllers\OnAuthController;
 use addons\TinyShop\common\models\product\Cate;
 
 /**
- * 产品分类
+ * 商品分类
  *
  * Class CateController
  * @package addons\TinyShop\api\controllers
@@ -29,16 +30,21 @@ class CateController extends OnAuthController
      *
      * @var array
      */
-    protected $authOptional = ['index', 'list'];
+    protected $authOptional = ['index', 'child'];
 
     /**
-     * @return array|\yii\data\ActiveDataProvider
+     * 首页
+     *
+     * @return array
      */
     public function actionIndex()
     {
         $list = Yii::$app->tinyShopService->productCate->getList();
+        $cate = ArrayHelper::itemsMerge($list, 0, 'id', 'pid', 'child');
 
-        return ArrayHelper::itemsMerge($list, 0, 'id', 'pid', 'child');
+        return [
+            'list' => $cate,
+        ];
     }
 
     /**
@@ -46,19 +52,23 @@ class CateController extends OnAuthController
      *
      * @return array|\yii\db\ActiveRecord[]
      */
-    public function actionList()
+    public function actionChild()
     {
         $pid = Yii::$app->request->get('pid');
-        $index_block_status = Yii::$app->request->get('index_block_status');
+        $is_recommend = Yii::$app->request->get('is_recommend');
+        $model = Yii::$app->tinyShopService->productCate->findById($pid);
 
-        return Cate::find()
+        $list = Cate::find()
+            ->select(['id', 'title', 'pid', 'cover', 'level'])
             ->where(['status' => StatusEnum::ENABLED])
             ->andFilterWhere(['merchant_id' => $this->getMerchantId()])
-            ->andFilterWhere(['pid' => $pid])
-            ->andFilterWhere(['index_block_status' => $index_block_status])
+            ->andFilterWhere(['like', 'tree', $model['tree'] . TreeHelper::prefixTreeKey($model['id']) . '%', false])
+            ->andFilterWhere(['is_recommend' => $is_recommend])
             ->orderBy('sort asc, id desc')
             ->asArray()
             ->all();
+
+        return ArrayHelper::itemsMerge($list, $pid, 'id', 'pid', 'child');
     }
 
     /**

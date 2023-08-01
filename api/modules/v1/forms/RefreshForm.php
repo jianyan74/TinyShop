@@ -5,8 +5,8 @@ namespace addons\TinyShop\api\modules\v1\forms;
 use Yii;
 use yii\base\Model;
 use yii\web\UnauthorizedHttpException;
-use addons\TinyShop\common\models\api\AccessToken;
 use common\models\member\Member;
+use common\models\api\AccessToken;
 use addons\TinyShop\common\enums\AccessTokenGroupEnum;
 
 /**

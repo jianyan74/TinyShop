@@ -1,0 +1,7 @@
+{
+  "name": "tinymce-all-in-one",
+  "version": " 4.9.5",
+  "description": "Build all tinymce plugins into one js",
+  "author": "Pan <panfree23@gmail.com>",
+  "license": "MIT"
+}
