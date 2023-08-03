@@ -31,7 +31,7 @@ H5 预览: http://v3.h5.b2b2c.rageframe.com/
 
 ### 小程序 Demo
 
-![image](https://s1.ax1x.com/2023/08/01/pP9v98e.jpg)
+![image](https://rageframe.oss-cn-shanghai.aliyuncs.com/qrcode/RF商城3.0多商户Demo小程序.jpg)
 
 ### 安装
 
